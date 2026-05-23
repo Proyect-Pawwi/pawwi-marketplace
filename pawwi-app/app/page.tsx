@@ -7,7 +7,7 @@ export default function Home() {
 
   return (
     <div>
-      Proyecto funcionando Pawwi
+      Proyecto funcionando Pawwi :D
     </div>
   )
 }
