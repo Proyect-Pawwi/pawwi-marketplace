@@ -1,13 +1,35 @@
-import Image from "next/image";
+"use client";
 
-// app/page.tsx
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function Home() {
-  console.log(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    async function getUser() {
+      const supabase = createClient();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setUser(user);
+    }
+
+    getUser();
+  }, []);
 
   return (
-    <div>
-      Proyecto funcionando Pawwi :D
+    <div className="p-10">
+      {user ? (
+        <div>
+          <p>Logueado como:</p>
+          <p>{user.email}</p>
+        </div>
+      ) : (
+        <p>No autenticado</p>
+      )}
     </div>
-  )
+  );
 }
