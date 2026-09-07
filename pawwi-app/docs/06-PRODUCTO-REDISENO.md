@@ -462,7 +462,7 @@ cliente es bajo** — es el siguiente movimiento estratégico.
 
 | Capa | Tecnología | Nota |
 |---|---|---|
-| Framework | **Next.js 16.2.6** · App Router · Turbopack | `middleware` se renombró a `proxy` |
+| Framework | **Next.js 16.3.4** · App Router · Turbopack | `middleware` se renombró a `proxy` |
 | UI | React 19.2.4 · TypeScript 5 · Tailwind v4 | Tokens en `app/globals.css`, sin `tailwind.config.js` |
 | Runtime | **Node v20 LTS** | v21+ rompe `@swc/helpers` y `next dev` muere en silencio |
 | Backend | Supabase — Postgres, RLS, Auth, Realtime, Storage | `@supabase/ssr` 0.10.3 |
