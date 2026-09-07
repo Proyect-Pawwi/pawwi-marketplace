@@ -1,74 +1,37 @@
-"use client";
+import { Suspense } from "react";
+import type { Metadata } from "next";
+import LoginForm from "./LoginForm";
 
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+export const metadata: Metadata = {
+  title: "Ingresar — Pawwi",
+  description: "Ingresa a tu cuenta de Pawwi.",
+};
 
 export default function LoginPage() {
-  const supabase = createClient();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  async function handleRegister() {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: "http://localhost:3000/auth/callback",
-      },
-    });
-
-    if (error) {
-      alert("No se pudo crear la cuenta");
-      return;
-    }
-
-    alert("Revisa tu correo para verificar tu cuenta");
-  }
-
-  async function handleLogin() {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      alert("Credenciales inválidas");
-      return;
-    }
-
-    alert("Login exitoso");
-  }
-
   return (
-    <div className="p-10 flex flex-col gap-4 max-w-md">
-      <input
-        type="email"
-        placeholder="Email"
-        className="border p-2"
-        onChange={(e) => setEmail(e.target.value)}
-      />
+    <main className="relative min-h-screen bg-cream flex items-center justify-center px-4 py-12 overflow-hidden">
+      {/* Blobs decorativos */}
+      <div className="absolute -top-32 -left-32 w-[28rem] h-[28rem] rounded-full bg-plum/35 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-blue-ice/35 blur-3xl pointer-events-none" />
 
-      <input
-        type="password"
-        placeholder="Password"
-        className="border p-2"
-        onChange={(e) => setPassword(e.target.value)}
-      />
+      <div className="relative w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-heading font-bold text-midnight mb-2">
+            Bienvenido de vuelta
+          </h1>
+          <p className="text-midnight/60 font-body">
+            Tu peludo te está esperando.
+          </p>
+        </div>
 
-      <button
-        onClick={handleRegister}
-        className="bg-black text-white p-2"
-      >
-        Registrarse
-      </button>
-
-      <button
-        onClick={handleLogin}
-        className="bg-blue-600 text-white p-2"
-      >
-        Login
-      </button>
-    </div>
+        {/* Card glass */}
+        <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/60 p-8">
+          <Suspense fallback={null}>
+            <LoginForm />
+          </Suspense>
+        </div>
+      </div>
+    </main>
   );
 }
