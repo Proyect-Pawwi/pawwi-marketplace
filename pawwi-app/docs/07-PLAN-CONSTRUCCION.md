@@ -124,6 +124,12 @@ temprano: todo lo que se construya después se construye sobre el modelo correct
 - Cablear `friendly_dogs`: advertencia al cliente y dato visible para el Pawwer antes de aceptar
 - **Reserva instantánea:** columna `instant_booking`, rama en `create_booking` con bloqueo de cupo
   al crear, exclusión del cron de escalación
+- **Retirar PawwiProtect™ del producto.** La decisión 03 eliminó el Fondo de Asistencia, pero el
+  producto lo sigue prometiendo en **8 lugares**, incluido el paso 1 de la reserva («PawwiProtect™
+  incluido en todas las reservas»), la home («seguro veterinario y soporte 24/7 sin costo
+  adicional»), el FAQ de soporte, la página de reclutamiento de Pawwers y —lo más delicado— las
+  meta descripciones de `layout.tsx`, que son lo que sale en Google y en las vistas previas de
+  WhatsApp
 - Reescribir términos y privacidad: intermediario explícito, sin Fondo de Asistencia
 
 **❌ No se construye**
