@@ -41,3 +41,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# La plantilla SÍ va al repo (no tiene secretos)
+!.env.example
