@@ -155,8 +155,8 @@ export default function Step1Servicios({ pawwer, preSelectedServiceId, preStart,
 
         {/* Trust pill */}
         <div className="flex items-center justify-center gap-2 text-xs text-midnight/50 font-body mb-8">
-          <span>🛡️</span>
-          <span>PawwiProtect™ incluido en todas las reservas</span>
+          <span>🏠</span>
+          <span>Todos los Pawwers verificados con visita domiciliaria</span>
         </div>
 
         <button

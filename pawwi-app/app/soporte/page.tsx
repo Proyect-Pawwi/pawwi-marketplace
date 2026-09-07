@@ -8,7 +8,7 @@ export const metadata = {
 
 const TOPICS = [
   { q: "¿Cómo reservo un cuidador?", a: "Busca por tu barrio en la página principal, elige un Pawwer verificado y selecciona las fechas. Te guiamos paso a paso." },
-  { q: "¿Qué es PawwiProtect™?", a: "Es la cobertura veterinaria y el soporte que incluimos sin costo en cada reserva, para tu tranquilidad." },
+  { q: "¿Cómo verifican a los Pawwers?", a: "Cada Pawwer pasa por un examen, una capacitación y una visita a su hogar antes de ser aceptado. Pawwi responde por esa verificación; el cuidado ocurre entre tú y el Pawwer." },
   { q: "Soy Pawwer, ¿cómo recibo mis pagos?", a: "Los cortes son semanales y se pagan los viernes. Puedes ver tus ingresos en tu panel." },
 ];
 

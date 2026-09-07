@@ -831,13 +831,13 @@ export default function PawwiHome() {
               <span className="text-[#FF7031]">hogares de familia</span>, no en jaulas.
             </h1>
             <p className="hero-item [animation-delay:160ms] text-base lg:text-lg text-[#6B7280] font-medium max-w-md mb-7 text-pretty">
-              La primera red de cuidadores verificados en tu mismo barrio. Atención personalizada, cero jaulas y póliza PawwiProtect™ incluida.
+              La primera red de cuidadores en tu mismo barrio. Visitamos cada hogar antes de aceptarlo: atención personalizada y cero jaulas.
             </p>
             <div className="hero-item [animation-delay:240ms] flex flex-wrap gap-3 justify-center lg:justify-start">
               {[
                 { icon: <Star size={16} className="text-yellow-500 fill-yellow-500" />, bg: "bg-yellow-50",      stat: "4.9 / 5",       label: "+500 reseñas Google" },
                 { icon: <MapPin size={16} className="text-[#120A2B]" />,               bg: "bg-[#92C0E9]",      stat: "15 Pawwers",     label: "Verificados" },
-                { icon: <ShieldCheck size={16} className="text-[#120A2B]" />,          bg: "bg-[#F7AEF1]",      stat: "PawwiProtect™",  label: "En toda reserva" },
+                { icon: <ShieldCheck size={16} className="text-[#120A2B]" />,          bg: "bg-[#F7AEF1]",      stat: "Visita a domicilio", label: "En cada hogar" },
               ].map(({ icon, bg, stat, label }) => (
                 <div key={label} className="flex items-center gap-2.5 bg-white/80 px-4 py-2.5 rounded-2xl border border-gray-100 shadow-sm">
                   <div className={`w-7 h-7 ${bg} rounded-lg flex items-center justify-center shrink-0`}>
@@ -1158,7 +1158,7 @@ export default function PawwiHome() {
             {[
               { icon: <ShieldCheck size={32} />, color: "text-[#F7AEF1]", title: "100% Verificados",  body: "Cada Pawwer pasa por filtros de seguridad, entrevistas y revisión de su hogar." },
               { icon: <Star size={32} />,       color: "text-[#FF7031]", title: "Reseñas Reales",   body: "Solo usuarios que han completado reservas pueden dejar comentarios y calificaciones." },
-              { icon: <Heart size={32} />,      color: "text-[#92C0E9]", title: "PawwiProtect™",    body: "Seguro veterinario y soporte 24/7 incluido en todas tus reservas sin costo adicional." },
+              { icon: <Heart size={32} />,      color: "text-[#92C0E9]", title: "Fotos y chat",     body: "Habla con tu Pawwer y recibe fotos de tu perro durante el cuidado, todo dentro de Pawwi." },
             ].map(({ icon, color, title, body }) => (
               <div key={title} className="flex flex-col items-center">
                 <div className={`w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-4 ${color}`}>{icon}</div>

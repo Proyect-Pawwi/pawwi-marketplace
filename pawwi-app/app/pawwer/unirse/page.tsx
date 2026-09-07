@@ -15,8 +15,8 @@ const FEATURES = [
   },
   {
     icon: <ShieldCheck size={24} strokeWidth={2} />,
-    title: "No estás solo/a",
-    desc: "Soporte veterinario 24/7 y un equipo de seguridad. Si pasa algo, Pawwi responde contigo.",
+    title: "Clientes verificados",
+    desc: "Todo dueño pasa por verificación de identidad y llena el Pasaporte de su perro antes de poder reservarte.",
   },
   {
     icon: <Banknote size={24} strokeWidth={2} />,
@@ -36,11 +36,11 @@ const FAQS = [
   },
   {
     q: "¿Qué pasa si el perrito se enferma o hay una emergencia?",
-    a: "Nunca estás solo/a. Contamos con soporte veterinario 24/7 a través de PawwiVet. Ante cualquier duda o síntoma, activamos el protocolo de emergencia y te guiamos paso a paso.",
+    a: "Antes de reservar, el dueño registra en el Pasaporte de su perro las notas médicas, las vacunas y la rutina, y queda disponible por el chat durante todo el cuidado. Ante cualquier síntoma, escríbele de inmediato: es quien conoce a su perro y quien decide. Pawwi no presta servicio veterinario.",
   },
   {
     q: "¿Mi casa está protegida si hay daños?",
-    a: "Operamos bajo responsabilidad compartida. Si ocurre un incidente, actuamos en equipo con el respaldo de PawwiProtect. Nunca estarás solo/a gestionando una solución.",
+    a: "Pawwi te consigue los clientes y verifica su identidad, pero el cuidado es un acuerdo entre el dueño y tú: Pawwi no cubre daños. Por eso tú defines cuántos perros aceptas, de qué tamaño y en qué fechas, y puedes rechazar cualquier solicitud sin dar explicaciones.",
   },
   {
     q: "¿Puedo elegir qué perros cuidar y cuándo?",

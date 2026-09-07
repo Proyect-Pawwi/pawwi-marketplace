@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     default: "Pawwi — Hogares de familia, Cero Jaulas",
     template: "%s | Pawwi",
   },
-  description: "La primera red de cuidadores verificados de perros en Bogotá. Hogares reales, cero jaulas, reportes diarios y póliza PawwiProtect™ incluida.",
+  description: "La primera red de cuidadores de perros verificados con visita domiciliaria en Bogotá. Hogares reales, cero jaulas y fotos de tu perro durante todo el cuidado.",
   keywords: ["cuidado de perros Bogotá", "daycare perros", "cuidadores perros", "dog sitter Bogotá", "pawwi"],
   authors: [{ name: "Pawwi SAS" }],
   openGraph: {
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     url: SITE_URL,
     siteName: "Pawwi",
     title: "Pawwi — Hogares de familia, Cero Jaulas",
-    description: "La primera red de cuidadores verificados de perros en Bogotá. Hogares reales, cero jaulas y PawwiProtect™.",
+    description: "La primera red de cuidadores de perros verificados con visita domiciliaria en Bogotá. Hogares reales y cero jaulas.",
     images: [{ url: "/og-default.png", width: 1200, height: 630, alt: "Pawwi — Cuidado de perros en hogares verificados" }],
   },
   twitter: {
