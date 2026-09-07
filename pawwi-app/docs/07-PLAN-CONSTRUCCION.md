@@ -94,6 +94,19 @@ código y el que más desbloquea.
 - Variables de entorno en producción, incluida `PAWWI_WEBHOOK_SECRET` que hoy falta
 - Correr las migraciones 57, 58 y 59 si aún no están en la base
 
+> **⚠️ Pendiente temporal (S0).** El CNAME de `app.pawwi.co` se creó en HostGator pero **no llega a
+> la zona de Cloudflare**, que es la autoritativa. Mientras se resuelve, el sitio corre en
+> `https://pawwi-marketplace-zeta.vercel.app` y hay **dos valores temporales que revertir** cuando el
+> dominio esté vivo:
+> 1. `NEXT_PUBLIC_SITE_URL` en Vercel → `https://app.pawwi.co` (y redesplegar)
+> 2. **Site URL** en Supabase → `https://app.pawwi.co`
+>
+> Las Redirect URLs de Supabase ya incluyen `app.pawwi.co`, así que esas no se tocan.
+>
+> Sospecha a verificar: el editor de DNS de HostGator puede estar escribiendo en una zona local que
+> nadie consulta, y además no expone el interruptor de proxy de Cloudflare — que Vercel exige
+> apagado. Es probable que haga falta acceso directo a Cloudflare.
+
 **❌ No se construye**
 - Ninguna función nueva
 - Nada de los 16 errores de ESLint
