@@ -295,10 +295,18 @@ a febrero.
 
 | Periodo | Trabajo | Meta |
 |---|---|---|
+| **Sep 7 – 13** | **Tapar la fuga de la landing.** Hoy `pawwi.co` manda a un WhatsApp que nadie contesta: recoge interesados y los quema. Cambiar el CTA por un formulario de Tally de **dos lados** (lista de espera de clientes + aplicación de Pawwers). Sin código, sin deploy | Fuga cerrada |
 | Sep 7 – Oct 4 | Contactar y reactivar los 15 Pawwers actuales: confirmar que siguen, actualizar perfil, cargar disponibilidad | 15 activos |
 | Oct 5 – Nov 1 | Visitas nuevas, 2 sábados al mes, agrupadas por conjunto | +8 |
 | Nov 2 – Nov 29 | Visitas nuevas, priorizadas por búsquedas sin resultado | +8 |
 | **Al lanzar** | Pawwers verificados con disponibilidad real cargada | **~30** |
+| **Al lanzar** | Clientes en lista de espera para el soft launch (22 históricos + los que junte la landing) | **>40** |
+
+> **Por qué la lista de espera importa más de lo que parece:** el lado Pawwer del formulario alimenta
+> directamente el cuello de botella — quien aplique en estas doce semanas se puede visitar los
+> sábados, así que llegas al lanzamiento con más oferta. Y el lado cliente convierte el arranque en
+> frío (el mayor riesgo del lanzamiento según el Service Blueprint) en un lanzamiento a gente que ya
+> levantó la mano.
 
 > ### ⚠️ La pregunta que puede mover todo el calendario
 > **¿Los 15 Pawwers actuales ya tuvieron visita domiciliaria?**
