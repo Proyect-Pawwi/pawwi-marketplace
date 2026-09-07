@@ -44,3 +44,6 @@ next-env.d.ts
 
 # La plantilla SÍ va al repo (no tiene secretos)
 !.env.example
+
+# Duplicados que genera la sincronizacion de iCloud ("archivo 2.tsx")
+*\ 2.*
