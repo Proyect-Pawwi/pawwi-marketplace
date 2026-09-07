@@ -163,6 +163,9 @@ El sprint que convierte el producto en negocio, adelantado al segundo lugar porq
 riesgo técnico y la cuenta de Bold ya está lista.
 
 **Entregables**
+- **Separar llaves de Bold por entorno en Vercel.** Hoy las llaves de PRODUCCIÓN están disponibles
+  también en los despliegues de vista previa: en cuanto exista código de cobro, un preview podría
+  procesar pagos reales. Producción → llaves reales; Preview y Development → llaves de pruebas
 - **Checkout de Bold.** Preferir el hospedado: el cliente paga en la interfaz de Bold y Pawwi nunca
   toca datos de tarjeta
 - Endpoint de creación de la sesión de pago con el monto total (cuidado + transporte)
