@@ -27,6 +27,7 @@ Los documentos `00`–`05` siguen siendo válidos como descripción de **lo que 
 |---|---|
 | [`06-PRODUCTO-REDISENO.md`](./06-PRODUCTO-REDISENO.md) | **Documento maestro.** Qué es Pawwi, las 7 decisiones, las dos puertas, la visita, el motor de reservas, capacidad y precio, el dinero, los 5 loops de crecimiento, economía unitaria, stack y estado del código. |
 | [`07-PLAN-CONSTRUCCION.md`](./07-PLAN-CONSTRUCCION.md) | **Plan de 12 semanas** hacia el lanzamiento del 30 de noviembre de 2026. Siete sprints en dos carriles, con la lista de «qué NO se construye» en cada uno. |
+| [`08-INFRAESTRUCTURA.md`](./08-INFRAESTRUCTURA.md) | **Referencia operativa.** Cuentas y servicios, variables de entorno, cómo desplegar, cómo correr migraciones, inventario DNS, problemas conocidos y **bitácora** de sesiones. |
 
 ### Referencia de lo construido
 
@@ -64,7 +65,9 @@ Estos puntos cambiaron con el rediseño. El detalle está en `06`:
 ## Cómo leer esto
 
 - **Empezar de cero** → `06`, y después `07`.
+- **Volver tras una pausa** → `08`, que tiene el estado real de la infraestructura y la bitácora.
 - **Qué construir esta semana** → `07`.
+- **Dónde vive algo / cómo se despliega / algo se rompió** → `08`.
 - **Cómo funciona algo que ya existe** → `03` (portal) y `04` (backend/seguridad).
 - **Cómo se vuelve pawwer alguien** → `02`.
 
