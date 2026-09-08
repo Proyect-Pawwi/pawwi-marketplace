@@ -113,8 +113,33 @@ código y el que más desbloquea.
 - Ningún refactor «ya que estoy acá»
 - CI/CD, tests automatizados, monitoreo
 
-**✅ Criterio de cierre** — El código está en GitHub, la app responde en una URL pública con HTTPS,
-las credenciales de Bold están en producción y el dominio de Resend está verificado.
+**✅ Criterio de cierre** — El código está en GitHub, la app responde en una URL pública con HTTPS y
+las credenciales de Bold están en producción.
+
+> **Ajuste (2026-09-07).** El criterio original exigía además el dominio de Resend verificado. Eso
+> depende de una zona DNS atascada que no controlamos, y bloquear el sprint por ahí sería el error
+> opuesto al que hundió el plan anterior. **Resend y el dominio pasan a hilos paralelos**, como el
+> carril de visitas. S1 es trabajo puro de código y no depende de ninguno de los dos.
+
+### Estado al cierre de S0
+
+| Entregable | Estado |
+|---|---|
+| Código respaldado en GitHub | ✅ 312 archivos en `main` |
+| `main` limpio (fusión + código abandonado fuera) | ✅ verificado con `npm ci` + build |
+| Vulnerabilidades de dependencias | ✅ 7 altas → **0** (Next 16.2.6 → 16.3.4) |
+| App desplegada con HTTPS | ✅ `pawwi-marketplace-zeta.vercel.app` |
+| Variables de entorno en producción | ✅ 8, con reparto Config/Secret correcto |
+| Bold: cuenta, llaves, tarifa | ✅ 2,99% + $900 (modalidad «siguiente día») |
+| `PAWWI_WEBHOOK_SECRET` | ✅ generado |
+| Supabase: Site URL + Redirect URLs | ✅ |
+| Migraciones 57, 58 y 59 | ✅ verificadas (9 / 4 / YES) |
+| Fuga de la landing | ✅ tapada con formulario de dos lados |
+| **Retirar PawwiProtect** *(era de S1)* | ✅ adelantado — 10 lugares |
+| Dominio `app.pawwi.co` | ⏳ hilo paralelo — DNS atascado en HostGator |
+| Resend (cuenta, API key, DNS) | ⏳ hilo paralelo |
+| Formato de dispersión masiva del banco | ⏳ pendiente, se necesita en S2 |
+| Activar Cuenta Digital Bold | ❓ por confirmar |
 
 ---
 
