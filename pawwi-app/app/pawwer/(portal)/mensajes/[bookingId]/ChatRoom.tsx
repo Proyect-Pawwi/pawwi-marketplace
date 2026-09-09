@@ -169,8 +169,9 @@ function SummaryCard({
   const obs = [booking.comments, ...booking.dogs.map((d) => d.notes)].filter(Boolean).join(" · ");
 
   const fee = booking.transport_fee ?? 0;
+  // El traslado siempre lo hace el Pawwer: Pawwi no transporta (decisión 06).
   const transportLabel = fee > 0
-    ? `${booking.transport_legs === 1 ? "Ida" : "Ida y vuelta"} · ${booking.transport_provider === "pawwi" ? "lo hace Pawwi" : "lo haces tú"}`
+    ? `${booking.transport_legs === 1 ? "Ida" : "Ida y vuelta"} · lo haces tú`
     : null;
 
   // Dirección de recogida (solo si hay transporte) → tappable a Google Maps.

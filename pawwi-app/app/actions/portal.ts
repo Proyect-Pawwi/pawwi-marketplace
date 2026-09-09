@@ -61,8 +61,6 @@ export interface BookingRow {
   client_address?: string | null;
   transport_legs?: number | null;
   transport_fee?: number | null;
-  transport_provider?: "pawwer" | "pawwi" | null;
-  transport_decided?: boolean | null;
   service_type: string;
   client: BookingClient;
   dogs: BookingDog[];
@@ -104,23 +102,6 @@ export async function cancelBooking(bookingId: string): Promise<{ error?: string
     console.error("[cancelBooking]", error.message, error.details, error.hint, error.code);
     return { error: error.message || "No se pudo cancelar el cuidado." };
   }
-  revalidatePath("/pawwer/cuidados");
-  revalidatePath("/pawwer/inicio");
-  return {};
-}
-
-// El pawwer decide, tras aceptar, si el transporte lo hace él o Pawwi.
-// 'pawwer' → recibe 75% del transporte. 'pawwi' → Pawwi se queda con el 100%.
-export async function setTransportProvider(
-  bookingId: string,
-  provider: "pawwer" | "pawwi",
-): Promise<{ error?: string }> {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("set_transport_provider", {
-    p_booking_id: bookingId,
-    p_provider:   provider,
-  });
-  if (error) return { error: "No se pudo actualizar el transporte." };
   revalidatePath("/pawwer/cuidados");
   revalidatePath("/pawwer/inicio");
   return {};

@@ -223,7 +223,6 @@ export default async function CuidadosPage({
               ? fmtDistance(haversineKm(pawwerLat, pawwerLng, b.client_lat, b.client_lng))
               : null;
             const pay = payoutBreakdown(b.total, b.transport_fee, b.commission_rate);
-            const pawwiTransp = b.transport_decided === true && b.transport_provider === "pawwi";
 
             return (
               <Link
@@ -329,9 +328,7 @@ export default async function CuidadosPage({
                     </p>
                     <p className="text-lg font-black text-[#120A2B]">{fmtCOP(pay.cuidado)}</p>
                     {pay.hasTransport && (
-                      pawwiTransp
-                        ? <p className="text-[10px] font-bold text-gray-400 mt-0.5">Transp. Pawwi</p>
-                        : <p className="text-[10px] font-bold text-[#0284C7] mt-0.5">+{fmtCOP(pay.transport)} transp.</p>
+                      <p className="text-[10px] font-bold text-[#0284C7] mt-0.5">+{fmtCOP(pay.transport)} transp.</p>
                     )}
                   </div>
                 </div>

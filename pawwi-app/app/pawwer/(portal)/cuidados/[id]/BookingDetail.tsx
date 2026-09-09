@@ -8,7 +8,7 @@ import {
   AlertCircle, Loader2, CheckCircle2, Clock,
   Calendar, Syringe, Car, MapPin, Ban, ArrowUpRight,
 } from "lucide-react";
-import { acceptBooking, declineSolicitud, setTransportProvider, cancelBooking } from "@/app/actions/portal";
+import { acceptBooking, declineSolicitud, cancelBooking } from "@/app/actions/portal";
 import type { BookingRow } from "@/app/actions/portal";
 import { type SearchPhase, payoutBreakdown } from "@/lib/booking-config";
 import SolicitudMap from "./SolicitudMap";
@@ -127,29 +127,11 @@ export default function BookingDetail({
   const hasTransport = transportFee > 0;
   const rate         = booking.commission_rate ?? 0.25;  // tasa real congelada (0.20 élite / 0.25)
   const pay          = payoutBreakdown(booking.total, transportFee, rate);
-  const transportEarn = pay.transport; // lo que gana el pawwer si lo toma (= 75% del transporte)
-  const [provider, setProvider] = useState<"pawwer" | "pawwi">(booking.transport_provider ?? "pawwer");
-  const [payout, setPayout]     = useState(booking.pawwer_payout);
-  const [decided, setDecided]   = useState(booking.transport_decided ?? false);
-  const [transportPending, startTransportTransition] = useTransition();
-  // Fuerza el popup al llegar a un cuidado aceptado, con transporte y sin decidir
-  // (p.ej. tras aceptar desde el home y caer en el detalle).
-  const [showTransportModal, setShowTransportModal] = useState(
-    () => (booking.transport_fee ?? 0) > 0
-       && !(booking.transport_decided ?? false)
-       && (booking.status_id === 2 || booking.status_id === 3),
-  );
-
-  // La decisión de transporte es final: solo se puede elegir una vez.
-  function chooseProvider(p: "pawwer" | "pawwi") {
-    if (decided) return;
-    setProvider(p);
-    setDecided(true);
-    const cuidado    = booking.total - transportFee;
-    const commission = Math.round(cuidado * rate) + (p === "pawwer" ? Math.round(transportFee * rate) : transportFee);
-    setPayout(booking.total - commission);
-    startTransportTransition(async () => { await setTransportProvider(booking.id, p); });
-  }
+  // El traslado siempre lo hace el Pawwer: Pawwi no transporta (decisión 06).
+  // Ya no hay nada que elegir tras aceptar, así que el pago es firme desde el
+  // momento en que create_booking lo congela.
+  const transportEarn = pay.transport; // 75% del transporte, igual que el cuidado
+  const payout = booking.pawwer_payout;
 
   const allNotes = [
     booking.comments,
@@ -166,7 +148,6 @@ export default function BookingDetail({
         else {
           setCurrentStatus(2);
           setDoneType("accepted");
-          if (hasTransport && !decided) setShowTransportModal(true);  // popup bloqueante
         }
       } catch {
         setError("Algo salió mal. Intenta de nuevo.");
@@ -326,7 +307,7 @@ export default function BookingDetail({
           </div>
         )}
 
-        {/* 3.5 Transporte — el pawwer decide quién lo hace (tras aceptar) */}
+        {/* 3.5 Transporte — lo hace el Pawwer siempre (decisión 06) */}
         {hasTransport && doneType !== "declined-p1" && doneType !== "declined-p2p3" && (
           <div className="bg-white rounded-[28px] p-5 shadow-[0_12px_30px_rgba(18,10,43,0.04)] border border-white">
             <div className="flex items-center gap-3 mb-3">
@@ -343,64 +324,21 @@ export default function BookingDetail({
 
             {isPending1 ? (
               <p className="text-xs text-gray-500 leading-relaxed">
-                Este cuidado incluye transporte. Si lo haces tú, sumas{" "}
-                <span className="font-bold text-[#0284C7]">{fmtCOP(transportEarn)}</span> a tu ganancia.
-                Podrás elegir si lo tomas tú o lo toma Pawwi al aceptar.
+                Este cuidado incluye transporte, y lo haces tú. Suma{" "}
+                <span className="font-bold text-[#0284C7]">{fmtCOP(transportEarn)}</span> a tu ganancia,
+                con la misma comisión que el cuidado.
               </p>
-            ) : decided ? (
+            ) : (
               <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3">
                 <CheckCircle2 size={18} className="text-green-500 shrink-0" />
                 <div>
-                  <p className="text-sm font-bold text-[#120A2B]">
-                    {provider === "pawwer" ? "Tú haces el transporte" : "Pawwi hace el transporte"}
-                  </p>
+                  <p className="text-sm font-bold text-[#120A2B]">Tú haces el transporte</p>
                   <p className="text-xs text-gray-400">
-                    {provider === "pawwer" ? `+${fmtCOP(transportEarn)} en tu ganancia` : "Sin logística para ti"}
+                    +{fmtCOP(transportEarn)} en tu ganancia · coordina la hora por el chat
                   </p>
                 </div>
               </div>
-            ) : (currentStatus === 2 || currentStatus === 3) ? (
-              <div>
-                <p className="text-xs font-bold text-gray-400 mb-2">¿Quién hace el transporte?</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => chooseProvider("pawwer")}
-                    disabled={transportPending}
-                    className={[
-                      "flex flex-col items-center gap-0.5 py-3 rounded-2xl border text-sm font-bold transition-all disabled:opacity-60",
-                      provider === "pawwer"
-                        ? "bg-[#120A2B] border-[#120A2B] text-white"
-                        : "bg-white border-gray-200 text-[#120A2B] hover:border-gray-300",
-                    ].join(" ")}
-                  >
-                    Lo hago yo
-                    <span className={`text-[10px] font-bold ${provider === "pawwer" ? "text-green-300" : "text-green-600"}`}>
-                      +{fmtCOP(transportEarn)}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => chooseProvider("pawwi")}
-                    disabled={transportPending}
-                    className={[
-                      "flex flex-col items-center gap-0.5 py-3 rounded-2xl border text-sm font-bold transition-all disabled:opacity-60",
-                      provider === "pawwi"
-                        ? "bg-[#120A2B] border-[#120A2B] text-white"
-                        : "bg-white border-gray-200 text-[#120A2B] hover:border-gray-300",
-                    ].join(" ")}
-                  >
-                    Lo hace Pawwi
-                    <span className={`text-[10px] font-medium ${provider === "pawwi" ? "text-white/50" : "text-gray-400"}`}>
-                      Sin ingreso extra
-                    </span>
-                  </button>
-                </div>
-                {transportPending && (
-                  <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
-                    <Loader2 size={10} className="animate-spin" /> Guardando…
-                  </p>
-                )}
-              </div>
-            ) : null}
+            )}
           </div>
         )}
 
@@ -491,7 +429,7 @@ export default function BookingDetail({
               {hasTransport ? (
                 <div className="text-[11px] font-semibold text-gray-500 space-y-0.5">
                   <p>Cuidado: <span className="font-black text-[#120A2B]">{fmtCOP(pay.cuidado)}</span></p>
-                  <p>Transporte: <span className="font-black text-[#120A2B]">{provider === "pawwer" ? `+${fmtCOP(pay.transport)}` : "lo hace Pawwi"}</span></p>
+                  <p>Transporte: <span className="font-black text-[#120A2B]">+{fmtCOP(pay.transport)}</span></p>
                 </div>
               ) : (
                 <p className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full inline-block">Libre de comisiones</p>
@@ -644,46 +582,6 @@ export default function BookingDetail({
         )}
 
       </main>
-
-      {/* Popup BLOQUEANTE: elegir transporte tras aceptar (no se puede cerrar sin elegir) */}
-      {showTransportModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-6">
-          <div aria-hidden className="absolute inset-0 bg-[#120A2B]/50 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-[28px] p-6 w-full max-w-sm shadow-[0_20px_60px_rgba(18,10,43,0.3)] animate-slide-up">
-            <div className="w-12 h-12 rounded-[16px] bg-[#E0F2FE] flex items-center justify-center text-[#0284C7] mb-4 mx-auto">
-              <Car size={24} />
-            </div>
-            <h2 className="text-lg font-black text-[#120A2B] text-center mb-1">¿Quién hace el transporte?</h2>
-            <p className="text-sm text-gray-500 text-center mb-5 leading-relaxed">
-              Este cuidado incluye transporte de {fmtCOP(transportFee)} ({legs === 1 ? "ida" : "ida y vuelta"}). Elige una opción para continuar.
-            </p>
-            <div className="space-y-2.5">
-              <button
-                onClick={() => { chooseProvider("pawwer"); setShowTransportModal(false); }}
-                disabled={transportPending}
-                className="w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl bg-[#120A2B] text-white active:scale-[0.98] transition-transform disabled:opacity-60"
-              >
-                <span className="text-left">
-                  <span className="block font-bold text-sm">Lo hago yo</span>
-                  <span className="block text-[11px] font-medium text-white/60">Sumas a tu ganancia</span>
-                </span>
-                <span className="font-black text-green-300 shrink-0">+{fmtCOP(transportEarn)}</span>
-              </button>
-              <button
-                onClick={() => { chooseProvider("pawwi"); setShowTransportModal(false); }}
-                disabled={transportPending}
-                className="w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl bg-white border border-gray-200 text-[#120A2B] active:scale-[0.98] transition-transform disabled:opacity-60"
-              >
-                <span className="text-left">
-                  <span className="block font-bold text-sm">Que lo haga Pawwi</span>
-                  <span className="block text-[11px] font-medium text-gray-400">Sin logística para ti</span>
-                </span>
-                <span className="text-xs font-bold text-gray-400 shrink-0">Pawwi lo coordina</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal de confirmación: cancelar cuidado */}
       {showCancel && (
