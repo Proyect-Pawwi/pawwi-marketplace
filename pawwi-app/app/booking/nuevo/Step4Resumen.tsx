@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { ShieldCheck, Clock, CreditCard } from "lucide-react";
 
-interface Props { bookingId: string; total: number; instant?: boolean; }
+interface Props { bookingId: string; total: number; }
 
 function fmtCOP(n: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(n);
 }
 
-export default function Step4Resumen({ bookingId, total, instant = false }: Props) {
+export default function Step4Resumen({ bookingId, total }: Props) {
   const ref = `PWW-2026-${bookingId.slice(0, 6).toUpperCase()}`;
   return (
     <div className="min-h-screen bg-[#FFF1EB] flex items-center justify-center px-4 relative overflow-hidden">
@@ -23,9 +23,7 @@ export default function Step4Resumen({ bookingId, total, instant = false }: Prop
 
         {/* Title */}
         <div>
-          <h1 className="text-2xl font-extrabold text-[#120A2B] mb-1">
-            {instant ? "¡Reserva confirmada!" : "Solicitud enviada"}
-          </h1>
+          <h1 className="text-2xl font-extrabold text-[#120A2B] mb-1">Solicitud enviada</h1>
           <p className="text-sm text-[#120A2B]/50">
             Referencia <span className="font-bold text-[#120A2B]">{ref}</span>
           </p>
@@ -38,22 +36,12 @@ export default function Step4Resumen({ bookingId, total, instant = false }: Prop
             <span className="font-extrabold text-[#FF7031] text-lg">{fmtCOP(total)}</span>
           </div>
           <div className="h-px bg-gray-100" />
-          {instant ? (
-            <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-2xl px-3 py-2.5 text-xs text-green-700">
-              <ShieldCheck size={13} className="text-green-600 shrink-0" />
-              <span>
-                Confirmada al instante. El Pawwer conserva <strong>1 hora</strong> para liberarla
-                si no le encaja; si eso pasa, te buscamos otro de inmediato.
-              </span>
-            </div>
-          ) : (
-            /* 1 hora, que es lo que pone set_booking_phase_expiry. Antes decía
-               30 min y no correspondía con ninguna regla del sistema. */
-            <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-2xl px-3 py-2.5 text-xs text-amber-700">
-              <Clock size={13} className="text-amber-500 shrink-0" />
-              <span>El Pawwer tiene <strong>1 hora</strong> para aceptar tu solicitud.</span>
-            </div>
-          )}
+          {/* 1 hora, que es lo que pone set_booking_phase_expiry. Antes decía
+              30 min y no correspondía con ninguna regla del sistema. */}
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-2xl px-3 py-2.5 text-xs text-amber-700">
+            <Clock size={13} className="text-amber-500 shrink-0" />
+            <span>El Pawwer tiene <strong>1 hora</strong> para aceptar tu solicitud.</span>
+          </div>
         </div>
 
         {/* Payment placeholder */}

@@ -147,8 +147,16 @@ temprano: todo lo que se construya después se construye sobre el modelo correct
   migración 49
 - Mostrar ocupación real del día, no solo el máximo declarado
 - Cablear `friendly_dogs`: advertencia al cliente y dato visible para el Pawwer antes de aceptar
-- **Reserva instantánea:** columna `instant_booking`, rama en `create_booking` con bloqueo de cupo
-  al crear, exclusión del cron de escalación
+- ~~**Reserva instantánea**~~ → **Simplificar el motor a dos etapas.** La reserva instantánea se
+  descartó: auto-confirmar sin que el Pawwer pueda rechazar ese encargo concreto es el único
+  patrón con riesgo laboral real. En su lugar, la escalación se **conserva y se simplifica**:
+  - tres fases → **dos etapas** (directa 1 h, bolsa general 6 h). Siete horas, no trece
+  - se quita el **piso de precio** del filtro de candidatos, que excluía a los Pawwers más baratos
+    — Pawwi arbitrando el mercado contra la decisión 07. El techo se queda
+  - los cupos se miden en **perros** también en `find_escalation_candidates`, que se había quedado
+    atrás respecto a la unificación de capacidad
+  - `booking.allow_pool`: el cliente consiente **al reservar** que su solicitud pase a la bolsa si
+    el Pawwer elegido declina. Sin ese permiso, muere como `sin_cuidador` y elige de nuevo
 - **Retirar PawwiProtect™ del producto.** La decisión 03 eliminó el Fondo de Asistencia, pero el
   producto lo sigue prometiendo en **8 lugares**, incluido el paso 1 de la reserva («PawwiProtect™
   incluido en todas las reservas»), la home («seguro veterinario y soporte 24/7 sin costo
@@ -174,18 +182,51 @@ recorre el flujo completo, y en ningún lugar del producto aparece Pawwi como tr
 El sprint que convierte el producto en negocio, adelantado al segundo lugar porque es el de mayor
 riesgo técnico y la cuenta de Bold ya está lista.
 
+> ### ⚠️ La secuencia del dinero — corregida el 2026-09-09
+>
+> Este sprint decía que **el webhook de pago mueve la reserva a confirmada**. Pero S1 estableció
+> que quien confirma es **la aceptación del Pawwer**, y con la secuencia anterior —pagar al
+> reservar, aceptar después— **el cliente pagaba antes de que existiera un Pawwer que hubiera
+> aceptado**. Con las dos etapas eso son hasta 7 horas con el dinero debitado sobre una reserva
+> que puede no existir nunca, y una devolución de 3 a 15 días hábiles si no se concreta.
+>
+> **No se cobra nada hasta que ambos aceptaron:**
+>
+> ```
+> El cliente reserva      → sin dinero, sin cupo bloqueado
+> El Pawwer acepta        → se bloquea el cupo y se le pide el pago
+> El cliente paga         → CONFIRMADA
+> Nadie acepta en 7 h     → sin_cuidador, y nunca se movió un peso
+> ```
+>
+> **El pago pasa a ser el consentimiento final del cliente.** Si la reserva salió a la bolsa y la
+> tomó otro Pawwer, no puede terminar con él sin haber pagado activamente por él: ve su perfil y
+> decide. La ventana de aprobación no hay que construirla — el paso de pago *es* la ventana.
+>
+> Lo que esta secuencia **elimina** de este sprint: el reembolso como camino habitual, cualquier
+> necesidad de autorización y captura por separado, y la billetera de saldo a favor. También hace
+> irrelevante si Bold soporta preautorización, que era una dependencia externa por resolver.
+>
+> _Nota sobre PSE:_ no admite preautorización porque es una transferencia bancaria, no un cupo de
+> tarjeta. Con esta secuencia da igual — pero conviene recordar que **el medio más barato (2,89%,
+> sin retenciones) es el que no se puede revertir limpiamente**, así que un reembolso por PSE
+> siempre será lento.
+
 **Entregables**
 - **Separar llaves de Bold por entorno en Vercel.** Hoy las llaves de PRODUCCIÓN están disponibles
   también en los despliegues de vista previa: en cuanto exista código de cobro, un preview podría
   procesar pagos reales. Producción → llaves reales; Preview y Development → llaves de pruebas
 - **Checkout de Bold.** Preferir el hospedado: el cliente paga en la interfaz de Bold y Pawwi nunca
   toca datos de tarjeta
-- Endpoint de creación de la sesión de pago con el monto total (cuidado + transporte)
-- **Webhook de confirmación** que mueve la reserva a confirmada y sella `paid_at`
+- **El cobro se dispara al ACEPTAR el Pawwer**, no al crear la reserva. Endpoint de creación de la
+  sesión de pago con el monto total (cuidado + transporte), congelado desde la creación
+- **Webhook de confirmación** que sella `paid_at` y mueve la reserva a confirmada — es el segundo
+  de los dos consentimientos, no el primero
 - Retención de la comisión con la tasa congelada en `booking.commission_rate`
 - Pantalla de pago fallido con tres salidas: reintentar, cambiar método, escribir a soporte
-- Expiración de reservas sin pagar a los 30 minutos, liberando el cupo
-- Reembolso en cancelación según la política de 48 horas
+- **Expiración a los 30 minutos desde la aceptación**, liberando el cupo. Es el único riesgo que
+  introduce esta secuencia —un Pawwer acepta y el cliente no paga— y queda acotado a media hora
+- Reembolso en cancelación según la política de 48 horas, **solo para cuidados ya pagados**
 - **Pantalla de liquidación semanal** para ti: qué le debes a cada Pawwer el viernes, con su cuenta
 - **Exportación del archivo de dispersión masiva** con el formato del banco, y marcado en lote con
   `mark_payouts_paid`
@@ -247,13 +288,26 @@ Hoy el cliente paga y queda ciego: solo el Pawwer tiene chat. Este sprint constr
 emocional que es, según las 40 entrevistas, el producto entero.
 
 **Entregables**
+- 🔴 **Visibilidad del cliente sobre la bolsa. Va primero de todo.** Hoy solo se le notifica si le
+  cancelan: no sabe si el Pawwer aceptó, si su reserva salió a la bolsa ni si se quedó sin cuidador.
+  El consentimiento previo de S1 (`allow_pool`) evita la sustitución silenciosa, pero **no la
+  sustituye**: quien dijo «sí, busquen otro» sigue necesitando saber **quién** es ese otro. Tres
+  avisos concretos:
+  1. **Salió a la bolsa** — «Juliana no está disponible; estamos buscando entre los Pawwers
+     verificados por el mismo precio»
+  2. **Alguien la tomó** — nombrando al Pawwer nuevo y **enlazando su perfil**, para que pueda
+     mirarlo antes de pagar
+  3. **Nadie la tomó** — `sin_cuidador`, con la salida de volver a buscar
+
+  Sin esto, un cliente que investigó la casa de Juliana descubre que su perro va a la de Pedro sin
+  haberlo visto. Es el daño de marca más rápido que puede hacerse el producto.
 - **Chat del cliente**, reusando el patrón de `ChatRoom` del Pawwer: realtime, fotos, moderación y
   botón de soporte. La RLS ya lo permite (`messages_select_parties` cubre a ambas partes)
 - **Reporte diario** en su forma mínima: el Pawwer marca un mensaje con foto como reporte del día,
   y eso alimenta el nivel
 - Campana y feed de notificaciones del cliente
-- **Correos por Resend** en los eventos que importan: reserva confirmada, Pawwer aceptó, escaló,
-  sin cuidador, reporte del día, servicio terminado, solicitud de reseña
+- **Correos por Resend** en el resto de eventos: reserva confirmada, reporte del día, servicio
+  terminado, solicitud de reseña
 - Timer de urgencia del lado del cliente
 - Recordatorios automáticos 24 h y 2 h antes
 

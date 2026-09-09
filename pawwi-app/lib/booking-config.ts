@@ -1,9 +1,11 @@
-export type SearchPhase = 1 | 2 | 3;
+// Dos etapas, no tres fases. La 1 es exclusiva del Pawwer que el cliente eligió;
+// si declina o se le vence el plazo, la reserva pasa a la bolsa general — y solo
+// si el cliente lo consintió al reservar (booking.allow_pool).
+export type SearchPhase = 1 | 2;
 
 export const PHASE_LABEL: Record<SearchPhase, string> = {
   1: "Te eligió a ti",
-  2: "Búsqueda relacionada",
-  3: "Búsqueda ciudad",
+  2: "Bolsa general",
 };
 
 // Tasa por defecto (no-élite). La real se congela por reserva en

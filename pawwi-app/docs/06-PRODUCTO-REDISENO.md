@@ -80,7 +80,7 @@ Todo lo que necesite _«alguien revisa / alguien llama / alguien responde»_ no 
 | **01** | **Pawwi es únicamente un intermediario** | Los términos lo dicen sin asteriscos |
 | **02** | **La visita domiciliaria sigue siendo presencial** | Costo aceptado: el crecimiento de la oferta queda limitado por el calendario de una persona. _Se descartó la verificación remota por video_ |
 | **03** | **Se elimina el Fondo de Asistencia** | Pasivo sin fondear; una persona sola no absorbe un siniestro de $1,5 M |
-| **04** | **Dos vías de encuentro, y en ninguna se empuja trabajo** | Directa (el cliente toma una oferta publicada) y general (el cliente publica y los Pawwers ofertan). _Sustituye a la escalación de tres fases_ |
+| **04** | **La reserva se ofrece, nunca se asigna** | Dos etapas —directa 1 h, bolsa general 6 h— con derecho de rechazo en las dos. El paso a la bolsa **requiere consentimiento del cliente** |
 | **05** | **Lanzamiento en Bogotá completa desde el día uno** | La unidad de densidad es el **conjunto**, no el barrio. La búsqueda deja de cortar por radio |
 | **06** | **El transporte ocurre entre las partes** | Pawwi nunca traslada animales |
 | **07** | **La capacidad la decide el Pawwer, sin tope de Pawwi** | Pawwi expone capacidad y ocupación; el mercado hace el resto |
@@ -165,54 +165,64 @@ sino **dirigida por demanda**: las búsquedas sin resultado indican dónde va el
 
 ## ⚡ Motor de reservas
 
-> **Corrección de diseño (2026-09-09).** La versión anterior de este documento tenía una
-> escalación automática de tres fases que **empujaba solicitudes a Pawwers que no las habían
-> pedido**. Eso no es solo complejidad de más: un contratista independiente tiene que poder elegir
-> qué encargos toma, y un sistema que le asigna trabajo introduce un indicio de **subordinación**
-> —el elemento que separa una relación laboral de una civil—. La escalación se retira del producto.
+> ### ⚠️ Un error de análisis que conviene no repetir
+>
+> Una versión anterior de esta sección proponía **retirar la escalación**, alegando que empujar
+> solicitudes a Pawwers que no las habían pedido creaba un indicio de subordinación laboral.
+> **Era falso, y se corrigió el mismo día.**
+>
+> Uber, DiDi, Yango y Rappi hacen exactamente eso: ofrecen trabajo que el trabajador no pidió.
+> Lo que genera riesgo laboral es **obligar a aceptar** o **castigar el rechazo**, no ofrecer.
+> El patrón defendible es justamente **oferta con derecho de rechazo**, que es el que Pawwi ya
+> tenía en `decline_solicitud`.
+>
+> Lo que sí era riesgoso fue una **auto-confirmación sin salida** que se diseñó brevemente: la
+> reserva nacía confirmada y el Pawwer solo podía cancelar, pagando con su nivel. Un derecho que
+> se castiga al ejercerlo no es un derecho. Esa idea se descartó: **toda reserva pasa por la
+> aceptación del Pawwer.**
 
-Hay **dos vías** por las que un cliente y un Pawwer se encuentran. En ninguna Pawwi asigna nada.
+La reserva **se ofrece, nunca se asigna.** Dos etapas, con derecho de rechazo en las dos.
 
-### Vía 1 · Directa — el cliente toma una oferta publicada
-
-```
-El Pawwer publica disponibilidad y precio → el cliente reserva dentro de esos parámetros
-   → se cobra → reserva CONFIRMADA → al Pawwer le llega el aviso
-```
-
-No hay paso de aceptación porque **no hace falta**: publicar disponibilidad y precio ya es la
-oferta, y el cliente la está tomando. Es aceptación de una oferta, no asignación de trabajo.
-
-**El derecho de rechazo se conserva.** Durante **1 hora** el Pawwer puede *liberar* la reserva sin
-dar explicaciones y **sin penalización**: no cuenta como cancelación, no entra en el `cancel_rate`
-y no toca su nivel. La reserva no muere — pasa a la vía 2. Cubre lo que la oferta publicada no
-podía prever: un perro sin vacunas, uno no sociable con la ocupación de ese día, un cliente que no
-le encaja.
-
-> Que el derecho exista no basta: si liberar costara nivel, sería nominal. Por eso
-> `release_booking` **no escribe `cancelled_by`**, que es la columna sobre la que se calcula el
-> `cancel_rate`.
-
-### Vía 2 · General — el cliente publica y los Pawwers ofertan
+### Etapa 1 · Directa — 1 hora, exclusiva de quien el cliente eligió
 
 ```
-El cliente publica su solicitud → los Pawwers la ven y mandan su oferta con precio
-   → el cliente compara y acepta una → se cobra → reserva CONFIRMADA
+El cliente elige un Pawwer y reserva  →  estado 1 (pendiente)
+   →  el Pawwer acepta  →  se bloquea el cupo y se le pide el pago al cliente
+   →  el cliente paga   →  CONFIRMADA
 ```
 
-Es el mismo mercado, al revés: el Pawwer **va y toma** lo que le interesa en vez de recibir lo que
-le toque. Al cliente se le muestran **todas** las ofertas, ordenadas por **nivel → rating**, la
-misma regla que ordena el buscador.
+Si declina o se le vence la hora, la reserva pasa a la etapa 2 — **pero solo si el cliente lo
+consintió** (`booking.allow_pool`). Rechazar es su derecho; sustituirle la casa al cliente sin
+permiso no es una consecuencia aceptable de ese derecho.
 
-### Qué se retira con la escalación
+### Etapa 2 · Bolsa general — 6 horas, toda la ciudad
 
-`run_booking_cron` conserva el avance de estados por tiempo y pierde las tres fases ·
-`find_escalation_candidates` · `decline_solicitud` · `search_phase` y `phase_expires_at` ·
-`sin_cuidador` pasa a significar «expiró sin ofertas».
+La reserva se le muestra a todos los Pawwers cualificados con cupo suficiente, y **gana el primero
+en aceptar**. El total **está congelado** desde que se creó: la bolsa solo la ven Pawwers cuyo
+precio publicado sea **igual o menor**, así que quien la tome gana **más que su tarifa de lista** y
+el cliente nunca paga más de lo que aceptó.
 
-`booking_candidates` **sobrevive cambiando de sentido**: era «a quién le empujamos esto» y pasa a
-ser «quién se ha ofrecido», con el precio de cada oferta. Misma forma, dirección opuesta — y así se
-conservan el realtime, las RLS y las pantallas que ya existen.
+> **Pawwi solo pone techo, nunca piso.** El filtro tenía antes un piso del 80% que excluía a los
+> Pawwers más baratos — Pawwi arbitrando el mercado, justo lo que prohíbe la decisión 07. Con solo
+> techo, la bolsa se vuelve un incentivo: hay reservas que rinden por encima de la tarifa propia.
+
+Si nadie acepta en esas 6 horas → `sin_cuidador`. **Siete horas en total, no trece:** antes había
+una fase intermedia de «±20% de precio» con otras 6 horas, que no aportaba nada porque la bolsa ya
+es toda la ciudad, y dejaba al cliente medio día sin saber si tenía cuidador.
+
+### La confianza no se transfiere en silencio
+
+El cliente no compró «un cuidado»: eligió **esa** casa después de mirar sus fotos, sus reseñas y su
+perfil. Que la reserva termine en otra sin que se entere convierte a Pawwi en la guardería
+impersonal que la clienta evita — y hace más daño que un `sin_cuidador` honesto.
+
+Por eso se le pregunta **al reservar, una sola vez**: _«Si Juliana no puede, ¿buscamos otro cuidador
+verificado por el mismo precio?»_. Si dice que no, la reserva muere en la etapa 1 y elige de nuevo.
+
+Y hay una segunda garantía, estructural: **como el pago va después de la aceptación, el cliente no
+puede terminar con otro Pawwer sin haber pagado activamente por él.** Ve quién la tomó y decide con
+la tarjeta en la mano. La ventana de aprobación no hay que construirla — el paso de pago *es* la
+ventana.
 
 ### Estados
 
@@ -220,9 +230,10 @@ conservan el realtime, las RLS y las pantallas que ya existen.
 1 pendiente · 2 confirmada · 3 en curso · 4 completada · 5 cancelada · 6 sin_cuidador
 ```
 
-Con las dos vías, **`1 pendiente` solo existe en la vía 2** —una solicitud publicada que aún
-no tiene oferta aceptada— y **`6 sin_cuidador` pasa a significar «expiró sin ofertas»**. En la
-vía 1 la reserva nace directamente en `2 confirmada`.
+`1 pendiente` es el estado normal de arranque en las dos etapas: una reserva creada que aún no
+tiene la aceptación del Pawwer. Se mueve a `2 confirmada` cuando el Pawwer acepta **y** el cliente
+paga. `6 sin_cuidador` es el final si nadie aceptó en las siete horas — y en ese caso **nunca se
+movió un peso**.
 
 Avance por tiempo automático, consciente de servicios que cruzan la medianoche, zona
 `America/Bogota`. Lo ejecuta `pg_cron` cada minuto.
@@ -595,7 +606,7 @@ cuesta la comisión del 20%, la visibilidad y el flujo de clientes nuevos.
 | Embudo completo del Pawwer (examen, capacitación, visita) | ✅ Construido |
 | Portal del Pawwer (inicio, cuidados, chat, ganancias, perfil, tarifas) | ✅ Construido |
 | Ciclo de vida por cron | ✅ Construido |
-| ~~Motor de escalación de tres fases~~ | ⚠️ **Se retira** — lo sustituyen las dos vías |
+| Motor de escalación · **dos etapas** | ✅ Construido, simplificado en S1 |
 | Chat con fotos, moderación y tiempo real | ✅ Construido |
 | Reseñas, niveles y presencia | ✅ Construido |
 | Ledger de pagos y cuenta de cobro imprimible | ✅ Construido |

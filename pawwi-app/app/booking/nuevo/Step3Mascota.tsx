@@ -83,6 +83,10 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
   const [addrHood, setAddrHood]         = useState("");
   const [error, setError]               = useState<string | null>(null);
   const [isPending, startTransition]    = useTransition();
+  // Consentimiento para que la reserva pase a la bolsa general si este Pawwer
+  // declina. Encendido por defecto, pero se pregunta ANTES, no después: nadie
+  // debe descubrir que su perro va a otra casa cuando ya está decidido.
+  const [allowPool, setAllowPool]       = useState(true);
 
   const offersTransport = transportPrice > 0;
 
@@ -148,6 +152,7 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
     if (address.trim())     fd.set("address",      address.trim());
     if (addrCoords)         { fd.set("client_lat", String(addrCoords.lat)); fd.set("client_lng", String(addrCoords.lng)); }
     if (addrHood.trim())    fd.set("neighborhood", addrHood.trim());
+    fd.set("allow_pool",    allowPool ? "1" : "0");
 
     startTransition(() => crearReserva(fd).then(result => {
       if ("error" in result) setError(result.error);
@@ -225,6 +230,41 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
             </div>
           </div>
         )}
+
+        {/* Consentimiento para la bolsa general.
+            Se pregunta ANTES de reservar, no cuando ya pasó: el cliente eligió
+            ESTA casa después de ver sus fotos y sus reseñas, así que sustituirla
+            en silencio rompería lo único que Pawwi vende. */}
+        <button
+          type="button"
+          onClick={() => setAllowPool(v => !v)}
+          aria-pressed={allowPool}
+          className="w-full flex items-start gap-3 text-left rounded-2xl border border-gray-100 bg-white/70 px-4 py-3 hover:border-gray-200 transition-colors"
+        >
+          <span
+            aria-hidden
+            className={[
+              "mt-0.5 w-10 h-6 rounded-full shrink-0 relative transition-colors",
+              allowPool ? "bg-[#FF7031]" : "bg-gray-200",
+            ].join(" ")}
+          >
+            <span className={[
+              "absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all",
+              allowPool ? "left-[1.125rem]" : "left-0.5",
+            ].join(" ")} />
+          </span>
+          <span>
+            <span className="block text-sm font-semibold text-midnight font-body">
+              Si {pawwer.profile?.name ?? "este Pawwer"} no puede, ¿buscamos otro cuidador
+              verificado por el mismo precio?
+            </span>
+            <span className="block text-xs text-gray-500 mt-0.5 leading-relaxed">
+              {allowPool
+                ? "Si declina, tu solicitud sale a los demás Pawwers verificados. Verás quién la tomó antes de pagar."
+                : "Solo se le ofrecerá a " + (pawwer.profile?.name ?? "este Pawwer") + ". Si no puede, te avisamos y eliges de nuevo."}
+            </span>
+          </span>
+        </button>
 
         {/* Lista de mascotas */}
         {dogs.length > 0 && (

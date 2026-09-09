@@ -20,7 +20,6 @@ interface Props {
     end_time?:   string;
     booking_id?: string;
     total?:      string;
-    instant?:    string;
   }>;
 }
 
@@ -58,7 +57,7 @@ export default async function BookingPage({ searchParams }: Props) {
 
   // ── Step 4: resumen pre-pago (placeholder S4) ─────────────────────────────
   if (step === 4 && booking_id && total !== null) {
-    return <Step4Resumen bookingId={booking_id} total={total} instant={sp.instant === "1"} />;
+    return <Step4Resumen bookingId={booking_id} total={total} />;
   }
 
   // ── Step 1: selección de servicio ─────────────────────────────────────────

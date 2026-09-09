@@ -31,7 +31,6 @@ const STATUS_BADGE: Record<number, { label: string; cls: string; dot?: boolean; 
 const PHASE_BADGE_CLS: Record<SearchPhase, string> = {
   1: "bg-[#FF7031]/10 text-[#FF7031]",
   2: "bg-[#92C0E9]/20 text-[#0284C7]",
-  3: "bg-[#F7AEF1]/30 text-[#6B21A8]",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -81,8 +81,7 @@ function fmtCountdown(ms: number): string {
 
 const PHASE_LABEL_DETAIL: Record<SearchPhase, string> = {
   1: "Te eligió directamente",
-  2: "Búsqueda relacionada",
-  3: "Búsqueda de ciudad",
+  2: "Salió a la bolsa general",
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────

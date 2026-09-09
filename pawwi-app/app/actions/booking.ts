@@ -4,9 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/server";
 
 export type BookingResult =
-  | { booking_id: string; total: number; commission: number; pawwer_payout: number;
-      // true = el Pawwer tiene reserva instantánea y esta nació confirmada
-      instant?: boolean }
+  | { booking_id: string; total: number; commission: number; pawwer_payout: number }
   | { error: string };
 
 export async function crearReserva(formData: FormData): Promise<BookingResult> {
@@ -31,6 +29,10 @@ export async function crearReserva(formData: FormData): Promise<BookingResult> {
   const start_time    = (formData.get("start_time") as string | null) || null;
   const end_time      = (formData.get("end_time") as string | null) || null;
 
+  // Consentimiento del cliente para que la reserva pase a la bolsa general si el
+  // Pawwer elegido declina o se le vence el plazo. Encendido salvo que lo apague.
+  const allow_pool    = formData.get("allow_pool") !== "0";
+
   if (!pawwer_id || !start_date || !end_date || !service_type_id || dog_ids.length === 0) {
     return { error: "Faltan datos para crear la reserva." };
   }
@@ -50,6 +52,7 @@ export async function crearReserva(formData: FormData): Promise<BookingResult> {
     p_neighborhood:    neighborhood,
     p_start_time:      start_time,
     p_end_time:        end_time,
+    p_allow_pool:      allow_pool,
   });
 
   if (error) {
@@ -60,8 +63,5 @@ export async function crearReserva(formData: FormData): Promise<BookingResult> {
   const result = data as BookingResult;
   if ("error" in result) return result;
 
-  redirect(
-    `/booking/nuevo?step=4&booking_id=${result.booking_id}&total=${result.total}` +
-    (result.instant ? "&instant=1" : ""),
-  );
+  redirect(`/booking/nuevo?step=4&booking_id=${result.booking_id}&total=${result.total}`);
 }
