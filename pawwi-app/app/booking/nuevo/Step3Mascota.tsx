@@ -31,6 +31,7 @@ interface Props {
   serviceId:      number;
   serviceName:    string;
   servicePrice:   number;
+  maxAnimals:     number;   // tope declarado por el Pawwer para este servicio
   transportPrice: number;
   start:          string;
   end:            string;
@@ -64,7 +65,7 @@ function calcTotal(serviceId: number, price: number, start: string, end: string,
   return price * Math.max(serviceId === 3 ? 2 : 1, days);
 }
 
-export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, servicePrice, transportPrice, start, end, hours, startTime, endTime }: Props) {
+export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, servicePrice, maxAnimals, transportPrice, start, end, hours, startTime, endTime }: Props) {
   const [selectedDogs, setSelectedDogs] = useState<Set<string>>(new Set());
   const [notes, setNotes]               = useState("");
   const [transportLegs, setTransportLegs] = useState(0);
@@ -79,10 +80,22 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
   const transportTotal = transportLegs * transportPrice;
   const total          = cuidado + transportTotal;
 
+  // El tope del Pawwer se hace cumplir en create_booking. Aquí se impide
+  // llegar a ese error: seleccionar de más simplemente no responde.
   function toggleDog(id: string) {
     setSelectedDogs(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        setError(null);
+      } else {
+        if (next.size >= maxAnimals) {
+          setError(`${pawwer.profile?.name ?? "Este Pawwer"} acepta hasta ${maxAnimals} ${maxAnimals === 1 ? "peludo" : "peludos"} a la vez en ${serviceName}.`);
+          return prev;
+        }
+        next.add(id);
+        setError(null);
+      }
       return next;
     });
   }

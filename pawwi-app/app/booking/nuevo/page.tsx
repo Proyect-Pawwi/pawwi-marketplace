@@ -139,7 +139,7 @@ export default async function BookingPage({ searchParams }: Props) {
         .order("created_at"),
       supabase
         .from("service_X_Pawwer")
-        .select("price, service_type ( name )")
+        .select("price, max_animals, service_type ( name )")
         .eq("id_pawwer", pawwer_id)
         .eq("id_service", service_id)
         .single(),
@@ -154,6 +154,7 @@ export default async function BookingPage({ searchParams }: Props) {
         serviceId={service_id}
         serviceName={(serviceRes.data?.service_type as { name?: string } | null)?.name ?? ""}
         servicePrice={serviceRes.data?.price ?? 0}
+        maxAnimals={serviceRes.data?.max_animals ?? 1}
         transportPrice={(pawwerRes.data as { transport_price?: number }).transport_price ?? 0}
         start={start}
         end={end ?? start}
