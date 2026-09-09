@@ -2,7 +2,7 @@
 
 > Dónde vive cada cosa, cómo se despliega, y qué hacer cuando algo falla.
 > Referencia operativa: si vuelves al proyecto después de una pausa, empieza por aquí.
-> _Última actualización: 2026-09-09_
+> _Última actualización: 2026-09-09 (S1 cerrado)_
 
 ---
 
@@ -294,6 +294,61 @@ sigue enseñando el **Fondo de Asistencia** en tres preguntas del examen obligat
 (líneas 69, 159 y 165). Es peor que un texto de marketing viejo: cada Pawwer nuevo aprende y aprueba
 un examen sobre un respaldo que ya no existe, justo antes de abrir su casa. Se suma al bloque de
 limpieza de S1 junto con términos y privacidad.
+
+### 2026-09-09 (noche) · S1 completo, con dos rediseños en caliente
+
+Se ejecutó S1 entero. Seis migraciones (60 a 65), corridas a mano y **verificadas contra la base
+con consultas de lectura**, no por fe: el usuario corría el SQL y devolvía la tabla de resultados.
+Ese ciclo encontró cosas que la lectura del repo no habría encontrado.
+
+**Lo que se construyó según el plan:** transporte de Pawwi desmontado, búsqueda sin corte por
+radio, capacidades unificadas con el cupo medido en perros, tope de 10 eliminado, ocupación real
+del día, `friendly_dogs` cableado, y los textos (términos, privacidad y el examen del Pawwer).
+
+**Dos rediseños que salieron de objeciones del usuario, no del plan:**
+
+1. **La reserva instantánea se descartó.** Auto-confirmar sin que el Pawwer pueda rechazar ese
+   encargo concreto es el único patrón con riesgo laboral real: la subordinación es lo que separa
+   una relación civil de una laboral.
+2. **Y la escalación NO se retira** — mi primer análisis dijo que sí y era erróneo. Uber, DiDi y
+   Rappi ofrecen trabajo que el trabajador no pidió, y es el patrón defendible; lo que genera
+   riesgo es obligar a aceptar o castigar el rechazo. Se conserva y se simplifica a **dos etapas**
+   (1 h directa + 6 h bolsa = 7 h, antes 13).
+
+**Un cambio de secuencia que ahorra un sprint de trabajo:** S2 decía que el webhook de pago mueve
+la reserva a confirmada, pero S1 estableció que confirma la aceptación del Pawwer. Con la secuencia
+vieja el cliente pagaba antes de que existiera un Pawwer que hubiera aceptado. Ahora **no se cobra
+nada hasta que ambos aceptaron**, y el pago pasa a ser el consentimiento final del cliente. Eso
+elimina de S2 el reembolso como camino habitual, la autorización y captura por separado, la
+billetera de saldo a favor, y **la pregunta pendiente de si Bold soporta preautorización**.
+
+**Tres defectos encontrados que no estaban en ningún plan:**
+
+- **La agenda estaba vencida.** `availability` tenía 488 filas y **cero futuras**: el seed de julio
+  se generó a 60 días y expiró el 2026-08-15. Con una fecha seleccionada el buscador devolvía cero
+  Pawwers, y `create_booking` no podía crear ninguna reserva. Repoblada solo para los diez Pawwers
+  del seed (mig 62); los dos reales quedaron intactos.
+- **`find_escalation_candidates` se había quedado atrás** respecto a la unificación de capacidad:
+  pedía `slots_remaining > 0` y proponía candidatos con 1 cupo para reservas de 2 perros, que
+  `accept_booking` rechazaba después. Corregido en la mig 64, junto con un `v_days` al que le
+  faltaba el `+1` del rango inclusivo.
+- 🔒 **Fuga de la dirección del cliente.** `get_pawwer_bookings` y `get_pawwer_booking_detail`
+  devolvían `client_address` y las coordenadas exactas a cualquiera que fuera Pawwer asignado **o
+  candidato**. Un candidato no ha aceptado nada, y en la bolsa pueden ser muchos a la vez.
+  Corregido en la mig 65: dirección exacta solo para el asignado, y al candidato el barrio con
+  coordenadas redondeadas a ~1,1 km. **Verificado que nunca se materializó** — cero candidaturas
+  expuestas en datos reales.
+
+> **Cómo se encontró la fuga, porque la técnica se repite:** la página de privacidad afirmaba
+> «nunca mostramos tu dirección exacta antes de que aceptes». Al ir a verificar esa frase para
+> reescribirla, resultó falsa. **Negarse a escribir una afirmación sin comprobarla es un método de
+> auditoría**, no un escrúpulo.
+
+**Lección sobre las verificaciones:** una de mis consultas de comprobación dio un falso negativo
+porque el `LIKE` exigía `auth.uid() THEN b.client_address` en una línea, y el SQL los tenía
+separados por un salto. Postgres guarda el cuerpo verbatim, saltos incluidos. **Al verificar una
+función por su texto, no dependas del formato** — busca fragmentos que quepan en una línea, o usa
+expresiones regulares con `\s+`.
 
 ---
 

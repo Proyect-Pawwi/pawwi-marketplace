@@ -3,7 +3,7 @@
 > Siete sprints, dos carriles en paralelo, y una regla nueva contra el error que hundió el plan
 > anterior: **cada sprint declara qué NO se construye.**
 > Producto definido en [`06-PRODUCTO-REDISENO.md`](./06-PRODUCTO-REDISENO.md).
-> _Última actualización: 2026-09-09_
+> _Última actualización: 2026-09-09 (S1 cerrado)_
 
 ## 🚀 Lanzamiento objetivo: **30 de noviembre de 2026**
 
@@ -173,6 +173,39 @@ temprano: todo lo que se construya después se construye sobre el modelo correct
 
 **✅ Criterio de cierre** — Una reserva de prueba con un Pawwer de capacidad 3 y transporte propio
 recorre el flujo completo, y en ningún lugar del producto aparece Pawwi como transportador.
+
+### Estado al cierre de S1 · 2026-09-09
+
+Todo el código está en `main` y las seis migraciones corridas y verificadas contra la base.
+
+| Entregable | Estado |
+|---|---|
+| Transporte de Pawwi desmontado | ✅ mig 60 |
+| Búsqueda sin corte por radio · nivel → rating → distancia | ✅ |
+| Capacidades unificadas · el cupo se mide en **perros** | ✅ mig 61 |
+| Tope de 10 eliminado (decisión 07) | ✅ mig 61 |
+| Ocupación real del día · «tu perro sería 1 de 3» | ✅ mig 63 |
+| `friendly_dogs` y `separation_anxiety` cableados | ✅ mig 63 |
+| ~~Reserva instantánea~~ → **dos etapas, 13 h → 7 h** | ✅ mig 64 |
+| `allow_pool` · consentimiento del cliente para la bolsa | ✅ mig 64 |
+| Términos, privacidad y examen del Pawwer | ✅ borrador para abogado |
+| Agenda de prueba repoblada *(no estaba en el plan)* | ✅ mig 62 |
+| Fuga de dirección del cliente *(no estaba en el plan)* | ✅ mig 65 |
+
+**Criterio de cierre, con un matiz honesto:** el flujo se puede recorrer, pero los Pawwers del
+seed tienen capacidad máxima **2**, no 3. La aritmética nueva queda demostrada igual —una reserva
+de 2 perros consume 2 cupos, que era exactamente el defecto—, y subir a uno del seed a 4 es un
+`update` de dato de prueba cuando se quiera verificar el número literal.
+
+> ### Lo que S1 dejó fuera a propósito
+> **La vía 2 como puerta de entrada** —que el cliente publique una solicitud sin elegir Pawwer—.
+> El obstáculo es concreto: con «total fijo, gana el primero», una reserva nacida en la bolsa no
+> tiene precio ancla. Hay que decidir si lo fija el cliente como presupuesto o si Pawwi deriva una
+> referencia del mercado.
+>
+> Aplazarla tiene un beneficio que no es solo de calendario: **obligar a navegar perfiles ES el
+> mecanismo de confianza**. Un botón de «cualquier cuidador» convertiría a Pawwi en un commodity,
+> que es lo contrario de lo que dicen las 40 entrevistas.
 
 ---
 
