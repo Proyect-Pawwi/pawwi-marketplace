@@ -7,6 +7,7 @@ import { APIProvider } from "@vis.gl/react-google-maps";
 import BookingHeader from "./BookingHeader";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { crearReserva } from "@/app/actions/booking";
+import { shouldWarnClient } from "@/lib/dog-behavior";
 
 const SIZE_LABEL: Record<number, string> = { 1: "Pequeño", 2: "Mediano", 3: "Grande", 4: "Extra grande" };
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -18,6 +19,13 @@ interface Dog {
   size: number;
   photo_url: string | null;
   vaccine: boolean;
+  friendly_dogs: boolean | null;
+}
+
+interface DayOccupancy {
+  date: string;
+  slots_total: number | null;
+  slots_remaining: number | null;
 }
 
 interface Pawwer {
@@ -32,6 +40,7 @@ interface Props {
   serviceName:    string;
   servicePrice:   number;
   maxAnimals:     number;   // tope declarado por el Pawwer para este servicio
+  occupancy:      DayOccupancy[];  // ocupación real de cada día del rango
   transportPrice: number;
   start:          string;
   end:            string;
@@ -65,7 +74,7 @@ function calcTotal(serviceId: number, price: number, start: string, end: string,
   return price * Math.max(serviceId === 3 ? 2 : 1, days);
 }
 
-export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, servicePrice, maxAnimals, transportPrice, start, end, hours, startTime, endTime }: Props) {
+export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, servicePrice, maxAnimals, occupancy, transportPrice, start, end, hours, startTime, endTime }: Props) {
   const [selectedDogs, setSelectedDogs] = useState<Set<string>>(new Set());
   const [notes, setNotes]               = useState("");
   const [transportLegs, setTransportLegs] = useState(0);
@@ -76,6 +85,23 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
   const [isPending, startTransition]    = useTransition();
 
   const offersTransport = transportPrice > 0;
+
+  // ── Ocupación real ────────────────────────────────────────────────────────
+  // El día MÁS OCUPADO del rango es el que manda: si el sábado ya hay 2 perros
+  // y el domingo ninguno, lo que el cliente necesita saber es el sábado.
+  const busiestDay = occupancy.reduce<{ others: number; total: number } | null>((worst, d) => {
+    const total  = d.slots_total ?? 0;
+    const others = Math.max(0, total - (d.slots_remaining ?? 0));
+    return worst === null || others > worst.others ? { others, total } : worst;
+  }, null);
+  const othersThatDay = busiestDay?.others ?? 0;
+
+  // Advertencia: solo si SU perro no es sociable y ese día habrá otros.
+  // friendly_dogs === null significa «sin declarar», no «no» — no se advierte
+  // sobre un dato que el dueño todavía no ha dado.
+  const unsociable = dogs.filter(
+    (d) => selectedDogs.has(d.id) && shouldWarnClient(d, othersThatDay),
+  );
   const cuidado        = calcTotal(serviceId, servicePrice, start, end, hours);
   const transportTotal = transportLegs * transportPrice;
   const total          = cuidado + transportTotal;
@@ -165,6 +191,38 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
             >
               <Plus size={14} /> Agregar mascota
             </Link>
+          </div>
+        )}
+
+        {/* Ocupación real del día — lo que de verdad ayuda a decidir */}
+        {busiestDay && busiestDay.total > 0 && (
+          <div className="rounded-2xl border border-gray-100 bg-white/70 px-4 py-3">
+            <p className="text-sm font-semibold text-midnight font-body">
+              {othersThatDay === 0
+                ? <>Tu peludo sería <span className="font-black">el único</span> ese día.</>
+                : <>Tu peludo sería <span className="font-black">1 de {othersThatDay + 1}</span> ese día.</>}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {pawwer.profile?.name ?? "El Pawwer"} acepta hasta {maxAnimals}{" "}
+              {maxAnimals === 1 ? "peludo" : "peludos"} en {serviceName}.
+            </p>
+          </div>
+        )}
+
+        {/* Advertencia de compatibilidad — solo si aplica de verdad */}
+        {unsociable.length > 0 && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3">
+            <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-900">
+                {unsociable.map(d => d.name).join(" y ")}{" "}
+                {unsociable.length === 1 ? "no es sociable" : "no son sociables"} con otros perros
+              </p>
+              <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                Ese día habrá {othersThatDay} {othersThatDay === 1 ? "perro más" : "perros más"} en la casa.
+                Puedes continuar, pero coméntalo con {pawwer.profile?.name ?? "el Pawwer"} por el chat al confirmar.
+              </p>
+            </div>
           </div>
         )}
 

@@ -11,6 +11,7 @@ import {
 import { acceptBooking, declineSolicitud, cancelBooking } from "@/app/actions/portal";
 import type { BookingRow } from "@/app/actions/portal";
 import { type SearchPhase, payoutBreakdown } from "@/lib/booking-config";
+import { behaviorFlags, behaviorChipClass } from "@/lib/dog-behavior";
 import SolicitudMap from "./SolicitudMap";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -276,11 +277,20 @@ export default function BookingDetail({
                 dog.weight_kg != null ? `${dog.weight_kg} kg` : null,
                 dog.sex === "macho" ? "Macho" : dog.sex === "hembra" ? "Hembra" : null,
               ].filter(Boolean) as string[];
-              return chips.length > 0 ? (
+              // En el detalle sí se dice cuándo un dato FALTA: la ausencia no
+              // debe leerse como un «no» sobre el animal de otra persona.
+              const flags = behaviorFlags(dog, true);
+              return chips.length > 0 || flags.length > 0 ? (
                 <div key={dog.name} className="flex flex-wrap gap-2">
                   {chips.map((chip) => (
                     <span key={chip} className="text-xs font-extrabold px-3 py-1.5 bg-gray-50 text-[#120A2B] border border-gray-100 rounded-full">
                       {chip}
+                    </span>
+                  ))}
+                  {flags.map((f) => (
+                    <span key={f.key}
+                      className={`text-xs font-extrabold px-3 py-1.5 rounded-full border ${behaviorChipClass(f.tone)}`}>
+                      {f.label}
                     </span>
                   ))}
                 </div>

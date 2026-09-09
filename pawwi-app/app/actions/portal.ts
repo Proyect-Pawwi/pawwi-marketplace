@@ -37,6 +37,11 @@ export interface BookingDog {
   notes?: string | null;
   weight_kg?: number | null;
   sex?: "macho" | "hembra" | null;
+  // Comportamiento (mig 57). null = el dueño aún no lo declaró — ver lib/dog-behavior.ts
+  friendly_dogs?: boolean | null;
+  separation_anxiety?: boolean | null;
+  energy_level?: string | null;
+  medical_notes?: string | null;
 }
 
 export interface BookingRow {

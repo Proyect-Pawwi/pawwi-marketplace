@@ -126,7 +126,7 @@ export default async function BookingPage({ searchParams }: Props) {
   if (step === 3) {
     if (!service_id || !start) redirect(`/booking/nuevo?pawwer_id=${pawwer_id}&step=1`);
 
-    const [pawwerRes, dogsRes, serviceRes] = await Promise.all([
+    const [pawwerRes, dogsRes, serviceRes, availRes] = await Promise.all([
       supabase
         .from("pawwer")
         .select("id, transport_price, profile!pawwer_profile_fk ( name, avatar_url )")
@@ -134,7 +134,7 @@ export default async function BookingPage({ searchParams }: Props) {
         .single(),
       supabase
         .from("dog")
-        .select("id, name, breed, size, photo_url, vaccine")
+        .select("id, name, breed, size, photo_url, vaccine, friendly_dogs")
         .eq("owner_id", user.id)
         .order("created_at"),
       supabase
@@ -143,6 +143,15 @@ export default async function BookingPage({ searchParams }: Props) {
         .eq("id_pawwer", pawwer_id)
         .eq("id_service", service_id)
         .single(),
+      // Ocupación real de cada día del rango. «Acepta hasta 4» no sirve para
+      // decidir; lo que importa es con cuántos perros estará el tuyo ESE día.
+      supabase
+        .from("availability")
+        .select("date, slots_total, slots_remaining")
+        .eq("pawwer_id", pawwer_id)
+        .gte("date", start)
+        .lte("date", end ?? start)
+        .order("date"),
     ]);
 
     if (!pawwerRes.data) redirect("/");
@@ -155,6 +164,7 @@ export default async function BookingPage({ searchParams }: Props) {
         serviceName={(serviceRes.data?.service_type as { name?: string } | null)?.name ?? ""}
         servicePrice={serviceRes.data?.price ?? 0}
         maxAnimals={serviceRes.data?.max_animals ?? 1}
+        occupancy={(availRes.data ?? []) as Parameters<typeof Step3Mascota>[0]["occupancy"]}
         transportPrice={(pawwerRes.data as { transport_price?: number }).transport_price ?? 0}
         start={start}
         end={end ?? start}

@@ -33,6 +33,7 @@ import { createClient } from "@/lib/client";
 import { acceptBooking, declineSolicitud, getPawwerStats, getEarningsDaily } from "@/app/actions/portal";
 import type { BookingRow, PawwerStats, ChartPoint } from "@/app/actions/portal";
 import { type SearchPhase, PHASE_LABEL, payoutBreakdown } from "@/lib/booking-config";
+import { behaviorFlags, behaviorChipClass } from "@/lib/dog-behavior";
 import { SERVICE_LABEL_BRAND as SERVICE_DISPLAY, SERVICE_COLOR } from "@/lib/services";
 import { useNotifications, type NotifItem, type NotifType } from "../NotificationsProvider";
 import { useMyPresence } from "../PresenceProvider";
@@ -129,6 +130,11 @@ function SolicitudCard({
   const [showConfirm, setShowConfirm] = useState(false);
 
   const dogNames = booking.dogs.map((d) => d.name).join(", ") || "Sin mascotas";
+  // El comportamiento se ve ANTES de aceptar, no cuando el perro ya está en casa.
+  // En la tarjeta solo caben las señales que cambian la decisión, sin los «sin informar».
+  const dogFlags = booking.dogs.flatMap((d) =>
+    behaviorFlags(d).map((f) => ({ ...f, key: `${d.name}-${f.key}` })),
+  );
   const svcLabel = SERVICE_DISPLAY[booking.service_type] ?? booking.service_type;
   const svcColor = SERVICE_COLOR[booking.service_type] ?? "bg-gray-50 text-gray-600";
   const phase    = booking.search_phase as SearchPhase;
@@ -266,6 +272,16 @@ function SolicitudCard({
               <Dog size={14} className="shrink-0" />
               <span className="truncate">{dogNames}</span>
             </div>
+            {dogFlags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {dogFlags.map((f) => (
+                  <span key={f.key}
+                    className={`text-[10px] font-bold px-2 py-1 rounded-full border ${behaviorChipClass(f.tone)}`}>
+                    {f.label}
+                  </span>
+                ))}
+              </div>
+            )}
             {addrLabel && (
               <a
                 href={mapsHref ?? undefined}
