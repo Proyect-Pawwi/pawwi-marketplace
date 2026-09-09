@@ -187,14 +187,45 @@ app.pawwi.co → 5deb4aa6401ae0fb.vercel-dns-017.com → 64.29.17.65 · 216.198.
 HTTP 200 · certificado Let's Encrypt CN=app.pawwi.co · sin proxy
 ```
 
-### 2. El repositorio vive en una carpeta sincronizada con iCloud
+### ~~2. El repositorio vive en una carpeta sincronizada con iCloud~~ · RESUELTO 2026-09-09
 
-`~/Desktop` está bajo iCloud Drive. Eso genera duplicados tipo `archivo 2.tsx` en cada conflicto (el
-2026-09-07 había 68), vuelve lento el acceso cuando iCloud descarga archivos bajo demanda, y en el
-peor caso puede corromper `.git` si sincroniza a mitad de una escritura.
+**El repositorio vive ahora en `~/Proyectos/pawwi-marketplace`**, fuera de iCloud.
 
-Hay una regla en `.gitignore` para que los duplicados no lleguen al repo, pero **la solución real es
-mover el proyecto fuera de iCloud** (`~/Proyectos/`, por ejemplo).
+**Por qué se movió:** no era un riesgo teórico. El 2026-09-09, con el proyecto quieto y sin que
+nadie tocara una línea, `npx tsc --noEmit` arrojaba **17 errores**. Ninguno era de código: iCloud
+había dejado **~500 directorios vacíos** terminados en ` 2` dentro de `node_modules`, 17 de ellos
+en `@types`. TypeScript trata cada carpeta de `@types` como librería de tipos implícita, no
+encuentra su entrada, y falla:
+
+```
+error TS2688: Cannot find type definition file for 'react-dom 2'.
+  Entry point for implicit type library 'react-dom 2'
+```
+
+El diagnóstico engaña: parece un problema de dependencias o de versiones de TypeScript. **Antes de
+depurar un error de tipos que no corresponde a ningún archivo tuyo, revisa que no haya carpetas
+fantasma.**
+
+```bash
+find node_modules -type d -name "* 2*" -empty | wc -l
+```
+
+**Cómo se movió** (con el árbol limpio y todo empujado a GitHub — `.env.local` está ignorado, así
+que **no está en el remoto** y solo sobrevive porque se usó `mv`, nunca un clon nuevo):
+
+```bash
+mkdir -p ~/Proyectos
+mv ~/Desktop/pawwi-marketplace ~/Proyectos/pawwi-marketplace
+cd ~/Proyectos/pawwi-marketplace/pawwi-app
+rm -rf node_modules .next tsconfig.tsbuildinfo && npm ci
+```
+
+Verificado tras el movimiento: `git` al día con `origin/main`, `tsc` en 0 errores, build de las 43
+páginas, 0 vulnerabilidades. La regla de `.gitignore` contra los duplicados se queda como red.
+
+> **Puente temporal.** Quedó un enlace simbólico en `~/Desktop/pawwi-marketplace` → `~/Proyectos/…`
+> para que las sesiones y ventanas abiertas en la ruta vieja no se rompan. **Bórralo** cuando ya no
+> tengas nada apuntando ahí: `rm ~/Desktop/pawwi-marketplace` (borra el enlace, no el repositorio).
 
 ---
 
@@ -243,6 +274,26 @@ intercepta el tráfico.
 las meta etiquetas del sitio ya sirven el dominio nuevo.
 
 Con esto **S0 queda completo salvo Resend**, que es el único hilo paralelo que sigue abierto.
+
+### 2026-09-09 (tarde) · Auditoría de cierre de S0 y salida de iCloud
+
+Antes de arrancar S1 se auditó S0 **verificando**, no leyendo la tabla de estado. Todo pasó salvo
+una cosa: `tsc` daba 17 errores que no existían el 7 de septiembre y que no correspondían a ningún
+archivo del proyecto. Eran carpetas fantasma de iCloud dentro de `node_modules` — ver el problema 2,
+ahora resuelto.
+
+**El repositorio salió de iCloud** a `~/Proyectos/pawwi-marketplace`. Se verificó después: git al
+día con el remoto, `tsc` limpio, build de 43 páginas, 0 vulnerabilidades.
+
+**Lo que queda de S0 no es trabajo de código, son tres recados con latencia externa:** activar la
+Cuenta Digital de Bold, abrir Resend y pedir sus registros DNS, y conseguir el formato de dispersión
+masiva del banco. Ninguno bloquea S1.
+
+**Hallazgo para S1:** la limpieza de PawwiProtect cubrió la interfaz, pero `lib/capacitacion.ts`
+sigue enseñando el **Fondo de Asistencia** en tres preguntas del examen obligatorio
+(líneas 69, 159 y 165). Es peor que un texto de marketing viejo: cada Pawwer nuevo aprende y aprueba
+un examen sobre un respaldo que ya no existe, justo antes de abrir su casa. Se suma al bloque de
+limpieza de S1 junto con términos y privacidad.
 
 ---
 
