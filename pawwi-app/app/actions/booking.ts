@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/server";
 
 export type BookingResult =
-  | { booking_id: string; total: number; commission: number; pawwer_payout: number }
+  | { booking_id: string; total: number; commission: number; pawwer_payout: number;
+      // true = el Pawwer tiene reserva instantánea y esta nació confirmada
+      instant?: boolean }
   | { error: string };
 
 export async function crearReserva(formData: FormData): Promise<BookingResult> {
@@ -58,5 +60,8 @@ export async function crearReserva(formData: FormData): Promise<BookingResult> {
   const result = data as BookingResult;
   if ("error" in result) return result;
 
-  redirect(`/booking/nuevo?step=4&booking_id=${result.booking_id}&total=${result.total}`);
+  redirect(
+    `/booking/nuevo?step=4&booking_id=${result.booking_id}&total=${result.total}` +
+    (result.instant ? "&instant=1" : ""),
+  );
 }

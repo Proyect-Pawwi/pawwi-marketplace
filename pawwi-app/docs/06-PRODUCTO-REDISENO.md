@@ -2,7 +2,7 @@
 
 > **Documento maestro del producto.** Define qué es Pawwi, en qué se convierte y por qué.
 > Donde este documento contradiga a los `00`–`05`, **manda este**.
-> _Última actualización: 2026-09-07_
+> _Última actualización: 2026-09-09_
 
 ---
 
@@ -80,7 +80,7 @@ Todo lo que necesite _«alguien revisa / alguien llama / alguien responde»_ no 
 | **01** | **Pawwi es únicamente un intermediario** | Los términos lo dicen sin asteriscos |
 | **02** | **La visita domiciliaria sigue siendo presencial** | Costo aceptado: el crecimiento de la oferta queda limitado por el calendario de una persona. _Se descartó la verificación remota por video_ |
 | **03** | **Se elimina el Fondo de Asistencia** | Pasivo sin fondear; una persona sola no absorbe un siniestro de $1,5 M |
-| **04** | **La reserva tiene dos velocidades** | Instantánea para quien se la ganó; aceptación con escalación para el resto |
+| **04** | **Dos vías de encuentro, y en ninguna se empuja trabajo** | Directa (el cliente toma una oferta publicada) y general (el cliente publica y los Pawwers ofertan). _Sustituye a la escalación de tres fases_ |
 | **05** | **Lanzamiento en Bogotá completa desde el día uno** | La unidad de densidad es el **conjunto**, no el barrio. La búsqueda deja de cortar por radio |
 | **06** | **El transporte ocurre entre las partes** | Pawwi nunca traslada animales |
 | **07** | **La capacidad la decide el Pawwer, sin tope de Pawwi** | Pawwi expone capacidad y ocupación; el mercado hace el resto |
@@ -165,31 +165,64 @@ sino **dirigida por demanda**: las búsquedas sin resultado indican dónde va el
 
 ## ⚡ Motor de reservas
 
-| | Con reserva instantánea | Pawwer nuevo |
-|---|---|---|
-| Al reservar | Estado 2 (confirmada), cupo bloqueado al crear | Estado 1 (pendiente) |
-| Si no responde | No aplica | Escalación de tres fases |
-| El cliente ve | «Confirmación inmediata» | «Responde en ~1 hora» |
-| Cron | Ignora estas reservas | `run_booking_cron`, sin cambios |
+> **Corrección de diseño (2026-09-09).** La versión anterior de este documento tenía una
+> escalación automática de tres fases que **empujaba solicitudes a Pawwers que no las habían
+> pedido**. Eso no es solo complejidad de más: un contratista independiente tiene que poder elegir
+> qué encargos toma, y un sistema que le asigna trabajo introduce un indicio de **subordinación**
+> —el elemento que separa una relación laboral de una civil—. La escalación se retira del producto.
 
-**Cómo se otorga:** se concede en la visita (donde ya hay contacto humano, así que cuesta cero) y
-**el sistema la revoca solo** si el nivel cae. Sin la concesión manual inicial, la función nace
-vacía: al lanzar nadie tiene reseñas y nadie alcanza nivel Súper.
+Hay **dos vías** por las que un cliente y un Pawwer se encuentran. En ninguna Pawwi asigna nada.
 
-### Escalación · para el flujo con aceptación
+### Vía 1 · Directa — el cliente toma una oferta publicada
 
 ```
-Fase 1 directo (1 h) → Fase 2 ±20% precio (6 h) → Fase 3 toda la ciudad (6 h) → sin_cuidador
+El Pawwer publica disponibilidad y precio → el cliente reserva dentro de esos parámetros
+   → se cobra → reserva CONFIRMADA → al Pawwer le llega el aviso
 ```
 
-Al vencer o declinar la fase 1, la solicitud escala y suelta el `pawwer_id`. Es matchmaking
-automático que reemplaza a un despachador humano.
+No hay paso de aceptación porque **no hace falta**: publicar disponibilidad y precio ya es la
+oferta, y el cliente la está tomando. Es aceptación de una oferta, no asignación de trabajo.
+
+**El derecho de rechazo se conserva.** Durante **1 hora** el Pawwer puede *liberar* la reserva sin
+dar explicaciones y **sin penalización**: no cuenta como cancelación, no entra en el `cancel_rate`
+y no toca su nivel. La reserva no muere — pasa a la vía 2. Cubre lo que la oferta publicada no
+podía prever: un perro sin vacunas, uno no sociable con la ocupación de ese día, un cliente que no
+le encaja.
+
+> Que el derecho exista no basta: si liberar costara nivel, sería nominal. Por eso
+> `release_booking` **no escribe `cancelled_by`**, que es la columna sobre la que se calcula el
+> `cancel_rate`.
+
+### Vía 2 · General — el cliente publica y los Pawwers ofertan
+
+```
+El cliente publica su solicitud → los Pawwers la ven y mandan su oferta con precio
+   → el cliente compara y acepta una → se cobra → reserva CONFIRMADA
+```
+
+Es el mismo mercado, al revés: el Pawwer **va y toma** lo que le interesa en vez de recibir lo que
+le toque. Al cliente se le muestran **todas** las ofertas, ordenadas por **nivel → rating**, la
+misma regla que ordena el buscador.
+
+### Qué se retira con la escalación
+
+`run_booking_cron` conserva el avance de estados por tiempo y pierde las tres fases ·
+`find_escalation_candidates` · `decline_solicitud` · `search_phase` y `phase_expires_at` ·
+`sin_cuidador` pasa a significar «expiró sin ofertas».
+
+`booking_candidates` **sobrevive cambiando de sentido**: era «a quién le empujamos esto» y pasa a
+ser «quién se ha ofrecido», con el precio de cada oferta. Misma forma, dirección opuesta — y así se
+conservan el realtime, las RLS y las pantallas que ya existen.
 
 ### Estados
 
 ```
 1 pendiente · 2 confirmada · 3 en curso · 4 completada · 5 cancelada · 6 sin_cuidador
 ```
+
+Con las dos vías, **`1 pendiente` solo existe en la vía 2** —una solicitud publicada que aún
+no tiene oferta aceptada— y **`6 sin_cuidador` pasa a significar «expiró sin ofertas»**. En la
+vía 1 la reserva nace directamente en `2 confirmada`.
 
 Avance por tiempo automático, consciente de servicios que cruzan la medianoche, zona
 `America/Bogota`. Lo ejecuta `pg_cron` cada minuto.
@@ -561,7 +594,8 @@ cuesta la comisión del 20%, la visibilidad y el flujo de clientes nuevos.
 | Wizard de reserva de 4 pasos | ✅ Construido |
 | Embudo completo del Pawwer (examen, capacitación, visita) | ✅ Construido |
 | Portal del Pawwer (inicio, cuidados, chat, ganancias, perfil, tarifas) | ✅ Construido |
-| Motor de escalación y ciclo de vida por cron | ✅ Construido |
+| Ciclo de vida por cron | ✅ Construido |
+| ~~Motor de escalación de tres fases~~ | ⚠️ **Se retira** — lo sustituyen las dos vías |
 | Chat con fotos, moderación y tiempo real | ✅ Construido |
 | Reseñas, niveles y presencia | ✅ Construido |
 | Ledger de pagos y cuenta de cobro imprimible | ✅ Construido |
