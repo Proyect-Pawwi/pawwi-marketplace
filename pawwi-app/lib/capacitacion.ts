@@ -61,15 +61,15 @@ export const QUIZ_SECTIONS: QuizSection[] = [
       },
       {
         text: "Ante una herida profunda o cojera del perro, debes:",
-        options: ["Esperar a ver si mejora solo", "Aplicar un remedio casero", "Dar soporte básico y llevarlo al vet autorizado", "Llamar al dueño antes de actuar"],
+        options: ["Esperar a ver si mejora solo", "Aplicar un remedio casero", "Llevarlo al veterinario y avisar al dueño de inmediato", "Escribirle a Pawwi y esperar instrucciones"],
         correct: 2,
-        rationale: "La salud del perro es prioridad. Actúa y coordina con Pawwi.",
+        rationale: "Actúa primero y avisa al dueño por el chat. Pawwi no tiene veterinarios ni una línea de emergencias: el cuidado es un acuerdo entre el dueño y tú.",
       },
       {
-        text: "¿Qué cubre el Fondo de Asistencia Pawwi?",
-        options: ["Daños a muebles del Pawwer", "La integridad física del perro", "Objetos perdidos por el cliente", "Enfermedades preexistentes"],
+        text: "Si el perro sufre un accidente durante el cuidado, ¿quién responde económicamente?",
+        options: ["Pawwi, con un fondo de asistencia", "El dueño y tú, según lo que acuerden", "La aseguradora de Pawwi", "Nadie, es riesgo del dueño"],
         correct: 1,
-        rationale: "El Fondo protege la vida y salud del perro durante el servicio.",
+        rationale: "Pawwi conecta y verifica identidades; NO es aseguradora y no cubre daños. Habla los gastos veterinarios con el dueño ANTES de aceptar, y considera un seguro propio de responsabilidad civil.",
       },
       {
         text: "¿Cuál es la consecuencia de un 'No Show' (no presentarte a un servicio aceptado)?",
@@ -156,16 +156,16 @@ export const QUIZ_SECTIONS: QuizSection[] = [
     emoji: "⭐",
     questions: [
       {
-        text: "¿Qué documentación se requiere para solicitar el Fondo de Asistencia?",
-        options: ["Solo tu palabra es suficiente", "Evidencia fotográfica + factura + historia clínica", "Solo una foto del perro", "Nada, el fondo es automático"],
+        text: "¿Qué es exactamente lo que Pawwi te garantiza como Pawwer?",
+        options: ["Que cubre los daños que ocurran", "Que el cliente está identificado y su perro tiene ficha", "Que hay soporte 24/7 durante el cuidado", "Que un veterinario responde si algo pasa"],
         correct: 1,
-        rationale: "El Fondo requiere soporte documental completo para procesar la solicitud.",
+        rationale: "Pawwi responde por LA VERIFICACIÓN, no por el incidente. Te consigue clientes y comprueba su identidad; el cuidado es un acuerdo entre el dueño y tú.",
       },
       {
-        text: "¿En cuánto tiempo responde Pawwi a una solicitud del Fondo de Asistencia?",
-        options: ["24 horas", "5 días hábiles", "Un mes", "Inmediatamente"],
-        correct: 0,
-        rationale: "Pawwi garantiza agilidad: respuesta en 24 horas.",
+        text: "Antes de aceptar una reserva, ¿qué debes revisar del perro que llega?",
+        options: ["Solo su nombre y su raza", "Nada, el sistema ya lo filtró", "Si es sociable con otros perros y si tiene ansiedad por separación", "Solo su peso"],
+        correct: 2,
+        rationale: "Si ese día tendrás otros perros, la sociabilidad decide si aceptas. Aparece en la solicitud ANTES de aceptar — y «sin informar» no significa «sí».",
       },
       {
         text: "¿Qué evidencia debes enviar al FINAL del servicio?",
