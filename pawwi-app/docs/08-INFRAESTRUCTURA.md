@@ -2,7 +2,7 @@
 
 > Dónde vive cada cosa, cómo se despliega, y qué hacer cuando algo falla.
 > Referencia operativa: si vuelves al proyecto después de una pausa, empieza por aquí.
-> _Última actualización: 2026-09-07_
+> _Última actualización: 2026-09-09_
 
 ---
 
@@ -20,8 +20,8 @@
 | **MailerLite** | Marketing por correo | Aparece en el SPF |
 | **Resend** | Correo transaccional | ⏳ **sin configurar** |
 
-**URL de producción actual:** `https://pawwi-marketplace-zeta.vercel.app`
-**URL objetivo:** `https://app.pawwi.co` (bloqueada, ver [Problemas conocidos](#-problemas-conocidos))
+**URL de producción:** `https://app.pawwi.co` ✅ HTTPS con certificado Let's Encrypt (renovación automática)
+**URL alterna:** `https://pawwi-marketplace-zeta.vercel.app` (sigue activa)
 
 ---
 
@@ -33,7 +33,7 @@ impide que tú las veas.
 
 | Variable | Tipo en Vercel | Notas |
 |---|---|---|
-| `NEXT_PUBLIC_SITE_URL` | Config | ⚠️ Hoy con valor temporal (URL de Vercel) |
+| `NEXT_PUBLIC_SITE_URL` | Config | `https://app.pawwi.co` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Config | |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Config | Pública por diseño; la RLS es lo que protege |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Config | |
@@ -111,7 +111,7 @@ select
 
 **Supabase → Authentication → URL Configuration:**
 
-- **Site URL:** `https://pawwi-marketplace-zeta.vercel.app` ⚠️ *temporal*
+- **Site URL:** `https://app.pawwi.co`
 - **Redirect URLs:**
   - `https://pawwi-marketplace-zeta.vercel.app/**`
   - `https://app.pawwi.co/**`
@@ -160,37 +160,32 @@ El DKIM y el MX de Resend sí se agregan como registros nuevos, sin problema.
 
 ## ⚠️ Problemas conocidos
 
-### 1. El CNAME de `app.pawwi.co` no llega a Cloudflare
+### ~~1. El CNAME de `app.pawwi.co` no llega a Cloudflare~~ · RESUELTO 2026-09-09
 
-**Síntoma:** el registro aparece en el editor de Zona de DNS de HostGator, pero los nameservers
-autoritativos responden `NXDOMAIN`.
+**Causa raíz:** el editor de «Zona avanzada de DNS» de HostGator **no escribe en la zona de
+Cloudflare**, que es la autoritativa. El registro aparecía en su panel pero nunca existió.
+
+**Cómo se demostró:** el número de serie SOA de la zona no cambió en 48 horas. Ese serial se
+incrementa en cada modificación, así que su inmovilidad probó que la zona nunca fue tocada —
+descartando por completo la explicación de «propagación» que daba el soporte de primera línea.
 
 ```bash
-dig @miki.ns.cloudflare.com app.pawwi.co CNAME   # → status: NXDOMAIN
+dig +short @miki.ns.cloudflare.com pawwi.co SOA | awk '{print $3}'
 ```
 
-**Descartado:** no hay duplicado (`app.pawwi.co.pawwi.co`), no hay registro A en conflicto, y la
-zona funciona bien para todos los demás registros.
+**Solución:** un asesor de HostGator creó el registro **directamente en Cloudflare**. Quedó proxiado
+(nube naranja) en el primer intento y hubo que pedir un segundo ajuste a **DNS only**.
 
-**Hipótesis:** el editor de HostGator escribe en una zona local que nadie consulta, o su
-sincronizador hacia Cloudflare no está corriendo. Soporte respondió con el guion de «espere 24
-horas», que no aplica: esto no es propagación, el registro no existe en el servidor autoritativo.
+**Lección operativa:** para cualquier registro DNS futuro —incluidos los de Resend— hay que pedirle
+a soporte de HostGator que lo cree **en Cloudflare**, no usar su editor de zona. Conviene solicitar
+acceso directo a esa zona de Cloudflare para dejar de depender de tickets.
 
-**Registro que debe crearse:**
+**Estado final verificado:**
 
-| Tipo | Nombre | Valor | Proxy |
-|---|---|---|---|
-| CNAME | `app` | `5deb4aa6401ae0fb.vercel-dns-017.com.` | **Desactivado** (nube gris) |
-
-**Si no se resuelve:** migrar la zona a una cuenta propia de Cloudflare usando el inventario de
-arriba. Da control total, incluido el interruptor de proxy — que Vercel **exige apagado** y que el
-editor de HostGator probablemente ni expone.
-
-**Valores temporales que hay que revertir** cuando el dominio esté vivo:
-1. `NEXT_PUBLIC_SITE_URL` en Vercel → `https://app.pawwi.co` (y redesplegar)
-2. **Site URL** en Supabase → `https://app.pawwi.co`
-
-Las Redirect URLs de Supabase ya incluyen `app.pawwi.co`; esas no se tocan.
+```
+app.pawwi.co → 5deb4aa6401ae0fb.vercel-dns-017.com → 64.29.17.65 · 216.198.79.65
+HTTP 200 · certificado Let's Encrypt CN=app.pawwi.co · sin proxy
+```
 
 ### 2. El repositorio vive en una carpeta sincronizada con iCloud
 
@@ -231,6 +226,23 @@ de mayo.
 Un commit arrastró 120 deleciones no revisadas (`app/pawwer/**` y `.agents/**`). Se detectó y
 restauró el mismo día; nada se perdió del disco ni del remoto. **Lección: revisar `git status
 --cached` antes de confirmar, no después.**
+
+### 2026-09-09 · El dominio
+
+Se destrabó el CNAME que llevaba dos días sin aplicarse. La causa no era propagación: **el editor de
+DNS de HostGator no escribe en la zona de Cloudflare**. Lo que lo demostró fue el número de serie
+SOA congelado durante 48 horas — un dato verificable que le quitó el piso a la respuesta de guion
+del soporte de primera línea.
+
+Un asesor creó el registro directamente en Cloudflare. Quedó proxiado en el primer intento y hubo
+que pedir un segundo ajuste a DNS only, porque Vercel no puede emitir el certificado si Cloudflare
+intercepta el tráfico.
+
+**`https://app.pawwi.co` quedó en línea con HTTPS.** Se revirtieron los dos valores temporales
+(`NEXT_PUBLIC_SITE_URL` en Vercel con su redespliegue, y el Site URL en Supabase) y se verificó que
+las meta etiquetas del sitio ya sirven el dominio nuevo.
+
+Con esto **S0 queda completo salvo Resend**, que es el único hilo paralelo que sigue abierto.
 
 ---
 

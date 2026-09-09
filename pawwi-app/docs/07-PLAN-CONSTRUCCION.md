@@ -3,7 +3,7 @@
 > Siete sprints, dos carriles en paralelo, y una regla nueva contra el error que hundió el plan
 > anterior: **cada sprint declara qué NO se construye.**
 > Producto definido en [`06-PRODUCTO-REDISENO.md`](./06-PRODUCTO-REDISENO.md).
-> _Última actualización: 2026-09-07_
+> _Última actualización: 2026-09-09_
 
 ## 🚀 Lanzamiento objetivo: **30 de noviembre de 2026**
 
@@ -94,19 +94,6 @@ código y el que más desbloquea.
 - Variables de entorno en producción, incluida `PAWWI_WEBHOOK_SECRET` que hoy falta
 - Correr las migraciones 57, 58 y 59 si aún no están en la base
 
-> **⚠️ Pendiente temporal (S0).** El CNAME de `app.pawwi.co` se creó en HostGator pero **no llega a
-> la zona de Cloudflare**, que es la autoritativa. Mientras se resuelve, el sitio corre en
-> `https://pawwi-marketplace-zeta.vercel.app` y hay **dos valores temporales que revertir** cuando el
-> dominio esté vivo:
-> 1. `NEXT_PUBLIC_SITE_URL` en Vercel → `https://app.pawwi.co` (y redesplegar)
-> 2. **Site URL** en Supabase → `https://app.pawwi.co`
->
-> Las Redirect URLs de Supabase ya incluyen `app.pawwi.co`, así que esas no se tocan.
->
-> Sospecha a verificar: el editor de DNS de HostGator puede estar escribiendo en una zona local que
-> nadie consulta, y además no expone el interruptor de proxy de Cloudflare — que Vercel exige
-> apagado. Es probable que haga falta acceso directo a Cloudflare.
-
 **❌ No se construye**
 - Ninguna función nueva
 - Nada de los 16 errores de ESLint
@@ -128,7 +115,7 @@ las credenciales de Bold están en producción.
 | Código respaldado en GitHub | ✅ 312 archivos en `main` |
 | `main` limpio (fusión + código abandonado fuera) | ✅ verificado con `npm ci` + build |
 | Vulnerabilidades de dependencias | ✅ 7 altas → **0** (Next 16.2.6 → 16.3.4) |
-| App desplegada con HTTPS | ✅ `pawwi-marketplace-zeta.vercel.app` |
+| App desplegada con HTTPS | ✅ **`app.pawwi.co`** |
 | Variables de entorno en producción | ✅ 8, con reparto Config/Secret correcto |
 | Bold: cuenta, llaves, tarifa | ✅ 2,99% + $900 (modalidad «siguiente día») |
 | `PAWWI_WEBHOOK_SECRET` | ✅ generado |
@@ -136,7 +123,7 @@ las credenciales de Bold están en producción.
 | Migraciones 57, 58 y 59 | ✅ verificadas (9 / 4 / YES) |
 | Fuga de la landing | ✅ tapada con formulario de dos lados |
 | **Retirar PawwiProtect** *(era de S1)* | ✅ adelantado — 10 lugares |
-| Dominio `app.pawwi.co` | ⏳ hilo paralelo — DNS atascado en HostGator |
+| Dominio `app.pawwi.co` | ✅ **resuelto 2026-09-09** — HTTPS con certificado válido |
 | Resend (cuenta, API key, DNS) | ⏳ hilo paralelo |
 | Formato de dispersión masiva del banco | ⏳ pendiente, se necesita en S2 |
 | Activar Cuenta Digital Bold | ❓ por confirmar |
