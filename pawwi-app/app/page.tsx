@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   Search, MapPin, Star, ShieldCheck, Heart,
-  Menu, User, Minus, Plus, ChevronDown, X, Map as MapIcon, List,
+  Menu, User, Minus, Plus, ChevronDown, X, Map as MapIcon, List, Car,
 } from "lucide-react";
 import { APIProvider, useMapsLibrary } from "@vis.gl/react-google-maps";
 import { createClient } from "@/lib/client";
@@ -48,17 +48,12 @@ const FILTER_ACTIVE: Record<string, string> = {
   Travel:    "bg-[#92C0E9] text-[#120A2B]",
 };
 
-const RADIUS_METERS: Record<string, number> = {
-  "1 km": 1000,
-  "2 km": 2000,
-  "5 km": 5000,
-  "10 km": 10000,
-};
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Pawwer extends MapPawwer {
   location: string;
   distance: string;
+  transportPrice: number;   // 0 = no ofrece transporte
   rating: number;
   reviews: number;
   badge: string;
@@ -109,6 +104,7 @@ function mapDbPawwer(row: any, i: number): Pawwer {
     name: row.profile?.name ?? "Pawwer",
     location: row.neighborhood ?? "",
     distance: "—",
+    transportPrice: Number(row.transport_price ?? 0),
     price: `$${Math.round((row.price ?? 0) / 1000)}k`,
     rating: Number(row.rating ?? 0),
     reviews: row.reviews_count ?? 0,
@@ -172,7 +168,6 @@ export default function PawwiHome() {
   const [activeFilter, setActiveFilter] = useState("Todos");
 
   const [searchLocation, setSearchLocation] = useState("");
-  const [searchRadius, setSearchRadius] = useState("2 km");
   const [petsCount, setPetsCount] = useState(1);
 
   const [activeSearchPanel, setActiveSearchPanel] = useState<string | null>(null);
@@ -225,6 +220,7 @@ export default function PawwiHome() {
       .from("pawwer")
       .select(`
         id, price, rating, reviews_count, lat, lng, badge, level, neighborhood,
+        transport_price,
         profile!pawwer_profile_fk ( name, avatar_url ),
         services:service_X_Pawwer ( price, service_type!fk_service_x_pawwer_service_type ( name ) ),
         images:Pawwer_images ( image )
@@ -309,7 +305,6 @@ export default function PawwiHome() {
   function clearFilters() {
     setSearchLocation("");
     setSearchCoords(null);
-    setSearchRadius("2 km");
     setActiveFilter("Todos");
     setActiveTab("daycare");
     setSelectedDate(null);
@@ -394,23 +389,21 @@ export default function PawwiHome() {
     .filter((p) => activeFilter === "Todos" || p.services.includes(SERVICE_MAP[activeFilter] ?? activeFilter))
     .filter((p) => availablePawwerIds === null || availablePawwerIds.has(p.id));
 
-  // Auto-expand: if search returns 0 results at selected radius, try 3km, then show all — never empty screen
-  const distanceFiltered = (() => {
-    if (!searchCoords) return serviceFiltered;
-    const atRadius = serviceFiltered.filter(
-      (p) => haversineKm(searchCoords, { lat: p.lat, lng: p.lng }) <= RADIUS_METERS[searchRadius] / 1000
-    );
-    if (atRadius.length > 0) return atRadius;
-    const at3km = serviceFiltered.filter(
-      (p) => haversineKm(searchCoords, { lat: p.lat, lng: p.lng }) <= 3
-    );
-    return at3km.length > 0 ? at3km : serviceFiltered;
-  })();
-
-  // Ordenamiento por calidad: Ranger > Súper > Nuevo, luego mejor rating.
-  const filteredPawwers = [...distanceFiltered].sort(
-    (a, b) => levelRank(b.level) - levelRank(a.level) || b.rating - a.rating,
-  );
+  // Decisión 05: la búsqueda NO corta por radio. Pawwi lanza en Bogotá entera y
+  // la unidad de densidad es el conjunto, no el barrio — un Pawwer a 8 km que
+  // recoge y entrega es mejor resultado que una pantalla vacía. La distancia
+  // deja de ser filtro binario y pasa a ser el último criterio de orden.
+  //
+  // Orden: nivel → rating → distancia.
+  const filteredPawwers = [...serviceFiltered].sort((a, b) => {
+    const byLevel = levelRank(b.level) - levelRank(a.level);
+    if (byLevel !== 0) return byLevel;
+    const byRating = b.rating - a.rating;
+    if (byRating !== 0) return byRating;
+    if (!searchCoords) return 0;
+    return haversineKm(searchCoords, { lat: a.lat, lng: a.lng })
+         - haversineKm(searchCoords, { lat: b.lat, lng: b.lng });
+  });
 
   const selectedPawwer = selectedPawwerId != null
     ? filteredPawwers.find((p) => p.id === selectedPawwerId) ?? null
@@ -600,16 +593,6 @@ export default function PawwiHome() {
                     onSelect={(coords, label) => { setSearchCoords(coords); setSearchLocation(label); }}
                     autoFocus
                   />
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mt-4 mb-2 block">Radio de búsqueda</label>
-                  <div className="flex flex-wrap gap-2">
-                    {["1 km", "2 km", "5 km", "10 km"].map((rad) => (
-                      <button key={rad} onClick={() => { setSearchRadius(rad); setActiveSearchPanel("when"); }}
-                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors
-                          ${searchRadius === rad ? "bg-[#FFF1EB] border-[#FF7031] text-[#FF7031]" : "border-gray-200 text-gray-600 hover:border-gray-400"}`}>
-                        {rad}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               )}
             </div>
@@ -695,7 +678,7 @@ export default function PawwiHome() {
                 {searchLocation || "¿Dónde necesitas cuidador?"}
               </span>
               <span className="text-xs text-gray-500 truncate">
-                {datesFilled ? fechasLabel : activeFilter !== "Todos" ? activeFilter : searchRadius} · {petsCount} {petsCount === 1 ? "peludo" : "peludos"}
+                {datesFilled ? fechasLabel : activeFilter !== "Todos" ? activeFilter : "Toda Bogotá"} · {petsCount} {petsCount === 1 ? "peludo" : "peludos"}
               </span>
             </div>
             {hasActiveFilters && (
@@ -754,15 +737,6 @@ export default function PawwiHome() {
                   onSelect={(coords, label) => { setSearchCoords(coords); setSearchLocation(label); }}
                   autoFocus
                 />
-                <div className="flex flex-wrap gap-2">
-                  {["1 km", "2 km", "5 km", "10 km"].map((rad) => (
-                    <button key={rad} onClick={() => setSearchRadius(rad)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors
-                        ${searchRadius === rad ? "bg-[#FFF1EB] border-[#FF7031] text-[#FF7031]" : "border-gray-200 text-gray-600"}`}>
-                      {rad}
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
 
@@ -975,7 +949,7 @@ export default function PawwiHome() {
               </h2>
               <p className="text-[#6B7280] font-medium text-pretty">
                 {filteredPawwers.length} {filteredPawwers.length === 1 ? "hogar verificado" : "hogares verificados"}
-                {searchCoords ? ` a menos de ${searchRadius}` : " en Bogotá"}.
+                {searchCoords ? " en Bogotá, del más cercano al más lejano" : " en Bogotá"}.
               </p>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 shrink-0 items-center">
@@ -1016,8 +990,6 @@ export default function PawwiHome() {
                   <p className="text-sm text-gray-500">
                     {availablePawwerIds !== null
                       ? `Ningún Pawwer disponible para ${fechasLabel}. Prueba otra fecha.`
-                      : searchCoords
-                      ? `Ningún Pawwer a menos de ${searchRadius}. Intenta ampliar el radio o cambiar la dirección.`
                       : "No hay Pawwers con ese servicio. Prueba otro filtro."}
                   </p>
                   {(searchCoords || availablePawwerIds !== null) && (
@@ -1078,6 +1050,14 @@ export default function PawwiHome() {
                         </span>
                       ))}
                     </div>
+                    {/* Sin corte por radio, la distancia se negocia con el transporte:
+                        saber que recoge y entrega es lo que vuelve viable a un Pawwer lejano. */}
+                    {pawwer.transportPrice > 0 && (
+                      <p className="text-[0.7rem] font-bold text-[#0284C7] flex items-center gap-1">
+                        <Car size={12} className="shrink-0" />
+                        Recoge y entrega por ${Math.round(pawwer.transportPrice / 1000)}k
+                      </p>
+                    )}
                   </div>
                 </Link>
               ))}
@@ -1090,7 +1070,6 @@ export default function PawwiHome() {
                 <MapView
                   pawwers={mapPawwers}
                   searchCenter={searchCoords}
-                  radiusMeters={RADIUS_METERS[searchRadius]}
                   selectedId={selectedPawwerId}
                   onMarkerClick={handleMarkerClick}
                 />

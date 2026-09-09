@@ -41,10 +41,12 @@ function MapController({ center, radiusMeters }: { center?: LatLng | null; radiu
 
     if (!center) return;
 
-    // Pan + zoom to match radius
+    // Pan + zoom. Sin radiusMeters la búsqueda cubre Bogotá entera (decisión 05),
+    // así que se abre lo suficiente para ver resultados lejos de la dirección.
     map.panTo(center);
     const zoom =
-      !radiusMeters || radiusMeters <= 1000 ? 15
+      !radiusMeters ? 13
+      : radiusMeters <= 1000 ? 15
       : radiusMeters <= 2000 ? 14
       : radiusMeters <= 5000 ? 13
       : 12;
