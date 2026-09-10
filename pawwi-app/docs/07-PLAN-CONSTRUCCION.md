@@ -3,12 +3,23 @@
 > Siete sprints, dos carriles en paralelo, y una regla nueva contra el error que hundió el plan
 > anterior: **cada sprint declara qué NO se construye.**
 > Producto definido en [`06-PRODUCTO-REDISENO.md`](./06-PRODUCTO-REDISENO.md).
-> _Última actualización: 2026-09-09 (S1 cerrado)_
+> _Última actualización: 2026-09-10 (auditoría de las tres superficies)_
 
-## 🚀 Lanzamiento objetivo: **30 de noviembre de 2026**
+## 🚀 Lanzamiento objetivo: **12 de enero de 2027**
 
-Soft launch a los 22 clientes históricos, justo antes de la temporada alta de viajes de diciembre
-—que según el JTBD es el trabajo de mayor ticket (PawwiTravel).
+Soft launch a los 22 clientes históricos.
+
+> ### Por qué se movió desde el 30 de noviembre · 2026-09-10
+> La auditoría de las tres superficies encontró **tres semanas de trabajo que no estaban en este
+> plan**, incluida una que bloquea el lanzamiento por completo: **el embudo del Pawwer no termina**
+> — nadie puede llegar al marketplace sin dos `UPDATE` a mano en Supabase.
+>
+> Con eso encima, empujar a mediados de diciembre era la peor de las tres salidas: se llega
+> **tarde** al pico de viajes y además con prisa. Enero tiene su propio pico —el regreso a oficina
+> tras vacaciones— y se llega sin deuda.
+>
+> El calendario reserva **del 21 de diciembre al 4 de enero**. Un plan que finge que alguien
+> trabaja en Navidad es un plan que se incumple en la primera semana.
 
 ---
 
@@ -38,15 +49,17 @@ Dos carriles que corren en paralelo y no compiten: el código ocupa los días de
 domiciliarias ocupan los sábados. **Si se hacen en serie, el lanzamiento se duplica.**
 
 ```
-        sep 7   sep 14   sep 21   sep 28   oct 5   oct 12   oct 19   oct 26   nov 2   nov 9   nov 16   nov 23
-       ┌──────┬────────────────┬────────────────┬────────────────┬────────────────┬──────┬────────────────┐
-CÓDIGO │  S0  │       S1       │       S2       │       S3       │       S4       │  S5  │       S6       │
-       │Rescate│   Rediseño    │   EL DINERO    │ Puerta cliente │ Cerrar círculo │Refer.│  QA + LANZA    │
-       └──────┴────────────────┴────────────────┴────────────────┴────────────────┴──────┴────────────────┘
-       ┌───────────────────────────────────────┬──────────────────────────────────────────────────────────┐
-OFERTA │   Reactivar los 15 Pawwers actuales   │   Visitas domiciliarias · 2 sábados al mes                │
-       └───────────────────────────────────────┴──────────────────────────────────────────────────────────┘
+      sep 7  sep 14   sep 28    oct 12       nov 2    nov 16   nov 30  dic 7   dic 21   ene 5
+     ┌─────┬────────┬────────┬────────────┬────────┬────────┬──────┬──────┬───────┬─────────┐
+CÓDIGO│ S0  │   S1   │   S2   │     S3     │   S4   │   S5   │  S6  │  S7  │ pausa │ LANZA   │
+     │Resc.│Rediseño│ DINERO │ EL OPERADOR│ Cliente│ Círculo│Refer.│  QA  │ 🎄    │ ene 12  │
+     └─────┴────────┴────────┴────────────┴────────┴────────┴──────┴──────┴───────┴─────────┘
+     ┌──────────────────────┬────────────────────────────────────────────────────────────────┐
+OFERTA│ Reactivar los 15     │  Visitas domiciliarias · 2 sábados al mes                      │
+     └──────────────────────┴────────────────────────────────────────────────────────────────┘
 ```
+
+> **S3 · El operador es nuevo**, y es el sprint que faltaba entero. Ver la auditoría más abajo.
 
 **Ritmo asumido:** cuatro días enfocados de código por semana, más dos sábados al mes para visitas.
 No son cinco días: hay que dejar aire para soporte, decisiones y la vida. Un plan que asume 100% de
@@ -73,7 +86,55 @@ disponibilidad es un plan que se incumple en la semana tres.
 
 ---
 
-## 📦 Los siete sprints
+## 🔎 La auditoría de las tres superficies · 2026-09-10
+
+Se auditó lo construido en los tres lados —cliente, Pawwer y Pawwi como operador— para saber qué
+falta de verdad. **Este plan daba por construido un embudo que no termina.**
+
+### 🔴 El embudo del Pawwer no cierra
+
+`visita_pendiente → approved` **no existe en el código**. Lo escribía
+`supabase/13_capacitacion.sql:50`, pero `supabase/14_visita_domiciliaria.sql` hizo
+`CREATE OR REPLACE` de esa función y lo cambió a `visita_pendiente`. Y `pawwer.verified` solo lo
+pone en `true` el `INSERT` del seed.
+
+**Un Pawwer real que complete el 100% del embudo nunca aparece en el marketplace.** Publicar a
+alguien son hoy dos `UPDATE` a mano en Supabase, sin validación de transición, sin auditoría y sin
+correo al Pawwer. Además `app/page.tsx` filtraba por `verified` pero no por `status`, así que las
+dos puertas ni coincidían.
+
+Es un bloqueador de lanzamiento que no estaba en ningún plan. Lo resuelve **S3 · El operador**.
+
+### 🔒 Y una vulnerabilidad viva · corregida el mismo día
+
+`set_pawwer_exam_result` y `set_pawwer_capacitacion_result` eran `SECURITY DEFINER`, recibían del
+**cliente** el resultado a escribir, y **no tenían `GRANT` ni `REVOKE`** — conservaban el
+`EXECUTE TO PUBLIC` por defecto de Postgres. Cualquier Pawwer podía llamarlas por REST con
+`p_passed: true` y saltarse la capacitación entera.
+
+Atacaba la única promesa que Pawwi hace. **Migraciones 66 y 67**, con tres defectos más del mismo
+embudo: `visita_domiciliaria` sin blindar, las fotos de cédula que nunca se guardaban, y tres
+firmas huérfanas de `complete_pawwer_onboarding` —una de ellas sin control de mayoría de edad—.
+
+### Lo demás que encontró, ya repartido en los sprints
+
+| Superficie | Hallazgo | Dónde se resuelve |
+|---|---|---|
+| Cliente | Favoritos **no persisten** — el corazón es estado local, `favourite` está huérfana | S4 |
+| Cliente | El Pasaporte de la mig 57: `DogForm` usa **0 de sus 9 columnas** | S4 |
+| Cliente | Editar mascota **crea un duplicado** — `nueva/page.tsx` no lee `?edit=` | S4 |
+| Cliente | `/mis-favoritos` y `/mis-mensajes` no hacen **ni una query** | S4 · S5 |
+| Cliente | Dos enlaces del menú van a rutas que **no existen** | S4 |
+| Pawwer | `needs_review` es un **callejón sin salida**: nada lo saca de ahí | S3 |
+| Pawwer | El chat del Pawwer es un **monólogo** — el cliente no puede responder | S5 |
+| Pawwer | La agenda de visitas **no está modelada**: cupos inventados en el cliente | S3 |
+| Operador | **No existe ningún concepto de admin** — ni rol, ni pantalla, ni RPC | S3 |
+| Operador | `mark_payouts_paid` es `service_role`: **no hay forma de llamarla** desde la app | S3 |
+| Pruebas | Los 10 `test_*.sql` tienen un **UUID quemado**; no hay seed de clientes; los Pawwers del seed **no pueden iniciar sesión** | S3 |
+
+---
+
+## 📦 Los ocho sprints
 
 ### S0 · Rescate y desbloqueo
 **sep 7 – 13 · 1 semana**
@@ -209,6 +270,27 @@ de 2 perros consume 2 cupos, que era exactamente el defecto—, y subir a uno de
 
 ---
 
+### 🔒 Hotfix de seguridad · 2026-09-10 · fuera de sprint
+
+No fue un sprint: era una vulnerabilidad y se corrigió el día que se encontró.
+**Migraciones 66 y 67**, las dos corridas y verificadas.
+
+| Defecto | Corrección |
+|---|---|
+| El Pawwer podía **auto-certificarse** llamando las RPC del embudo por REST con `p_passed: true` | Las dos RPC pasan a `service_role`; reciben el id de `getUser()`, nunca del formulario |
+| `visita_domiciliaria` **no estaba en el blindaje** de la mig 44 | `REVOKE INSERT/UPDATE/DELETE` |
+| Las **fotos de cédula nunca se guardaban** — `UPDATE` revocado y error descartado | Entran por `complete_pawwer_onboarding` |
+| El onboarding no escribía `slots_total`, de la mig 63 | Un Pawwer nuevo ya nace con la ocupación calculable |
+| **Tres firmas huérfanas** de `complete_pawwer_onboarding`; la más vieja **sin control de mayoría de edad** | Eliminadas |
+
+> **No se recalculó el puntaje dentro de la función**, que era lo primero que se intentó:
+> `capacitacion_results` **no guarda las respuestas**, solo el puntaje, así que no hay nada que
+> recalcular; y `exam_results` sí las guarda pero la clave vive en `lib/exam-pawwer.ts` —
+> duplicarla en SQL crearía dos fuentes de verdad para la misma pregunta. La salida fue mover la
+> frontera de confianza, no el cálculo.
+
+---
+
 ### S2 · El dinero
 **sep 28 – oct 11 · 2 semanas**
 
@@ -284,20 +366,102 @@ reserva se confirma sola, la comisión queda retenida, y el viernes sale un arch
 
 ---
 
-### S3 · La puerta del cliente
-**oct 12 – 25 · 2 semanas**
+### S3 · El operador
+**oct 12 – nov 1 · 3 semanas** · 🆕 **el sprint que faltaba entero**
+
+Todo lo que hoy te obliga a abrir Supabase Studio. Sin esto **no se puede lanzar**: ningún Pawwer
+real llega al marketplace.
+
+**Entregables · 3.1 · Cerrar el embudo** (migración 68)
+
+Primero las funciones, después las pantallas — hoy para «aprobar la visita» o «rechazar una
+cédula» no hay nada que llamar.
+
+- `is_admin()` — función `STABLE` que lee `profile.is_admin`, encendido a mano una sola vez.
+  **No se toca el trigger `handle_new_user`**, que sigue con su lista blanca de dos valores: nadie
+  puede darse el rol al registrarse
+- `admin_verificar_cedula` — `pending_review → exam_ready` o `rejected`. Reemplaza al webhook
+  `/api/pawwer/notify-approved`, que **nadie llama en todo el repo** y hoy es un `curl` a mano
+- `admin_resolver_examen` — saca del callejón `needs_review`
+- `admin_gestionar_visita` — `confirmed` / `completed` / `cancelled` / reagendar. Hoy **ningún
+  código escribe `visita_domiciliaria.status`**
+- **`admin_aprobar_pawwer`** — el que falta: `visita_pendiente → approved` **y** `verified = true`
+  en una transacción. Es lo que publica al Pawwer
+- Alinear el filtro del marketplace: `verified` **y** `status = 'approved'`
+- Tabla `admin_audit` — un `UPDATE` a pelo en Studio no deja rastro; una RPC sí
+
+**Entregables · 3.2 · La agenda de visitas, modelada**
+
+Hoy los cupos están inventados en el cliente: cuatro franjas fijas en `lib/visita.ts`, duplicadas
+en la migración 15, y los días son L-V generados en JS. Tabla `visita_slots (fecha, slot, zona)`
+que el operador abre desde el panel. Es lo que permite **agrupar por zona**, que es la mitad del
+argumento de densidad de `docs/06`.
+
+**Entregables · 3.3 · El panel `/admin`**
+
+Mismo patrón que el resto: Server Components como loaders → Client Components interactivos,
+escritura por RPC. Gate con `is_admin()`.
+
+| Pantalla | Qué resuelve |
+|---|---|
+| `/admin` | Tres colas con contador: cédulas, exámenes en revisión, visitas por confirmar |
+| `/admin/pawwers` | Estado del embudo, filtro, ficha con documentos y acciones |
+| `/admin/visitas` | Calendario del operador: abrir cupos por zona, confirmar, completar, reagendar |
+| `/admin/liquidacion` | Qué le debes a cada Pawwer y **marcado en lote** con `mark_payouts_paid` |
+| `/admin/metricas` | Embudo, GMV, reservas por estado y **búsquedas sin resultado** |
+
+Tecnologías, todas ya en el stack: `recharts` con carga diferida como en `EarningsChart`,
+`lib/levels.ts` y `lib/services.ts` como fuentes únicas, URLs firmadas para los buckets privados
+`cedula-docs` y `pago-docs`.
+
+Las **búsquedas sin resultado** necesitan registrarse: tabla `search_miss`, escrita desde el
+buscador. Estaba en S6 y sube aquí porque alimenta las métricas y dirige a qué zona ir el sábado.
+
+**Entregables · 3.4 · Seed con cuentas reales**
+
+`scripts/seed-dev.ts` contra la **Admin API de Supabase**. Crea usuarios que **sí pueden iniciar
+sesión** — los 10 del seed actual solo existen en `profile`, sin fila en `auth.users`, así que son
+escaparate. Deja 3 clientes con perros (uno con Pasaporte completo, uno con `friendly_dogs=false`,
+uno sin declarar) y **5 Pawwers, uno en cada estado del embudo**. Y arregla el UUID quemado de los
+10 `test_*.sql`.
+
+**❌ No se construye**
+- Portal admin para nadie que no seas tú — sin invitaciones ni permisos por rol
+- Notificaciones al Pawwer desde el panel más allá de los correos que ya existen
+- Edición de datos del Pawwer desde el admin — se aprueba o se rechaza, no se corrige
+
+**✅ Criterio de cierre** — Registrar un Pawwer nuevo por la interfaz, aprobarlo entero desde
+`/admin`, y **encontrarlo en el marketplace como cliente anónimo**. Sin tocar Supabase ni una vez.
+
+---
+
+### S4 · La puerta del cliente
+**nov 2 – 15 · 2 semanas**
 
 Construir la mitad del producto que hoy solo existe como columnas en la base de datos. Es lo que
 convierte «dueños» en «dueños responsables».
 
 **Entregables**
-- **Formulario del Pasaporte Pawwi**, multi-paso y a mano con zod: ficha, salud, comportamiento y
-  rutina sobre la migración 57
+- **Formulario del Pasaporte Pawwi**, multi-paso y a mano con zod (sin `react-hook-form`, que no
+  está en el stack): ficha, salud, comportamiento y rutina sobre la migración 57. Hoy `DogForm`
+  usa **0 de sus 9 columnas**.
+  > Esto **desbloquea lógica que ya está escrita y hoy está muerta**: `shouldWarnClient` en
+  > `lib/dog-behavior.ts` nunca se dispara porque `friendly_dogs` siempre es `null`, y los chips de
+  > comportamiento que ve el Pawwer salen siempre «sin informar». Se construyó en S1 la lectura sin
+  > la escritura.
+- **Editar mascota está roto.** `mis-mascotas/page.tsx` enlaza `?edit=<id>` pero `nueva/page.tsx`
+  **no lee `searchParams`**: el lápiz abre un formulario vacío y guardar **crea un perro duplicado**.
+  Falta la acción `actualizarMascota`
+- **Favoritos con persistencia real.** El corazón es solo `setFavorites`; la tabla `favourite`
+  existe con RLS desde la migración 03 y está **huérfana**. `/mis-favoritos` no hace ni una query
+  y su empty-state está escrito a mano
 - **KYC del cliente:** cédula sobre la migración 58, escrita por RPC dedicado y leída enmascarada,
   igual que la cuenta de pago del Pawwer
 - **Gate en `create_booking`:** no se reserva sin Pasaporte completo ni sin identidad registrada
-- Favoritos con persistencia real sobre la tabla `favourite` — hoy el corazón es solo estado local
-- `/mi-perfil` funcional: datos, mascotas, cuenta
+- `/mi-perfil` funcional — hoy lee nombre y avatar, cierra sesión, y tiene tres filas «Pronto».
+  No se puede editar nada
+- **Dos arreglos de un minuto:** el menú de usuario apunta a `/reservas` y `/mascotas`, que **no
+  existen** (404). Y `/mis-mascotas` queda fuera de `CLIENT_TAB_ROOTS`, sin navegación inferior
 
 **❌ No se construye**
 - **OTP por SMS.** Requiere proveedor nuevo y costo por mensaje; va a v1.1
@@ -314,8 +478,8 @@ Pasaporte de su perro y registrado su cédula.
 
 ---
 
-### S4 · Cerrar el círculo
-**oct 26 – nov 8 · 2 semanas**
+### S5 · Cerrar el círculo
+**nov 16 – 29 · 2 semanas**
 
 Hoy el cliente paga y queda ciego: solo el Pawwer tiene chat. Este sprint construye la tranquilidad
 emocional que es, según las 40 entrevistas, el producto entero.
@@ -335,10 +499,18 @@ emocional que es, según las 40 entrevistas, el producto entero.
   Sin esto, un cliente que investigó la casa de Juliana descubre que su perro va a la de Pedro sin
   haberlo visto. Es el daño de marca más rápido que puede hacerse el producto.
 - **Chat del cliente**, reusando el patrón de `ChatRoom` del Pawwer: realtime, fotos, moderación y
-  botón de soporte. La RLS ya lo permite (`messages_select_parties` cubre a ambas partes)
+  botón de soporte.
+  > **El backend ya está listo:** `send_message` autoriza a `client_id` (mig 45) y el canal
+  > `messages-${bookingId}` es neutro. Falta **solo la interfaz** — el molde son las 677 líneas de
+  > `ChatRoom.tsx`. Hoy `/mis-mensajes` no hace ni una query: **el Pawwer escribe en un chat donde
+  > nadie puede responder.**
+- **Presencia del cliente.** `usePresence` ya está en el chat, pero `PresenceProvider` solo se monta
+  en el portal del Pawwer: el cliente **nunca late** y el punto verde nunca se enciende
 - **Reporte diario** en su forma mínima: el Pawwer marca un mensaje con foto como reporte del día,
-  y eso alimenta el nivel
-- Campana y feed de notificaciones del cliente
+  y eso alimenta el nivel. `messages.is_daily_report` existe en el esquema, se lee, y **se escribe
+  siempre `false`** — columna fantasma desde la migración 02
+- Campana y feed de notificaciones del cliente. `NavTab` de `ClientNav` **ya acepta `badge` y lo
+  renderiza**, y ningún llamador se lo pasa: el contador está construido y desconectado
 - **Correos por Resend** en el resto de eventos: reserva confirmada, reporte del día, servicio
   terminado, solicitud de reseña
 - Timer de urgencia del lado del cliente
@@ -355,8 +527,8 @@ correo y en la app, y puede responder desde su propia pantalla.
 
 ---
 
-### S5 · Referidos
-**nov 9 – 15 · 1 semana**
+### S6 · Referidos
+**nov 30 – dic 6 · 1 semana**
 
 El único motor de adquisición con economía viable, y —vía el loop B— lo que vuelve las visitas
 geográficamente densas. Va antes del lanzamiento porque tiene que estar vivo desde la primera
@@ -382,10 +554,10 @@ queda registrada.
 
 ---
 
-### S6 · QA y lanzamiento
-**nov 16 – 29 · 2 semanas**
+### S7 · QA y lanzamiento
+**dic 7 – 19 · QA · pausa navideña · ene 5 – 12 · lanzamiento**
 
-**Entregables · semana 1 (QA)**
+**dic 7 – 19 · QA**
 - 3 a 5 clientes históricos y 5 Pawwers recorren el flujo completo con dinero real y montos bajos
 - Prueba en Safari iOS y Chrome Android a 375 px — el 85% del uso es móvil y **nunca se revisó
   formalmente**
@@ -393,16 +565,27 @@ queda registrada.
 - Corrección de bugs que bloqueen pago o búsqueda
 - SEO básico: meta tags por Pawwer, sitemap, Open Graph para compartir por WhatsApp
 - Analítica de embudo: búsqueda, perfil visto, reserva iniciada, pago completado
+- **Recorrido completo con los seeds de S3** — es la primera vez que se puede entrar como cada tipo
+  de usuario en cada estado del embudo
 
-**Entregables · semana 2 (soft launch)**
+**dic 21 – ene 4 · pausa navideña**
+
+Deliberada, no un hueco. Un plan que finge que alguien trabaja del 24 al 31 se incumple solo.
+
+**ene 5 – 9 · re-verificación**
+- Volver a correr el recorrido completo: dos semanas sin tocar nada bastan para que algo externo
+  cambie
 - Aviso a los 22 clientes históricos
+
+**ene 12 · soft launch**
 - Guardia de 72 horas
 
 **❌ No se construye**
 - Función nueva de ningún tipo
 - Los 16 errores de ESLint, salvo que rompan algo
 - Campaña de marketing pago
-- App nativa, paseos, portal admin
+- App nativa, paseos
+- Nada del panel de operador: eso se cerró en S3
 
 **✅ Criterio de cierre** — Cinco reservas reales completadas de punta a punta, pagadas y
 calificadas, sin que nadie del equipo intervenga en ninguna.
@@ -419,13 +602,17 @@ a febrero.
 | **Sep 7 – 13** | **Tapar la fuga de la landing.** Hoy `pawwi.co` manda a un WhatsApp que nadie contesta: recoge interesados y los quema. Cambiar el CTA por un formulario de Tally de **dos lados** (lista de espera de clientes + aplicación de Pawwers). Sin código, sin deploy | Fuga cerrada |
 | Sep 7 – Oct 4 | Contactar y reactivar los 15 Pawwers actuales: confirmar que siguen, actualizar perfil, cargar disponibilidad | 15 activos |
 | Oct 5 – Nov 1 | Visitas nuevas, 2 sábados al mes, agrupadas por conjunto | +8 |
-| Nov 2 – Nov 29 | Visitas nuevas, priorizadas por búsquedas sin resultado | +8 |
-| **Al lanzar** | Pawwers verificados con disponibilidad real cargada | **~30** |
+| Nov 2 – Dic 20 | Visitas nuevas, priorizadas por **búsquedas sin resultado** — el dato lo empieza a registrar S3 | +12 |
+| **Al lanzar** | Pawwers verificados con disponibilidad real cargada | **~35** |
 | **Al lanzar** | Clientes en lista de espera para el soft launch (22 históricos + los que junte la landing) | **>40** |
 
+> **Las seis semanas extra del calendario nuevo son seis semanas más de sábados.** El aplazamiento a
+> enero, que es un costo del lado del código, es una ganancia del lado de la oferta: caben ~4
+> sábados adicionales de visitas, y la oferta es el cuello de botella real.
+>
 > **Por qué la lista de espera importa más de lo que parece:** el lado Pawwer del formulario alimenta
-> directamente el cuello de botella — quien aplique en estas doce semanas se puede visitar los
-> sábados, así que llegas al lanzamiento con más oferta. Y el lado cliente convierte el arranque en
+> directamente ese cuello de botella — quien aplique se puede visitar los sábados, así que llegas al
+> lanzamiento con más oferta. Y el lado cliente convierte el arranque en
 > frío (el mayor riesgo del lanzamiento según el Service Blueprint) en un lanzamiento a gente que ya
 > levantó la mano.
 
@@ -434,9 +621,12 @@ a febrero.
 >
 > Si **sí**: el carril B de septiembre es telefónico y el plan se sostiene tal cual.
 >
-> Si **no**: son 15 visitas antes de poder lanzar, es decir 3–4 sábados adicionales al frente del
-> calendario, y el lanzamiento se corre a mediados de diciembre — lo cual choca con la temporada de
-> viajes y probablemente conviene aplazar a enero.
+> Si **no**: son 15 visitas antes de poder lanzar, 3–4 sábados adicionales al frente del calendario.
+> **Con el aplazamiento a enero esto dejó de ser un riesgo de fecha** y pasó a ser trabajo que cabe:
+> hay sábados de sobra entre octubre y diciembre. Sigue sin responderse, y sigue conviniendo saberlo.
+>
+> Ojo con el orden: hasta que **S3** cierre el embudo (12 de octubre – 1 de noviembre), cada Pawwer
+> que visites hay que publicarlo con dos `UPDATE` a mano en Supabase.
 
 ---
 
@@ -444,13 +634,15 @@ a febrero.
 
 | Factor | Impacto | Señal temprana |
 |---|---|---|
-| Los 15 Pawwers sin visitar | +4 sem | Se sabe esta misma semana |
-| Ritmo real por debajo de 4 días/semana | +2 a 4 sem | Visible al cerrar S1 |
-| Sorpresas en la integración de Bold | +1 a 2 sem | Visible en la semana 4, con ocho de colchón por delante |
-| Se insiste en OTP por SMS antes de lanzar | +1 sem | Decisión de producto, hoy |
+| **El panel de S3 se desborda** | +1 a 2 sem | Es el trozo más grande y menos acotado del plan. **Lo primero que se recorta son las métricas** — `/admin/metricas` no bloquea el lanzamiento; las tres colas y el botón de aprobar, sí |
+| Los 15 Pawwers sin visitar | +4 sem | Se sabe con una llamada |
+| Ritmo real por debajo de 4 días/semana | +2 a 4 sem | Visible al cerrar S2 |
+| Sorpresas en la integración de Bold | +1 a 2 sem | Visible al arrancar S2, con quince semanas de colchón |
+| Se insiste en OTP por SMS antes de lanzar | +1 sem | Decisión de producto |
 | Bold no dispersa a terceros | 0 al calendario | Confirmado. Cuesta operación semanal, no tiempo de construcción |
 | Cuenta de comercio ya aprobada | **Riesgo eliminado** | Era la mayor incertidumbre del plan |
-| Aparece un socio o una contratación | −3 a 4 sem | S3 y S4 son los sprints más paralelizables |
+| **El pago va después de la aceptación** | **Riesgo eliminado** | Ya no hace falta saber si Bold soporta preautorización: era una dependencia externa en la ruta crítica |
+| Aparece un socio o una contratación | −3 a 4 sem | S3 y S4 son los más paralelizables: el panel y el portal del cliente no se tocan |
 
 ### Sobre la caja
 
@@ -469,8 +661,8 @@ Explícitamente fuera de las doce semanas, en orden de valor:
    cliente es bajo
 2. **OTP por SMS** y verificación automática de cédula, cuando el volumen lo justifique
 3. **Loop D:** el prompt de «vuélvete Pawwer» en el portal del cliente
-4. **Portal admin**, reducido a dos pantallas: quién espera visita y en qué zona, y la liquidación
-   semanal
+4. ~~**Portal admin**~~ → **se adelantó a S3.** La auditoría del 2026-09-10 mostró que no es un
+   «después»: sin él ningún Pawwer real llega al marketplace
 5. Reporte diario completo con checks fisiológicos
 6. Los 16 errores de ESLint y la deuda técnica acumulada
 

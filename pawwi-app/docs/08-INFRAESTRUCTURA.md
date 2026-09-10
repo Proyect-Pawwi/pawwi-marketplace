@@ -2,7 +2,7 @@
 
 > Dónde vive cada cosa, cómo se despliega, y qué hacer cuando algo falla.
 > Referencia operativa: si vuelves al proyecto después de una pausa, empieza por aquí.
-> _Última actualización: 2026-09-09 (S1 cerrado)_
+> _Última actualización: 2026-09-10 (auditoría de las tres superficies)_
 
 ---
 
@@ -376,6 +376,46 @@ porque el `LIKE` exigía `auth.uid() THEN b.client_address` en una línea, y el 
 separados por un salto. Postgres guarda el cuerpo verbatim, saltos incluidos. **Al verificar una
 función por su texto, no dependas del formato** — busca fragmentos que quepan en una línea, o usa
 expresiones regulares con `\s+`.
+
+### 2026-09-10 · Auditoría de las tres superficies y hotfix de seguridad
+
+Se auditó lo construido en los tres lados —cliente, Pawwer y Pawwi como operador— antes de seguir
+construyendo. **El plan daba por hecho un embudo que no termina.**
+
+**El bloqueador de lanzamiento.** `visita_pendiente → approved` **no existe en el código**: lo
+escribía la migración 13 y la 14 hizo `CREATE OR REPLACE` de esa función cambiándolo a
+`visita_pendiente`. Y `pawwer.verified` solo lo pone en `true` el `INSERT` del seed. Un Pawwer real
+que complete el 100% del embudo **nunca aparece en el marketplace**. Publicar a alguien son hoy dos
+`UPDATE` a mano en Studio, sin validación ni rastro. Lo resuelve el sprint **S3 · El operador**,
+nuevo, que empujó el lanzamiento del 30 de noviembre al 12 de enero.
+
+**La vulnerabilidad, corregida el mismo día (migraciones 66 y 67).**
+`set_pawwer_exam_result` y `set_pawwer_capacitacion_result` eran `SECURITY DEFINER`, recibían del
+cliente el resultado a escribir, y **no tenían `GRANT` ni `REVOKE`** — conservaban el
+`EXECUTE TO PUBLIC` por defecto. Cualquier Pawwer podía saltarse la capacitación entera con un
+`POST` y `p_passed: true`. Atacaba la única promesa de Pawwi.
+
+Con ella cayeron tres defectos más del mismo embudo: `visita_domiciliaria` sin blindar, las fotos
+de cédula que **nunca se guardaban** (un `UPDATE` revocado cuyo error se descartaba), y el
+`INSERT` de disponibilidad del onboarding que no conocía `slots_total`.
+
+**Y una lección de método que ya vale más que el arreglo.** La verificación de la 66 devolvió
+`firmas_onboarding = 3` cuando esperaba 1. No era un fallo de esa migración:
+`complete_pawwer_onboarding` arrastraba **tres firmas desde julio**, y la más vieja **no tenía el
+control de mayoría de edad**. Se podía crear un Pawwer menor de 18 años llamándola directamente.
+
+> **Mi consulta preguntaba `count(*)`, y por eso lo vi.** Si hubiera preguntado «¿existe la
+> función?» —lo intuitivo— habría dado `true` con la insegura viva al lado, y habría dado el hotfix
+> por bueno. Ver la regla del apartado «Al cambiar la firma de una RPC».
+
+**Lo que la auditoría repartió en los sprints:** favoritos que no persisten, el Pasaporte con 0 de
+9 columnas cableadas, editar mascota que crea duplicados, `/mis-favoritos` y `/mis-mensajes` sin
+una sola query, dos enlaces a rutas 404, `needs_review` como callejón sin salida, la agenda de
+visitas sin modelar, y los 10 `test_*.sql` con un UUID quemado sobre un entorno que ya no existe.
+
+**Un aviso operativo:** el examen y la capacitación ahora dependen de `SUPABASE_SERVICE_ROLE_KEY`
+en Vercel. Ya estaba desde S0. Si algún día falta, el síntoma será que un Pawwer no puede terminar
+el embudo — `lib/admin.ts` lanza un error explícito en vez de caer a la clave anónima en silencio.
 
 ---
 
