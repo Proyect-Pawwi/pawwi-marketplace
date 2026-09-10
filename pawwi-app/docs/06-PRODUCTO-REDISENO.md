@@ -141,11 +141,21 @@ vida del Pawwer. Sesenta minutos, y esa persona no vuelve a necesitar a nadie.
 - Confirmar examen y capacitación (ya autocalificados)
 - **Configurar disponibilidad y precios ahí mismo**, en el celular del Pawwer
 - Firmar el contrato digital y tomar la foto de perfil
-- Activar `verified` y conceder `instant_booking`
+- Registrar la **aceptación de términos**: qué versión, cuándo y desde dónde
+- Activar `verified` y publicar el perfil
 - Explicar la regla de oro: toda comunicación ocurre dentro de Pawwi
 
 > Configurar la disponibilidad juntos importa más de lo que parece: el Pawwer que se va sin
 > disponibilidad cargada nunca recibe una reserva y se apaga en tres semanas.
+
+> **Todo esto se captura desde el móvil del operador**, en `/admin/visita/[id]` — no desde el
+> celular del Pawwer. La razón no es solo comodidad: en la visita el Pawwer está en
+> `visita_pendiente` y **su portal lo rechaza**, porque el gate exige `approved`. Se aprueba
+> después de la visita, pero la visita configura cosas que exigirían estar aprobado. Se construye
+> en S3 · El operador.
+>
+> Y las **fotos del hogar las toma el operador**, no el Pawwer. Es lo que la visita venía a
+> garantizar: la diferencia entre «él dice que tiene patio» y «lo vi» es literalmente el producto.
 
 ### ⚠️ La línea que no se cruza
 
@@ -154,6 +164,11 @@ valida capacidad, vuelve a poner la regla que la decisión 07 eliminó.
 
 Los hechos observados se **publican como datos del perfil**, no como tope.
 **Pawwi expone; no arbitra.**
+
+Van en columnas propias de `pawwer` —`verif_metros_zona`, `verif_zonas_separadas`,
+`verif_exteriores`, `verif_observaciones`— **separadas de lo que el Pawwer declaró de sí mismo**
+en el onboarding (`tipo_inmueble`, `areas_externas`, `mi_espacio`). Esa separación es lo que
+permite que el perfil distinga «declarado» de «verificado», que es la promesa entera.
 
 ### Cómo se programan
 

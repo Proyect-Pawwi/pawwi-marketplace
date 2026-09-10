@@ -372,6 +372,52 @@ reserva se confirma sola, la comisión queda retenida, y el viernes sale un arch
 Todo lo que hoy te obliga a abrir Supabase Studio. Sin esto **no se puede lanzar**: ningún Pawwer
 real llega al marketplace.
 
+### El embudo, paso por paso · qué se captura y qué falta
+
+| # | Paso | Qué se captura hoy | Qué falta |
+|---|---|---|---|
+| 1 | **Registro** | nombre, correo, teléfono, contraseña, términos | — |
+| 2 | **Bienvenida** · 3 pasos | bio, profesión, fecha de nacimiento, nº y **fotos de cédula**, avatar · dirección, barrio, lat/lng, «mi espacio», valores, tipo de inmueble, áreas externas, animales en casa, niños pequeños, experiencia · servicios con precio, patrón semanal | — |
+| 3 | **Revisión de cédula** | *manual, por `curl` o Studio* | **Pantalla** con los documentos y el botón |
+| 4 | **Examen** | 26 respuestas **y las respuestas se guardan** + puntaje | Salida de `needs_review` |
+| 5 | **Capacitación** | 8 videos, 27 preguntas, **solo el puntaje** | — |
+| 6 | **Visita** | fecha, franja, estado, un `notes` de texto libre | **Casi todo · ver abajo** |
+| 7 | **Aprobación** | *no existe* | La RPC, y **el correo de bienvenida** |
+
+Los correos ya existen en los pasos 3 y 4. **Falta el de la aprobación final** — el más importante,
+porque es el que le dice «ya estás en línea».
+
+### 🔴 La visita no tiene ninguna herramienta
+
+Es el único momento humano del producto y `docs/06` le pone un protocolo de ocho puntos. Hoy la
+tabla `visita_domiciliaria` guarda cuatro campos y uno es texto libre.
+
+**No hay dónde guardar lo observado.** El protocolo pide «metros, separación de zonas, exteriores»
+— que son justo los datos que se publican en el perfil y **sostienen la promesa de verificación**.
+Y tienen que quedar distinguibles de lo que el Pawwer declaró de sí mismo en el onboarding: la
+diferencia entre «él dice que tiene patio» y «lo vi» es literalmente el producto.
+
+**No hay set de fotos.** Cinco fotos estándar —entrada, sala, zona del perro, patio o balcón, dónde
+duermen—. El bucket `pawwer-images` existe, pero solo se sube desde `perfil/fotos`, **dentro del
+portal**.
+
+**Y hay un círculo que impide ejecutar el protocolo:**
+
+```
+(portal)/layout.tsx:20 → if (pawwer.status !== "approved") redirect("/pawwer/dashboard")
+```
+
+El protocolo dice «configurar disponibilidad y precios ahí mismo, en el celular del Pawwer». En la
+visita el Pawwer está en `visita_pendiente`, así que **su portal lo rechaza**: `perfil/tarifas`
+—precios y cuántos perros acepta— es inalcanzable. Se aprueba *después* de la visita, pero la
+visita tiene que configurar cosas que exigen estar aprobado.
+
+> Curiosamente `/pawwer/disponibilidad` sí funciona: está fuera del portal y solo comprueba el rol.
+> El «guard flojo» que la auditoría marcó como defecto es hoy lo único que permitiría cargar la
+> agenda durante la visita.
+
+**Y el contrato digital del protocolo no existe.** Cero código.
+
 **Entregables · 3.1 · Cerrar el embudo** (migración 68)
 
 Primero las funciones, después las pantallas — hoy para «aprobar la visita» o «rechazar una
@@ -386,18 +432,46 @@ cédula» no hay nada que llamar.
 - `admin_gestionar_visita` — `confirmed` / `completed` / `cancelled` / reagendar. Hoy **ningún
   código escribe `visita_domiciliaria.status`**
 - **`admin_aprobar_pawwer`** — el que falta: `visita_pendiente → approved` **y** `verified = true`
-  en una transacción. Es lo que publica al Pawwer
+  en una transacción. Es lo que publica al Pawwer, y **manda el correo de bienvenida** — hoy hay
+  correos en los pasos 3 y 4 del embudo, y no en el único que de verdad importa
+- Registro de aceptación de términos: `terminos_version` y `terminos_aceptados_at` en `pawwer`
 - Alinear el filtro del marketplace: `verified` **y** `status = 'approved'`
 - Tabla `admin_audit` — un `UPDATE` a pelo en Studio no deja rastro; una RPC sí
 
-**Entregables · 3.2 · La agenda de visitas, modelada**
+**Entregables · 3.2 · La visita, con herramienta** 🆕
+
+Se resuelve **desde tu móvil**, en `/admin/visita/[id]`, pensada para usarse de pie y con una mano.
+No se toca el gate del portal: el Pawwer no tiene que hacer nada durante la visita salvo enseñarte
+la casa, y las fotos del hogar las tomas tú — que es justo lo que la visita venía a garantizar.
+
+La pantalla recorre el protocolo de `docs/06` en orden, y **no deja aprobar sin completarlo**:
+
+1. **Cédula en físico** — comparar contra las fotos que ya subió. Un check con sello de tiempo
+2. **Las cinco fotos** — entrada · sala · zona del perro · patio o balcón · dónde duermen. Suben a
+   `pawwer-images` con `sort_order`, y son las que verá el cliente
+3. **Hechos observados** — columnas nuevas en `pawwer`, **nombradas para distinguirse de lo
+   autodeclarado**: `verif_metros_zona`, `verif_zonas_separadas`, `verif_exteriores`,
+   `verif_observaciones`. Se publican como datos del perfil, **nunca como tope** — la decisión 07
+   dice que Pawwi expone, no arbitra
+4. **Precios y capacidad** — los servicios del Pawwer con su precio y su `max_animals`, editables
+   desde tu pantalla. Es el «configuramos perros» del protocolo, y resuelve el círculo del portal
+5. **Disponibilidad** — abrir su agenda de los próximos 60 días
+6. **Aceptación de términos** — el Pawwer acepta desde tu pantalla al final. Se guarda **qué
+   versión aceptó, cuándo y desde dónde**. Sin firma electrónica certificada ni proveedor externo:
+   trazable y honesto, y encaja con los términos que ya se están redactando para el abogado
+7. **Aprobar y publicar** — `admin_aprobar_pawwer`, que cierra el embudo
+
+> **Por qué el Pawwer sin disponibilidad cargada se apaga en tres semanas.** `docs/06` ya lo dice:
+> el que se va de la visita sin agenda nunca recibe una reserva. Por eso el paso 5 no es opcional.
+
+**Entregables · 3.3 · La agenda de visitas, modelada**
 
 Hoy los cupos están inventados en el cliente: cuatro franjas fijas en `lib/visita.ts`, duplicadas
 en la migración 15, y los días son L-V generados en JS. Tabla `visita_slots (fecha, slot, zona)`
 que el operador abre desde el panel. Es lo que permite **agrupar por zona**, que es la mitad del
 argumento de densidad de `docs/06`.
 
-**Entregables · 3.3 · El panel `/admin`**
+**Entregables · 3.4 · El panel `/admin`**
 
 Mismo patrón que el resto: Server Components como loaders → Client Components interactivos,
 escritura por RPC. Gate con `is_admin()`.
@@ -407,6 +481,7 @@ escritura por RPC. Gate con `is_admin()`.
 | `/admin` | Tres colas con contador: cédulas, exámenes en revisión, visitas por confirmar |
 | `/admin/pawwers` | Estado del embudo, filtro, ficha con documentos y acciones |
 | `/admin/visitas` | Calendario del operador: abrir cupos por zona, confirmar, completar, reagendar |
+| `/admin/visita/[id]` | **La visita en vivo**, desde el móvil. Ver 3.2 |
 | `/admin/liquidacion` | Qué le debes a cada Pawwer y **marcado en lote** con `mark_payouts_paid` |
 | `/admin/metricas` | Embudo, GMV, reservas por estado y **búsquedas sin resultado** |
 
@@ -417,7 +492,7 @@ Tecnologías, todas ya en el stack: `recharts` con carga diferida como en `Earni
 Las **búsquedas sin resultado** necesitan registrarse: tabla `search_miss`, escrita desde el
 buscador. Estaba en S6 y sube aquí porque alimenta las métricas y dirige a qué zona ir el sábado.
 
-**Entregables · 3.4 · Seed con cuentas reales**
+**Entregables · 3.5 · Seed con cuentas reales**
 
 `scripts/seed-dev.ts` contra la **Admin API de Supabase**. Crea usuarios que **sí pueden iniciar
 sesión** — los 10 del seed actual solo existen en `profile`, sin fila en `auth.users`, así que son
@@ -427,11 +502,17 @@ uno sin declarar) y **5 Pawwers, uno en cada estado del embudo**. Y arregla el U
 
 **❌ No se construye**
 - Portal admin para nadie que no seas tú — sin invitaciones ni permisos por rol
-- Notificaciones al Pawwer desde el panel más allá de los correos que ya existen
-- Edición de datos del Pawwer desde el admin — se aprueba o se rechaza, no se corrige
+- **Firma electrónica certificada.** La aceptación de términos se registra, no se firma con un
+  proveedor externo. Si el abogado lo exige, es una integración aparte
+- Edición de los datos que el Pawwer declaró — se aprueba o se rechaza, no se corrige por él.
+  Los **hechos observados** sí los escribes tú: son tuyos, no suyos
+- Reagendar la visita desde el lado del Pawwer sin pasar por ti
 
-**✅ Criterio de cierre** — Registrar un Pawwer nuevo por la interfaz, aprobarlo entero desde
-`/admin`, y **encontrarlo en el marketplace como cliente anónimo**. Sin tocar Supabase ni una vez.
+**✅ Criterio de cierre** — Recorrer el embudo **completo** sin tocar Supabase ni una vez:
+registrar un Pawwer por la interfaz → verificar su cédula desde `/admin` → que haga examen y
+capacitación → agendar visita sobre un cupo que tú abriste → completar la visita desde el móvil con
+las cinco fotos, los hechos observados, precios, capacidad, agenda y términos → aprobar →
+**encontrarlo en el marketplace como cliente anónimo**, con sus fotos y sus datos verificados.
 
 ---
 
