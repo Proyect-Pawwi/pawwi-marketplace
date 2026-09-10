@@ -142,6 +142,33 @@ Respaldo de la zona al 2026-09-07. Indispensable si alguna vez hay que migrarla.
 | A | `www`, `ftp`, `cpanel`, `webmail` | → Cloudflare | Proxiados |
 | A | `mail` | `162.241.60.182` | HostGator, **sin proxy** |
 
+### 🚨 Al cambiar la firma de una RPC: elimina la vieja
+
+`CREATE OR REPLACE FUNCTION` solo **reemplaza** cuando la lista de parámetros coincide. Si le
+añades o le quitas uno, **crea una sobrecarga** — y la versión anterior sigue viva, llamable por
+REST, y con las validaciones que tuviera en su día.
+
+Ya pasó dos veces. `complete_pawwer_onboarding` acumuló **tres firmas** entre las migraciones 07,
+08 y 09: la más vieja no tenía el control de mayoría de edad, así que se podía crear un Pawwer
+menor de 18 años llamándola directamente (limpiado en la migración 67). Y `create_booking` estuvo
+a punto de lo mismo en la 64, donde sí se puso el `DROP` a tiempo.
+
+**Después de cada migración que cambie una firma**, correr:
+
+```sql
+select p.proname, count(*),
+       string_agg(pg_get_function_identity_arguments(p.oid), E'\n' order by p.oid)
+from pg_proc p
+where p.pronamespace = 'public'::regnamespace
+group by p.proname having count(*) > 1;
+-- esperado: cero filas
+```
+
+Y **verificar siempre el número de firmas**, no solo que la función nueva exista: `count(*) = 1`
+es la comprobación que atrapa esto; `¿existe la función?` no.
+
+---
+
 ### 🚨 Al agregar Resend: NO crear un SPF nuevo
 
 Ya existe un registro SPF con Titan y MailerLite. **El estándar permite un solo SPF por dominio** —
