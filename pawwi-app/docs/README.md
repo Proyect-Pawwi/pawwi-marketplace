@@ -26,7 +26,7 @@ Los documentos `00`–`05` siguen siendo válidos como descripción de **lo que 
 | Doc | Contenido |
 |---|---|
 | [`06-PRODUCTO-REDISENO.md`](./06-PRODUCTO-REDISENO.md) | **Documento maestro.** Qué es Pawwi, las 7 decisiones, las dos puertas, la visita, el motor de reservas, capacidad y precio, el dinero, los 5 loops de crecimiento, economía unitaria, stack y estado del código. |
-| [`07-PLAN-CONSTRUCCION.md`](./07-PLAN-CONSTRUCCION.md) | **Plan de 12 semanas** hacia el lanzamiento del 30 de noviembre de 2026. Siete sprints en dos carriles, con la lista de «qué NO se construye» en cada uno. |
+| [`07-PLAN-CONSTRUCCION.md`](./07-PLAN-CONSTRUCCION.md) | **El plan vigente**, hacia el soft launch del **12 de enero de 2027**. Ocho sprints en dos carriles. Empieza con un **cuadro de mando** y cada sprint abre con **«qué hay construido hoy»**, auditado contra el código. Incluye los cuatro bloqueadores y las cinco promesas que el producto hace y no cumple. |
 | [`08-INFRAESTRUCTURA.md`](./08-INFRAESTRUCTURA.md) | **Referencia operativa.** Cuentas y servicios, variables de entorno, cómo desplegar, cómo correr migraciones, inventario DNS, problemas conocidos y **bitácora** de sesiones. |
 
 ### Referencia de lo construido
@@ -58,7 +58,9 @@ Estos puntos cambiaron con el rediseño. El detalle está en `06`:
 | **Alcance del lanzamiento** | Norte de Bogotá, por barrios | **Bogotá completa.** La unidad de densidad es el conjunto, no el barrio |
 | **Reporte diario** | Obligación policiada por el equipo | Métrica que alimenta el nivel |
 | **Portal admin** | Dashboard completo de operación | Dos pantallas: cola de visitas y liquidación semanal |
-| **Sprints** | 7 sprints, lanzamiento 2026-07-10 | Ver [`07-PLAN-CONSTRUCCION.md`](./07-PLAN-CONSTRUCCION.md), lanzamiento 2026-11-30 |
+| **Sprints** | 7 sprints, lanzamiento 2026-07-10 | Ver [`07-PLAN-CONSTRUCCION.md`](./07-PLAN-CONSTRUCCION.md): **8 sprints**, soft launch **2027-01-12** |
+| **Portal del cliente** | El backlog de `PENDIENTES-PORTAL-CLIENTE.md` | Superado por **S4** del `07`, que audita las doce pantallas |
+| **Portal admin** | «Después del lanzamiento» | Es **S3** y es un **bloqueador**: sin él ningún Pawwer real llega al marketplace |
 
 ---
 

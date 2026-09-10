@@ -1,7 +1,8 @@
-# 07 · Plan de construcción — 12 semanas
+# 07 · Plan de construcción — hasta enero
 
-> Siete sprints, dos carriles en paralelo, y una regla nueva contra el error que hundió el plan
-> anterior: **cada sprint declara qué NO se construye.**
+> Ocho sprints, dos carriles en paralelo, y dos reglas contra el error que hundió el plan anterior:
+> **cada sprint declara qué NO se construye**, y **cada sprint abre con lo que hay construido de
+> verdad** — auditado contra el código, no recordado.
 > Producto definido en [`06-PRODUCTO-REDISENO.md`](./06-PRODUCTO-REDISENO.md).
 > _Última actualización: 2026-09-10 (auditoría de las tres superficies)_
 
@@ -20,6 +21,46 @@ Soft launch a los 22 clientes históricos.
 >
 > El calendario reserva **del 21 de diciembre al 4 de enero**. Un plan que finge que alguien
 > trabaja en Navidad es un plan que se incumple en la primera semana.
+
+---
+
+## 📊 Estado de un vistazo
+
+| Sprint | Fechas | Estado | Lo que decide |
+|---|---|---|---|
+| **S0** · Rescate | sep 7–13 | ✅ **cerrado**, salvo Resend | El código está a salvo y en internet |
+| **S1** · Rediseño en código | sep 14–27 | ✅ **cerrado y verificado** | El código dice lo que el producto promete |
+| 🔒 **Hotfix** de seguridad | sep 10 | ✅ **en producción** | El Pawwer no puede auto-certificarse |
+| **S2** · El dinero | sep 28 – oct 11 | ⏳ **campo virgen** — cero código de pasarela | Pawwi puede cobrar |
+| **S3** · El operador | oct 12 – nov 1 | 🆕 3 semanas · **el sprint que faltaba** | Un Pawwer real puede llegar al marketplace |
+| **S4** · Puerta del cliente | nov 2–15 | ⏳ **~11 días en 8** — ver el aviso de tamaño | El cliente deja de ver errores donde debería ver nombres |
+| **S5** · Cerrar el círculo | nov 16–29 | ⏳ backend listo, frontend cero | El cliente deja de estar ciego |
+| **S6** · Referidos | nov 30 – dic 6 | ⏳ **la promesa ya está viva y es impagable** | El único canal con economía viable |
+| **S7** · QA | dic 7–19 · ene 5–9 | ⏳ **sin framework de pruebas** | Que funcione en el móvil de verdad |
+| 🚀 **Soft launch** | **12 de enero de 2027** | | |
+
+**Cada sprint abre con «Qué hay construido hoy»** — una tabla de lo que existe, lo que es esqueleto
+y lo que no está, con rutas de archivo. Esa sección es el resultado de auditar el código, no de
+recordar lo que se planeó.
+
+### Los cuatro bloqueadores, en orden
+
+1. 🔴 **El embudo del Pawwer no cierra.** `visita_pendiente → approved` no existe · **S3**
+2. 🔴 **La visita no tiene herramienta** y su protocolo **no se puede ejecutar** hoy · **S3**
+3. 🔴 **El Pawwer desaparece** de la tarjeta del cliente y parece un error de la app · **S4**
+4. 🔴 **Pawwi no puede cobrar.** Cero líneas de pasarela · **S2**
+
+### Tres promesas vivas que el sistema no cumple
+
+Todas del mismo tipo que PawwiProtect, y todas en producción ahora mismo:
+
+| Dónde | Promete | Se corrige en |
+|---|---|---|
+| `/ingresos` del Pawwer | «Pagos **100% automáticos**, sin trámites» | S3 |
+| `/ingresos` y `perfil/tarifas` | «Eres Élite, **20%**» calculado con una regla incompleta | S3 |
+| `/inicio` del Pawwer | «**$20.000** por vecino que reserve» sin atribución posible | S3 retira · S6 construye |
+| Home del cliente | `4.9/5` · `+500 reseñas` · `15 Pawwers`, escritos a mano | S4 |
+| Política de Privacidad | «puedes editar tu perfil y eliminar tu cuenta» — falso para el cliente | S4 |
 
 ---
 
@@ -296,6 +337,48 @@ No fue un sprint: era una vulnerabilidad y se corrigió el día que se encontró
 
 El sprint que convierte el producto en negocio, adelantado al segundo lugar porque es el de mayor
 riesgo técnico y la cuenta de Bold ya está lista.
+
+### Qué hay construido hoy
+
+**Cero líneas de código de pasarela.** Un `grep` de Bold en `app/`, `lib/` y `components/` no
+devuelve nada. Es el único sprint que empieza en campo virgen — todos los demás arreglan o
+completan algo que existe.
+
+Lo que **sí** está listo y no hay que construir:
+
+| Pieza | Dónde |
+|---|---|
+| Cuenta de comercio aprobada, llaves de identidad y secreta en Vercel | S0 |
+| Tarifa confirmada: **2,99% + $900** Visa/MC, 2,89% + $900 PSE | `docs/06` |
+| `booking.commission_rate` **congelada** por reserva al crearla | mig 36 |
+| `booking.paid_at` y `accepted_at` — el ledger honesto | mig 48 |
+| `get_pawwer_payout_summary` — qué se le debe a cada Pawwer | mig 48 |
+| `mark_payouts_paid`, blindada a `service_role` | mig 48 |
+| Cuenta de cobro imprimible del Pawwer | `/pawwer/cuenta-cobro` |
+| El paso 4 del wizard, listo para recibir el checkout | `Step4Resumen` |
+
+Es decir: **el dinero ya está contado, solo falta cobrarlo.**
+
+### El estado que falta en la máquina
+
+Con la secuencia corregida —no se cobra hasta que ambos aceptaron— aparece un estado que **hoy no
+existe**: entre que el Pawwer acepta y el cliente paga.
+
+```
+1 pendiente  →  el Pawwer acepta  →  ¿…?  →  el cliente paga  →  2 confirmada
+```
+
+Hoy `accept_booking` salta directo a `2`. Hay que decidir si ese intermedio es un `status_id`
+nuevo o `status_id = 2` con `paid_at IS NULL` — **la segunda opción no añade estados y ya es
+distinguible**, porque el ledger existe. Lo que no puede pasar es que el Pawwer y el cliente vean
+«Confirmada» sobre una reserva sin pagar.
+
+Y con él, dos cosas que sí o sí acompañan:
+
+- **El cupo se bloquea al aceptar**, no al pagar. Si se bloqueara al pagar, dos clientes podrían
+  pagar el mismo lugar
+- **La expiración a los 30 minutos** libera ese cupo. Es el único riesgo que introduce la
+  secuencia —un Pawwer acepta y el cliente no paga— y queda acotado a media hora
 
 > ### ⚠️ La secuencia del dinero — corregida el 2026-09-09
 >
@@ -780,6 +863,44 @@ mayor del modelo — **el uso episódico**.
 Hoy el cliente paga y queda ciego: solo el Pawwer tiene chat. Este sprint construye la tranquilidad
 emocional que es, según las 40 entrevistas, el producto entero.
 
+### Qué hay construido hoy
+
+**Casi todo el backend, y nada del frontend del cliente.** Es el sprint con la mejor relación entre
+lo que falta y lo que cuesta.
+
+| Pieza | Estado |
+|---|---|
+| `send_message` con moderación de correos y teléfonos, tope de 2000 chars | ✅ **y ya autoriza a `client_id`** (mig 45) |
+| Canal realtime `messages-${bookingId}` | ✅ **nombre neutro**, sirve igual para los dos lados |
+| `messages` en la publicación de Realtime | ✅ mig 16 |
+| Fotos al bucket `chat-photos`, validadas en servidor | ✅ mig 45 |
+| `ChatRoom.tsx` · 677 líneas con realtime, dedup, envío optimista, HEIC | ✅ **el molde ya existe** |
+| Tabla `notifications` + realtime | ✅ mig 23 |
+| `usePresence` y la tabla `presence` con latido | ✅ mig 54 |
+| `lib/email.ts` cableado a Resend | ✅ **sin la clave** — omite el envío y sigue |
+| Chat del cliente | ❌ `/mis-mensajes` no hace **ni una query** |
+| Campana del cliente | ❌ `NotificationsProvider` solo se monta en el portal del Pawwer |
+
+> **El cliente ya tiene notificaciones que nadie puede leer.** `cancel_booking` le escribe filas en
+> `notifications` desde la migración 32, y no hay campana que las muestre. Los datos existen desde
+> julio; la interfaz no.
+
+### Los avisos que hoy NO existen
+
+Al cliente solo se le notifica si le cancelan. No sabe:
+
+| Evento | Hoy | Por qué importa |
+|---|---|---|
+| El Pawwer **aceptó** | ❌ | Es el momento en que puede pagar y confirmar |
+| Pasó a la **bolsa** | ❌ | 🔴 Su tarjeta cambia a «Pawwer» sin explicación — ver S4 |
+| **La tomó otro** Pawwer | ❌ | Tiene que poder ver su perfil **antes** de pagar |
+| Nadie la tomó · `sin_cuidador` | ❌ | Se queda esperando algo que ya murió |
+| Reporte del día | ❌ | Es *el* producto según las 40 entrevistas |
+| Servicio terminado | ❌ | — |
+
+Los tres primeros son consecuencia directa del modelo de dos etapas de S1. **La confianza no se
+transfiere en silencio** — `allow_pool` pide permiso, pero permiso no es lo mismo que enterarse.
+
 **Entregables**
 - 🔴 **Visibilidad del cliente sobre la bolsa. Va primero de todo.** Hoy solo se le notifica si le
   cancelan: no sabe si el Pawwer aceptó, si su reserva salió a la bolsa ni si se quedó sin cuidador.
@@ -830,6 +951,30 @@ El único motor de adquisición con economía viable, y —vía el loop B— lo 
 geográficamente densas. Va antes del lanzamiento porque tiene que estar vivo desde la primera
 transacción.
 
+### 🔴 La promesa ya está viva, y es impagable
+
+`/pawwer/inicio` le dice **hoy** a cada Pawwer: *«Si un vecino reserva, ganas $20.000 COP extra»*.
+
+Y `handleShare` comparte `/pawwer/{id}` **sin ningún parámetro**. No existe tabla de referidos, ni
+columna de atribución, ni código en la URL. **El vecino reserva y el sistema no puede saber que
+vino de él.**
+
+> Es la misma clase de deuda que PawwiProtect. **S3 retira la promesa** de la tarjeta mientras la
+> atribución no exista; este sprint la construye y la devuelve.
+
+### Qué hay construido hoy
+
+| Pieza | Estado |
+|---|---|
+| Tabla de referidos | ❌ **no existe** |
+| Código o parámetro de atribución | ❌ **no existe** |
+| Tarjeta de referidos en el inicio del Pawwer | ⚠️ existe y **promete sin poder cumplir** |
+| `search_miss` · búsquedas sin resultado | ✅ **la construye S3** para las métricas |
+| Cupos de visita por zona | ✅ **los modela S3** — es lo que hace posible el loop B |
+
+**S3 hizo la mitad del trabajo de este sprint sin proponérselo:** el registro de búsquedas sin
+resultado y la agenda de visitas por zona son las dos piezas que el loop B necesitaba.
+
 **Entregables**
 - **URL única por Pawwer y por cliente**, con atribución al completarse la primera reserva del
   referido
@@ -852,6 +997,28 @@ queda registrada.
 
 ### S7 · QA y lanzamiento
 **dic 7 – 19 · QA · pausa navideña · ene 5 – 12 · lanzamiento**
+
+### Qué hay construido hoy
+
+**Ningún framework de pruebas.** `package.json` no tiene script `test`, ni Vitest, ni Jest, ni
+Playwright. Un `find` de `*.test.*` y `*.spec.*` no devuelve nada.
+
+Lo que hay son **10 archivos `supabase/test_*.sql`**, y son mejores de lo que suena: siete se
+autolimpian —siembran, comprueban con asertos y borran todo, restaurando incluso la disponibilidad
+original— y tres son seeds de demo deliberados. Varios simulan la identidad del usuario con
+`set_config('request.jwt.claims', …)`, que es el truco correcto para probar RPC `SECURITY DEFINER`.
+
+**Pero los diez tienen dos dependencias que los rompen fuera de un entorno concreto:**
+
+- un **UUID de Pawwer quemado** (`2dc6b8eb-…`), que es una cuenta real de una base específica
+- **ninguno crea un cliente**: los seis hacen `SELECT … WHERE role='client' LIMIT 1` y abortan si
+  no lo encuentran
+
+**Los arregla S3** con el seed de cuentas reales. Hasta entonces, las pruebas SQL no corren en una
+base limpia.
+
+> **Y el 85% del uso es móvil, que nunca se revisó formalmente.** No es una tarea de QA más: es la
+> mayoría del tráfico sobre una interfaz que solo se ha visto en un escritorio.
 
 **dic 7 – 19 · QA**
 - 3 a 5 clientes históricos y 5 Pawwers recorren el flujo completo con dinero real y montos bajos
