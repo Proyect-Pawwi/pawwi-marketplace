@@ -610,6 +610,52 @@ Pawwers verificados y 16 reservas históricas, **son prueba social falsa en la p
 producto**. Es la misma clase de deuda que PawwiProtect, y del mismo tamaño: se retiran o se
 calculan de verdad.
 
+### El portal del cliente, definido
+
+Cinco pestañas —las de `ClientNav`— y un ciclo de vida. Esto es lo que el cliente **puede hacer**
+cuando S4 y S5 estén cerrados:
+
+| Momento | Qué puede hacer | Dónde | Sprint |
+|---|---|---|---|
+| **Explorar** | Buscar sin registrarse, por servicio, fecha, **y número de perros** | `/` | S4 |
+| | Guardar favoritos que **persisten** | `/` · `/pawwer/[id]` · `/mis-favoritos` | S4 |
+| | Leer las **FAQ del Pawwer**, sus reseñas y las fotos verificadas de su hogar | `/pawwer/[id]` | ✅ ya |
+| **Reservar** | Cuatro pasos, con ocupación real del día y aviso de compatibilidad | `/booking/nuevo` | ✅ ya |
+| | Decidir si acepta un **sustituto de la bolsa** | paso 3 | ✅ S1 |
+| | Llenar el **Pasaporte** de su perro y registrar su cédula | paso 3 | S4 |
+| | **Pagar** | paso 4 | S2 |
+| **Esperar** | Ver **quién** tiene su reserva y en qué etapa, con temporizador | `/mis-reservas` | S4 |
+| | Enterarse si pasó a la bolsa y **quién la tomó**, con enlace a su perfil | aviso + tarjeta | S5 |
+| | Cancelar antes de que empiece | `/mis-reservas` | S4 · *hoy escondido* |
+| **Durante** | **Chatear** con el Pawwer, mandar y recibir fotos | `/mis-mensajes` | S5 |
+| | Ver el **reporte diario** | chat | S5 |
+| | Saber **dónde queda la casa**, con enlace a Maps | detalle de la reserva | S4 |
+| **Después** | Reseñar | `/booking/confirmada/[id]` | ✅ *hoy escondido* |
+| | **Reservar de nuevo en un toque** | reserva completada · favoritos | S4 |
+| **Su cuenta** | Editar nombre, foto y teléfono | `/mi-perfil` | S4 |
+| | Gestionar sus perros | `/mis-mascotas` | ✅ ya |
+| | **Eliminar su cuenta** | `/mi-perfil` | S4 · **obligación legal** |
+
+### Tres decisiones de diseño
+
+**La dirección del Pawwer se revela al confirmarse y pagarse.** Hoy el cliente **nunca la ve**: el
+perfil público solo muestra el barrio, y si no hay transporte tiene que llevar el perro sin saber
+a dónde. Se resuelve por chat, a mano, si el Pawwer se acuerda.
+
+> Es **simétrico con la migración 65**, que hizo lo mismo al revés: el Pawwer solo ve la dirección
+> del cliente cuando acepta. Antes de eso, barrio y distancia aproximada. La misma regla en las dos
+> direcciones — el dato exacto aparece cuando hay un compromiso firme, no antes.
+
+**No hay chat antes de reservar.** El Pawwer ya tiene FAQ que edita él mismo (`perfil/faq`), y el
+Pasaporte hace que la información del perro viaje con la reserva. Abrir el chat antes es el camino
+más corto a que cierren el trato por fuera de Pawwi — el chat ya bloquea teléfonos justo por eso —
+y le añade trabajo no remunerado al Pawwer.
+
+**Reservar de nuevo en un toque**, desde una reserva completada y desde favoritos: mismo Pawwer,
+mismo servicio, solo elegir fechas. Ataca directo el problema que `docs/06` señala como la mayor
+debilidad del modelo: **el uso es episódico y sin frecuencia el LTV es bajo**. Un cliente que ya
+confió en Juliana no debería tener que volver a buscarla.
+
 **Entregables · 4.1 · Que nadie desaparezca** 🔴
 
 Va primero porque es lo único que hoy **parece un error de la app**.
@@ -649,23 +695,65 @@ público, que hoy no lo tiene.
 esto sea posible:** la migración 61 hizo real la capacidad. Evita que un cliente con 3 perros
 recorra tres pasos para estrellarse en el cuarto.
 
-**Entregables · 4.5 · Identidad y el gate**
+**Entregables · 4.5 · Identidad, cuenta y una obligación legal**
 
 - **KYC del cliente:** cédula sobre la migración 58, escrita por RPC dedicado y leída enmascarada,
   igual que la cuenta de pago del Pawwer
 - **Gate en `create_booking`:** no se reserva sin Pasaporte completo ni sin identidad registrada
-- `/mi-perfil` funcional — hoy lee nombre y avatar, cierra sesión, y tiene **tres filas «Pronto»**.
-  No se puede editar ni el nombre ni la foto
+- `/mi-perfil` **editable** — hoy lee nombre y avatar, cierra sesión, y tiene **tres filas
+  «Pronto»**. No se puede cambiar ni el nombre ni la foto ni el teléfono
+- ⚖️ **Eliminar la cuenta.** El Pawwer tiene `deactivate_pawwer_account` con su modal de «escribe
+  ELIMINAR». **El cliente no tiene nada.** Suprimir datos es un derecho de la Ley 1581, no una
+  función opcional
 
-**Entregables · 4.6 · Honestidad y remates**
+  > **Y la Política de Privacidad publicada ya afirma que existe:** «puedes editar tu perfil y tus
+  > mascotas desde la aplicación, y eliminar tu cuenta desde tu perfil». Para el cliente **las dos
+  > cosas son falsas hoy**. Se escribió el 2026-09-09 y el error es de quien la redactó. O se
+  > construye en S4, o hay que corregir el texto antes — no puede quedarse como está.
+
+**Entregables · 4.6 · La dirección del Pawwer**
+
+En cuanto la reserva está confirmada y pagada, el detalle muestra **dónde queda la casa**, con
+enlace a Google Maps. Hoy el cliente **nunca la ve**: el perfil público solo da el barrio, y si no
+hay transporte tiene que llevar el perro sin saber a dónde.
+
+Simétrico con la migración 65 — el dato exacto aparece cuando hay compromiso firme, en las dos
+direcciones. Antes de eso, barrio y distancia aproximada.
+
+**Entregables · 4.7 · Reservar de nuevo en un toque**
+
+Desde una reserva completada y desde favoritos: mismo Pawwer, mismo servicio, solo elegir fechas.
+Es el entregable más barato del sprint y el que ataca la debilidad que `docs/06` señala como la
+mayor del modelo — **el uso episódico**.
+
+**Entregables · 4.8 · Honestidad y remates**
 
 - **Retirar los datos inventados del hero** — `4.9/5`, `+500 reseñas Google`, `15 Pawwers` — o
   calcularlos de verdad desde `reviews` y `pawwer`
 - Los dos enlaces del menú que van a `/reservas` y `/mascotas`, que **no existen**: 404
 - `/mis-mascotas` fuera de `CLIENT_TAB_ROOTS`, sin navegación inferior: es un callejón sin salida
 
+> ### ⚠️ Ocho entregables no caben en dos semanas
+> Contados con honestidad: 4.1 dos días · 4.2 tres · 4.3 uno · 4.4 medio · 4.5 dos y medio ·
+> 4.6 medio · 4.7 uno · 4.8 medio. Son **once días**, y a cuatro días útiles por semana eso es
+> **casi tres semanas**, no dos.
+>
+> **El orden ya es la respuesta.** Si hay que cortar, se corta por el final: 4.7 (reservar de
+> nuevo) y 4.4 (el filtro de perros) son los que menos duelen — mejoran la conversión y la
+> frecuencia, no la confianza. Lo que **no se puede cortar** es 4.1, 4.2 y 4.5: el Pawwer que
+> desaparece, el Pasaporte que desbloquea lógica ya escrita, y la eliminación de cuenta, que es
+> una obligación legal y además está **prometida por escrito** en la Política de Privacidad.
+>
+> Se anota aquí en vez de descubrirlo el 15 de noviembre.
+
 **❌ No se construye**
 - **OTP por SMS.** Requiere proveedor nuevo y costo por mensaje; va a v1.1
+- **Chat antes de reservar.** Decisión de diseño, no de calendario: las FAQ del Pawwer y el
+  Pasaporte cubren la duda previa, y abrir el chat antes es el camino más corto a que cierren por
+  fuera de Pawwi
+- **Reservas recurrentes** («todos los martes con Juliana»). Es lo que de verdad convierte el uso
+  episódico en frecuente y encaja con el «día ocupado» del JTBD, pero toca el motor de reservas,
+  los cupos y los cobros: es un sprint propio, después del lanzamiento
 - Validación automática de la cédula contra fuentes externas
 - Login con Google
 - Historial médico del perro más allá del Pasaporte

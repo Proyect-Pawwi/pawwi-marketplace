@@ -123,6 +123,14 @@ Cero intervención humana. Explora libre sin registrarse; el filtro aparece **so
 | Reservar | Pasaporte del perro: salud, comportamiento, rutina, vacunas | Migración **57** · `dog` |
 | Reservar | Cédula (celular por OTP → v1.1) | Migración **58** · `client` |
 
+**El dato exacto aparece cuando hay compromiso firme, en las dos direcciones.** El Pawwer ve la
+dirección del cliente **al aceptar** (migración 65); el cliente ve la del Pawwer **al pagar**.
+Antes de eso, los dos ven barrio y distancia aproximada. Es la misma regla, simétrica.
+
+**No hay chat antes de reservar.** El Pawwer publica sus FAQ y el Pasaporte hace que la información
+del perro viaje con la solicitud. Abrir el chat antes sería el camino más corto a que cierren el
+trato por fuera — que es exactamente lo que el bloqueo de teléfonos del chat existe para evitar.
+
 > Las migraciones 57 y 58 se escribieron en julio como «fases futuras». En este diseño **son la
 > mitad del producto**, y la estructura ya está en la base de datos.
 
