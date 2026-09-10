@@ -561,10 +561,72 @@ las cinco fotos, los hechos observados, precios, capacidad, agenda y términos �
 Construir la mitad del producto que hoy solo existe como columnas en la base de datos. Es lo que
 convierte «dueños» en «dueños responsables».
 
-**Entregables**
-- **Formulario del Pasaporte Pawwi**, multi-paso y a mano con zod (sin `react-hook-form`, que no
-  está en el stack): ficha, salud, comportamiento y rutina sobre la migración 57. Hoy `DogForm`
-  usa **0 de sus 9 columnas**.
+### Qué hay construido hoy
+
+| Pantalla | Estado | Qué le falta |
+|---|---|---|
+| `/` · home y buscador | ✅ **Construida** — 1.190 líneas, filtros de servicio y fecha reales, mapa, orden por nivel | Favoritos no persisten · `petsCount` decorativo · dos enlaces 404 · datos inventados en el hero |
+| `/pawwer/[id]` · perfil público | ✅ **Construida** — galería, calendario, reseñas, presencia en vivo, metadatos OG | Sin corazón de favorito |
+| `/booking/nuevo` · pasos 1–3 | ✅ **Construidos** — validan fechas, `week_pattern`, disponibilidad, tope de perros, ocupación real, consentimiento de bolsa | Al añadir un perro se pierde la reserva a medias (`?back=` que nadie lee) |
+| `/booking/nuevo` · paso 4 | 🔨 **Cartel** — «la pasarela se habilitará en la próxima versión» | Lo llena **S2** |
+| `/mis-reservas` | ✅ **Construida** con realtime sobre `booking` | 🔴 **El Pawwer desaparece** · sin chat · sin temporizador · sin badge |
+| `/booking/confirmada/[id]` | ✅ **Construida** — aquí sí se cancela y se reseña | Está escondida: no se llega desde `/mis-reservas` |
+| `/mis-mascotas` | ✅ **Construida** | **Editar crea un duplicado** · queda sin navegación inferior |
+| `/mis-mascotas/nueva` | ⚠️ **Sin Pasaporte** — 9 campos básicos | **0 de las 9 columnas** de la migración 57 |
+| `/mis-favoritos` | 🔨 **Esqueleto** — el propio código lo admite | **Cero queries.** Empty-state escrito a mano |
+| `/mis-mensajes` | 🔨 **Esqueleto** | **Cero queries, cero chat.** Es **S5** |
+| `/mi-perfil` | 🔨 **Parcial** — lee nombre y avatar, cierra sesión | **No se puede editar nada** · tres filas «Pronto» |
+| Auth · login, registro, recuperar, confirmar | ✅ **Construida** — zod, `next` preservado, anti open-redirect | — |
+
+### 🔴 El Pawwer que desaparece
+
+Es el defecto más grave del lado del cliente, y lo creó el modelo de dos etapas de S1.
+
+Cuando una reserva pasa a la bolsa, el cron hace `pawwer_id = NULL`. Y la tarjeta hace esto:
+
+```ts
+const pawwerName = b.pawwer?.profile?.name ?? "Pawwer";
+```
+
+**Sofía reservó con Juliana. Juliana declina. La tarjeta pasa de «Juliana M.» con su foto a decir
+literalmente «Pawwer», con una «P» genérica.** Sin explicación y sin aviso.
+
+No es «falta una notificación»: es un estado que **parece un error de la aplicación**. Y le ocurre
+justo en el momento de más ansiedad — cuando no sabe quién va a cuidar a su perro.
+
+### Dos cosas que S1 volvió arreglables
+
+- **`petsCount` es decorativo.** Se fija, se muestra en cinco sitios, y **nunca entra en el filtro
+  ni en la URL de la reserva**. Un cliente con 3 perros ve los mismos resultados, elige un Pawwer
+  de capacidad 1, y **se estrella en el paso 3**. Antes no había con qué filtrar; **desde la
+  migración 61 sí lo hay** — `max_animals` es real y se hace cumplir
+- **La advertencia de compatibilidad** de `Step3Mascota` es lógica muerta: `friendly_dogs` siempre
+  es `null` porque nadie puede escribirlo. El Pasaporte la enciende
+
+### Los datos inventados del hero
+
+`4.9 / 5` · `+500 reseñas Google` · `15 Pawwers` están escritos a mano en `app/page.tsx`. Con 11
+Pawwers verificados y 16 reservas históricas, **son prueba social falsa en la primera pantalla del
+producto**. Es la misma clase de deuda que PawwiProtect, y del mismo tamaño: se retiran o se
+calculan de verdad.
+
+**Entregables · 4.1 · Que nadie desaparezca** 🔴
+
+Va primero porque es lo único que hoy **parece un error de la app**.
+
+- Cuando la reserva está en la bolsa, la tarjeta lo **dice**: «Buscando otro cuidador verificado
+  por el mismo precio», con el nombre de quien no pudo. Nunca la palabra «Pawwer» como nombre
+- Estado visible por etapa, no solo por `status_id`: *esperando a Juliana* · *en la bolsa* ·
+  *la tomó Pedro, revísalo y paga*
+- **Entrada a `/booking/confirmada/[id]`** desde `/mis-reservas` — hoy es donde se cancela y se
+  reseña, y no se llega desde ninguna parte
+- Temporizador: cuánto le queda al Pawwer para responder
+
+**Entregables · 4.2 · El Pasaporte**
+
+- **Formulario multi-paso** a mano con zod (sin `react-hook-form`, que no está en el stack):
+  ficha, salud, comportamiento y rutina sobre la migración 57. Hoy `DogForm` usa **0 de sus 9
+  columnas**.
   > Esto **desbloquea lógica que ya está escrita y hoy está muerta**: `shouldWarnClient` en
   > `lib/dog-behavior.ts` nunca se dispara porque `friendly_dogs` siempre es `null`, y los chips de
   > comportamiento que ve el Pawwer salen siempre «sin informar». Se construyó en S1 la lectura sin
@@ -572,25 +634,51 @@ convierte «dueños» en «dueños responsables».
 - **Editar mascota está roto.** `mis-mascotas/page.tsx` enlaza `?edit=<id>` pero `nueva/page.tsx`
   **no lee `searchParams`**: el lápiz abre un formulario vacío y guardar **crea un perro duplicado**.
   Falta la acción `actualizarMascota`
-- **Favoritos con persistencia real.** El corazón es solo `setFavorites`; la tabla `favourite`
-  existe con RLS desde la migración 03 y está **huérfana**. `/mis-favoritos` no hace ni una query
-  y su empty-state está escrito a mano
+- **Arreglar `?back=`**, que hoy manda a `/mis-mascotas` y **pierde la reserva a medias**
+
+**Entregables · 4.3 · Favoritos, de verdad**
+
+El corazón es solo `setFavorites`; la tabla `favourite` existe con RLS desde la migración 03 y está
+**huérfana**. Son dos mitades que nunca se tocan: el home escribe en memoria y `/mis-favoritos`
+renderiza un empty-state fijo sin consultar nada. Se cablean las dos, más el corazón en el perfil
+público, que hoy no lo tiene.
+
+**Entregables · 4.4 · El filtro de perros, que ya se puede**
+
+`petsCount` entra en el filtro contra `max_animals` y viaja en la URL de la reserva. **Es nuevo que
+esto sea posible:** la migración 61 hizo real la capacidad. Evita que un cliente con 3 perros
+recorra tres pasos para estrellarse en el cuarto.
+
+**Entregables · 4.5 · Identidad y el gate**
+
 - **KYC del cliente:** cédula sobre la migración 58, escrita por RPC dedicado y leída enmascarada,
   igual que la cuenta de pago del Pawwer
 - **Gate en `create_booking`:** no se reserva sin Pasaporte completo ni sin identidad registrada
-- `/mi-perfil` funcional — hoy lee nombre y avatar, cierra sesión, y tiene tres filas «Pronto».
-  No se puede editar nada
-- **Dos arreglos de un minuto:** el menú de usuario apunta a `/reservas` y `/mascotas`, que **no
-  existen** (404). Y `/mis-mascotas` queda fuera de `CLIENT_TAB_ROOTS`, sin navegación inferior
+- `/mi-perfil` funcional — hoy lee nombre y avatar, cierra sesión, y tiene **tres filas «Pronto»**.
+  No se puede editar ni el nombre ni la foto
+
+**Entregables · 4.6 · Honestidad y remates**
+
+- **Retirar los datos inventados del hero** — `4.9/5`, `+500 reseñas Google`, `15 Pawwers` — o
+  calcularlos de verdad desde `reviews` y `pawwer`
+- Los dos enlaces del menú que van a `/reservas` y `/mascotas`, que **no existen**: 404
+- `/mis-mascotas` fuera de `CLIENT_TAB_ROOTS`, sin navegación inferior: es un callejón sin salida
 
 **❌ No se construye**
 - **OTP por SMS.** Requiere proveedor nuevo y costo por mensaje; va a v1.1
 - Validación automática de la cédula contra fuentes externas
 - Login con Google
 - Historial médico del perro más allá del Pasaporte
+- **El chat del cliente y las notificaciones** — son **S5**, y son la otra mitad de que el cliente
+  deje de estar ciego. S4 arregla lo que ve; S5 le avisa
+- Facturación y métodos de pago guardados: las dos filas «Pronto» que sobreviven
 
-**✅ Criterio de cierre** — Un cliente nuevo no puede completar una reserva sin haber llenado el
-Pasaporte de su perro y registrado su cédula.
+**✅ Criterio de cierre** — Dos cosas, y la segunda es la que importa:
+
+1. Un cliente nuevo **no puede completar una reserva** sin haber llenado el Pasaporte de su perro
+   y registrado su cédula.
+2. Se reserva con un Pawwer, ese Pawwer declina, y **en ningún momento el cliente ve la palabra
+   «Pawwer» donde debería ir un nombre**. Sabe qué pasó, quién no pudo, y qué sigue.
 
 > **Decisión asumida:** se lanza con cédula y Pasaporte, **sin OTP de celular**. A volumen bajo el
 > filtro real es que el Pasaporte obliga a dar información verdadera y que cada cliente es visible.

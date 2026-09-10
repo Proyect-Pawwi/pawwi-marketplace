@@ -1,10 +1,15 @@
 # Pendientes — Portal del Cliente
 
-> Backlog de cosas del **lado del cliente** que quedan para cuando desarrollemos
-> el portal del cliente. Hoy el marketplace + reservas del cliente existen, pero
-> varias features del portal pawwer aún no tienen su contraparte para el cliente.
+> ⚠️ **Este documento quedó corto.** La auditoría del 2026-09-10 encontró cosas que no están aquí:
+> el Pasaporte sin cablear, los favoritos que no persisten, editar mascota que crea duplicados, los
+> datos inventados del hero, y **el Pawwer que desaparece de la tarjeta cuando la reserva pasa a la
+> bolsa**. El inventario completo y vigente está en **S4 · La puerta del cliente** de
+> [`07-PLAN-CONSTRUCCION.md`](./07-PLAN-CONSTRUCCION.md), y el chat y las notificaciones en **S5**.
+>
+> Lo que sigue abajo es de julio y se conserva porque el detalle técnico del chat sigue siendo
+> válido — pero **donde contradiga al 07, manda el 07**.
 
-_Última actualización: 2026-07-07_
+_Última actualización: 2026-07-07 · anotado el 2026-09-10_
 
 ## 💬 Chat del cliente
 - **Pantalla de chat del cliente** para responderle al pawwer desde su reserva
