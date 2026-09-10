@@ -406,6 +406,12 @@ Fuente única de reglas: `compute_pawwer_level()`. Recálculo por evento y cron 
 > ⚠️ **Contradicción a resolver.** El marketing promete «comisión baja al 20% por lealtad», pero el
 > umbral real de Ranger es mucho más estricto que cualquier documento anterior. Un Pawwer que lea
 > la promesa rara vez calificará. Hay que alinear el mensaje con la regla, o la regla con el mensaje.
+>
+> **Y es peor de lo que decía este párrafo.** `/ingresos` y `perfil/tarifas` calculan la élite por
+> su cuenta —`rating ≥ 4.8 && reviews ≥ 15`— sin el `cancel_rate ≤ 0.02` ni la actividad de 30 días
+> que sí exige `compute_pawwer_level`. **Un Pawwer puede leer «ganas 20%» y que se le cobre 25%**,
+> porque la comisión que aplica sale de `booking.commission_rate`, congelada por el backend. Se
+> corrige en S3 leyendo `pawwer.level` en vez de recalcular.
 
 ---
 
@@ -620,6 +626,7 @@ cuesta la comisión del 20%, la visibilidad y el flujo de clientes nuevos.
 | Wizard de reserva de 4 pasos | ✅ Construido |
 | Embudo completo del Pawwer (examen, capacitación, visita) | ✅ Construido |
 | Portal del Pawwer (inicio, cuidados, chat, ganancias, perfil, tarifas) | ✅ Construido |
+| ⚠️ …pero **tres pantallas prometen lo que el sistema no cumple** | Pago «automático», «Élite» mal calculado, referidos sin atribución. Ver S3 en [`07`](./07-PLAN-CONSTRUCCION.md) |
 | Ciclo de vida por cron | ✅ Construido |
 | Motor de escalación · **dos etapas** | ✅ Construido, simplificado en S1 |
 | Chat con fotos, moderación y tiempo real | ✅ Construido |

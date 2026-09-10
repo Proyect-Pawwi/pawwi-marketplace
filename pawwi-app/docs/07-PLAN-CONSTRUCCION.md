@@ -464,14 +464,53 @@ La pantalla recorre el protocolo de `docs/06` en orden, y **no deja aprobar sin 
 > **Por qué el Pawwer sin disponibilidad cargada se apaga en tres semanas.** `docs/06` ya lo dice:
 > el que se va de la visita sin agenda nunca recibe una reserva. Por eso el paso 5 no es opcional.
 
-**Entregables · 3.3 · La agenda de visitas, modelada**
+**Entregables · 3.3 · El portal del Pawwer · lo que promete y no cumple** 🆕
+
+Las once pantallas del portal **están construidas y funcionan**. El problema no es que falten:
+es que **tres prometen cosas que el sistema no puede cumplir**, y una de ellas es sobre dinero.
+
+| Pantalla | Lo que dice | La verdad |
+|---|---|---|
+| `/ingresos` | «Próximo pago **automático**» · «Pagos **100% automáticos** · sin trámites» | **Bold no dispersa a terceros.** El pago es una transferencia manual cada viernes. Es la decisión más documentada de `docs/06` y la pantalla dice lo contrario |
+| `/ingresos` y `perfil/tarifas` | «**¡Eres Pawwer Élite!** Comisión preferencial del 20%» | Calculan `isElite = rating ≥ 4.8 && reviews ≥ 15` **por su cuenta**. La regla real de `compute_pawwer_level` exige además `cancel_rate ≤ 0.02` y actividad en 30 días. **Un Pawwer puede leer «ganas 20%» y que se le cobre 25%** — la comisión que aplica sale de `booking.commission_rate`, congelada por el backend |
+| `/inicio` · tarjeta de referidos | «Si un vecino reserva, ganas **$20.000 COP** extra» | `handleShare` comparte `/pawwer/{id}` **sin ningún parámetro**, y **no existe tabla de referidos ni columna de atribución**. El vecino reserva y el sistema no puede saber que vino de él. **La promesa es impagable** |
+
+> **Es exactamente la clase de deuda que fue PawwiProtect**, y la razón por la que se retiró: el
+> producto prometiendo lo que el sistema no sostiene. La diferencia es que aquí el destinatario es
+> el Pawwer, y dos de las tres promesas son sobre su plata.
+
+**Qué se hace con cada una:**
+
+- **«Pago automático» → la verdad.** «Te transferimos cada viernes» y cómo se hace. Es menos
+  brillante y es cierto, y el Pawwer lo va a descubrir el primer viernes de todos modos
+- **«Élite» → leer `pawwer.level`.** Se quita el cálculo duplicado de las dos pantallas y se usa
+  `lib/levels.ts`, que ya es la fuente única del marketplace y del perfil público. De paso se
+  unifica el nombre: el modelo dice **Ranger**, no «Élite»
+- **Referidos → se retira la promesa hasta S6**, que es cuando se construye la atribución.
+  Mientras tanto la tarjeta invita a compartir el perfil sin prometer un pago que no se puede
+  rastrear
+
+**Y dos huecos del modelo nuevo que el portal todavía no refleja:**
+
+- **La bolsa general no se distingue de una solicitud directa.** Ambas caen en «Nuevas», separadas
+  solo por una etiqueta de fase. Son cosas psicológicamente distintas — «te eligieron a ti» frente
+  a «hay una oportunidad abierta» — y mezclarlas diluye la primera, que es la que sostiene el nivel
+- **No hay estado «aceptaste, falta que el cliente pague».** Con la secuencia de S2 el Pawwer
+  acepta y el cobro llega después: hoy pasaría de «Por revisar» a «Confirmada» sin que exista aún
+  el dinero. Necesita verlo, o va a creer que tiene un cuidado firme que puede caerse
+
+**Lo que NO se toca:** `/inicio`, `/cuidados`, el chat, `perfil/vitrina`, `fotos`, `faq`, `pago`,
+`disponibilidad` y `cuenta-cobro` funcionan y escriben por RPC. El portal del Pawwer es la parte
+mejor construida del producto — por eso el trabajo aquí es de honestidad, no de construcción.
+
+**Entregables · 3.4 · La agenda de visitas, modelada**
 
 Hoy los cupos están inventados en el cliente: cuatro franjas fijas en `lib/visita.ts`, duplicadas
 en la migración 15, y los días son L-V generados en JS. Tabla `visita_slots (fecha, slot, zona)`
 que el operador abre desde el panel. Es lo que permite **agrupar por zona**, que es la mitad del
 argumento de densidad de `docs/06`.
 
-**Entregables · 3.4 · El panel `/admin`**
+**Entregables · 3.5 · El panel `/admin`**
 
 Mismo patrón que el resto: Server Components como loaders → Client Components interactivos,
 escritura por RPC. Gate con `is_admin()`.
@@ -492,7 +531,7 @@ Tecnologías, todas ya en el stack: `recharts` con carga diferida como en `Earni
 Las **búsquedas sin resultado** necesitan registrarse: tabla `search_miss`, escrita desde el
 buscador. Estaba en S6 y sube aquí porque alimenta las métricas y dirige a qué zona ir el sábado.
 
-**Entregables · 3.5 · Seed con cuentas reales**
+**Entregables · 3.6 · Seed con cuentas reales**
 
 `scripts/seed-dev.ts` contra la **Admin API de Supabase**. Crea usuarios que **sí pueden iniciar
 sesión** — los 10 del seed actual solo existen en `profile`, sin fila en `auth.users`, así que son
