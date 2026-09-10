@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/server";
+import { adminClient } from "@/lib/admin";
 import { QUIZ_SECTIONS, PASSING_SCORE, TOTAL_QUESTIONS } from "@/lib/capacitacion";
 
 export type CapacitacionResult =
@@ -37,9 +38,13 @@ export async function submitCapacitacion(answers: number[]): Promise<Capacitacio
   const score = answerKey.reduce((acc, correct, i) => acc + (answers[i] === correct ? 1 : 0), 0);
   const passed = score >= PASSING_SCORE;
 
-  const { error: rpcErr } = await supabase.rpc("set_pawwer_capacitacion_result", {
-    p_score:  score,
-    p_passed: passed,
+  // La RPC es solo de `service_role`: si el Pawwer pudiera llamarla, se
+  // certificaría a sí mismo con p_passed=true sin contestar nada. El id sale de
+  // getUser(), no del formulario — ver supabase/66_hotfix_seguridad_embudo.sql.
+  const { error: rpcErr } = await adminClient().rpc("set_pawwer_capacitacion_result", {
+    p_pawwer_id: user.id,
+    p_score:     score,
+    p_passed:    passed,
   });
 
   if (rpcErr) {

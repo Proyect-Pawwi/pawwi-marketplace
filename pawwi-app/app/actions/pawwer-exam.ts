@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/server";
+import { adminClient } from "@/lib/admin";
 import { calcularPuntaje, clasificarResultado, EXAM_SECTIONS } from "@/lib/exam-pawwer";
 import { sendEmail, escapeHtml } from "@/lib/email";
 
@@ -55,8 +56,11 @@ export async function submitExamen(
     return { error: "No se pudo guardar tu examen. Intenta de nuevo." };
   }
 
-  const { error: updateErr } = await supabase.rpc("set_pawwer_exam_result", {
-    p_result: result,
+  // Solo `service_role`: el resultado del examen no puede venir del examinado.
+  // El id sale de getUser() — ver supabase/66_hotfix_seguridad_embudo.sql.
+  const { error: updateErr } = await adminClient().rpc("set_pawwer_exam_result", {
+    p_pawwer_id: pawwer.id,
+    p_result:    result,
   });
 
   if (updateErr) {

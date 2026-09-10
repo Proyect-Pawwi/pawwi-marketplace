@@ -105,19 +105,16 @@ export async function completarOnboardingPawwer(formData: FormData): Promise<Onb
     p_ninos_pequenos:   ninos_pequenos,
     p_mi_espacio:       mi_espacio ?? "",
     p_valores:          valores ?? "",
+    // Antes iban en un UPDATE directo a `pawwer` DESPUÉS del RPC. La mig 44
+    // revoca ese UPDATE a `authenticated`, y el error se descartaba sin
+    // comprobar: las fotos de cédula nunca se guardaban. Ahora entran aquí.
+    p_cedula_front_url: cedulaFrontPath ?? null,
+    p_cedula_back_url:  cedulaBackPath ?? null,
   });
 
   if (error) {
     console.error("[Pawwi] completarOnboardingPawwer RPC:", error.message);
     return { error: "No se pudo guardar tu perfil. Intenta de nuevo." };
-  }
-
-  // Guardar rutas de fotos de cédula (columnas separadas del RPC)
-  if (cedulaFrontPath || cedulaBackPath) {
-    await supabase
-      .from("pawwer")
-      .update({ cedula_front_url: cedulaFrontPath, cedula_back_url: cedulaBackPath })
-      .eq("id", user.id);
   }
 
   return { ok: true };
