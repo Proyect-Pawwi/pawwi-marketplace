@@ -31,9 +31,9 @@ Soft launch a los 22 clientes históricos.
 | Sprint | Fechas | Estado | Lo que decide |
 |---|---|---|---|
 | **S0** · Rescate | sep 7–13 | ✅ **cerrado**, salvo Resend | El código está a salvo y en internet |
-| **S1** · Rediseño en código | sep 14–27 | ✅ **cerrado y verificado** | El código dice lo que el producto promete |
+| **S1** · Rediseño en código | sep 14–27 | ✅ **cerrado y verificado** — terminó el 9, dos semanas antes | El código dice lo que el producto promete |
 | 🔒 **Hotfix** de seguridad | sep 10 | ✅ **en producción** | El Pawwer no puede auto-certificarse |
-| **S2** · El dinero | sep 28 – oct 11 | ⏳ **campo virgen** — cero código de pasarela | Pawwi puede cobrar |
+| **S2** · El dinero | ~~sep 28~~ **sep 11** – 25 | 🔨 **en curso** — código escrito, falta correr la mig 68 y probar | Pawwi puede cobrar |
 | **S3** · El operador | oct 12 – nov 1 | 🆕 3 semanas · **el sprint que faltaba** | Un Pawwer real puede llegar al marketplace |
 | **S4** · Puerta del cliente | nov 2–15 | ⏳ **~11 días en 8** — ver el aviso de tamaño | El cliente deja de ver errores donde debería ver nombres |
 | **S5** · Cerrar el círculo | nov 16–29 | ⏳ backend listo, frontend cero | El cliente deja de estar ciego |
@@ -45,12 +45,19 @@ Soft launch a los 22 clientes históricos.
 y lo que no está, con rutas de archivo. Esa sección es el resultado de auditar el código, no de
 recordar lo que se planeó.
 
+> ### Las dos semanas ganadas · 2026-09-11
+> S1 cerró el 9 de septiembre, con dos semanas de adelanto, y **S2 arrancó el 11** en vez del 28.
+> El orden no cambia y **las fechas de S3 en adelante tampoco**: esas dos semanas y media se quedan
+> como colchón para los dos desbordes que este plan ya anticipa —S3 puede pasarse una o dos
+> semanas, y S4 son once días de trabajo metidos en ocho—. Si al cerrar S2 sobra tiempo, se
+> adelanta S3; no se reparte antes de saberlo.
+
 ### Los cuatro bloqueadores, en orden
 
 1. 🔴 **El embudo del Pawwer no cierra.** `visita_pendiente → approved` no existe · **S3**
 2. 🔴 **La visita no tiene herramienta** y su protocolo **no se puede ejecutar** hoy · **S3**
 3. 🔴 **El Pawwer desaparece** de la tarjeta del cliente y parece un error de la app · **S4**
-4. 🔴 **Pawwi no puede cobrar.** Cero líneas de pasarela · **S2**
+4. 🟠 **Pawwi no puede cobrar.** El código ya está escrito; falta correr la mig 68 y probar · **S2, en curso**
 
 ### Cinco promesas vivas que el sistema no cumple
 
@@ -58,7 +65,7 @@ Todas del mismo tipo que PawwiProtect, y todas en producción ahora mismo:
 
 | Dónde | Promete | Se corrige en |
 |---|---|---|
-| `/ingresos` del Pawwer | «Pagos **100% automáticos**, sin trámites» | S3 |
+| `/ingresos` del Pawwer | «Pagos **100% automáticos**, sin trámites» | ✅ **S2** — dice «te transferimos cada viernes» |
 | `/ingresos` y `perfil/tarifas` | «Eres Élite, **20%**» calculado con una regla incompleta | S3 |
 | `/inicio` del Pawwer | «**$20.000** por vecino que reserve» sin atribución posible | S3 retira · S6 construye |
 | Home del cliente | `4.9/5` · `+500 reseñas` · `15 Pawwers`, escritos a mano | S4 |
@@ -337,12 +344,86 @@ No fue un sprint: era una vulnerabilidad y se corrigió el día que se encontró
 ---
 
 ### S2 · El dinero
-**sep 28 – oct 11 · 2 semanas**
+**~~sep 28 – oct 11~~ sep 11 – 25 · 2 semanas** · 🔨 **en curso**
 
 El sprint que convierte el producto en negocio, adelantado al segundo lugar porque es el de mayor
 riesgo técnico y la cuenta de Bold ya está lista.
 
-### Qué hay construido hoy
+### Estado de S2 · 2026-09-11, primer día
+
+**Todo el código está escrito y compila** (`tsc` en 0, ESLint sin problemas nuevos). Falta correr la
+**migración 68**, conectar Bold por fuera del código y probarlo de punta a punta.
+
+**Lo que encontró el primer día, antes de escribir una línea:**
+
+- 🔴 **`paid_at` ya tenía dueño.** Desde la migración 48 es cuándo Pawwi le **transfiere al Pawwer**:
+  lo leen Ganancias y `mark_payouts_paid`. Este plan decía «el webhook sella `paid_at`»: el Pawwer
+  habría visto como pagado dinero que nunca se le transfirió, y la liquidación del viernes habría
+  salido en cero. **El cobro al cliente va en su propia columna: `charged_at`**
+- **El cliente no tiene cómo enterarse de que el Pawwer aceptó**: no tiene campana (S5) y Resend
+  no está configurado. Cualquier plazo para pagar se vence solo si nadie se entera. Por eso
+  **Resend deja de ser un hilo paralelo: es parte de la ruta crítica de S2**
+- **La «política de 48 horas» que citaban este plan y `09` nunca se había escrito** en ningún lado:
+  ni en los términos ni en el código
+- Cinco defectos heredados, todos corregidos en la 68: la bolsa ignoraba `allow_pool` cuando el
+  Pawwer abría su inicio; el Pawwer elegido veía la dirección exacta **antes de aceptar** (la 65
+  solo tapó a los candidatos); el techo de precio de la bolsa medía mal; la bolsa no exigía
+  transporte ni el tope de perros del candidato; y un candidato veía su ganancia con la tasa ajena
+
+**Lo que Bold permite y lo que no** — leído en `developers.bold.co`:
+
+| | |
+|---|---|
+| ✅ Abrir el checkout **cuando queramos**, con una firma que calcula el servidor | Por eso el cobro puede esperar a la aceptación. Era la pregunta pendiente para Bold |
+| ✅ Ponerle **fecha de expiración** al checkout | Se cierra justo cuando vence el plazo de pago |
+| ✅ **Webhook** firmado, con reintentos (15 min, 1 h, 4 h, 8 h, 24 h) y un endpoint de respaldo | La confirmación de verdad |
+| ✅ **API de consulta** por orden | La verificación al volver del checkout |
+| ⚠️ **En modo de pruebas no manda webhooks** | Se prueba con la API de consulta, o con «Probar el webhook» a mano |
+| ❌ **No tiene API de reembolsos.** Solo anula tarjetas de **crédito**, **el mismo día antes de las 9 p. m.**, desde su panel | Todo lo demás es una transferencia manual. Los reembolsos se **anotan** solos y se **ejecutan** a mano |
+
+**Las cuatro decisiones del primer día** (Nicolás, 2026-09-11):
+
+| Decisión | Por qué |
+|---|---|
+| **2 horas para pagar** tras la aceptación, nunca más allá del inicio del servicio | Con 30 minutos y sin campana ni correo, casi nadie se entera a tiempo |
+| **Cancelación de lo pagado: 100% con 48 h o más; con menos, no hay reembolso y el Pawwer cobra** | Protege al Pawwer que bloqueó el día. Va a los términos, que revisa el abogado |
+| **El Pawwer ve la dirección exacta del cliente cuando el cliente paga** | Simétrico con el cliente. Si no paga, el Pawwer nunca tuvo su dirección |
+| **La comisión es la del Pawwer que acepta**, congelada al aceptar | El cliente paga lo mismo; el Ranger que toma una reserva de la bolsa cobra como Ranger |
+
+**Lo que quedó construido:**
+
+| Pieza | Dónde |
+|---|---|
+| Cobro: `charged_at`, `payment_due_at`, `late_cancel`, `pawwer_earns` y la tabla `booking_payment` | mig 68 |
+| Aceptar bloquea el cupo y abre el plazo · pagar confirma y abre el chat · sin pago, vence solo | mig 68 |
+| Política de cancelación en `cancel_booking_client`, y `get_cancellation_terms` para mostrarla antes | mig 68 |
+| Firma de integridad, validación del webhook, API de consulta | `lib/bold.ts` |
+| Sello idempotente del pago y los correos que lo siguen | `lib/cobro.ts` |
+| Webhook | `app/api/bold/webhook/route.ts` |
+| Abrir el pago y verificarlo al volver | `app/actions/pago.ts` |
+| Botón de pago con cuenta regresiva, pago en proceso y rechazado | `booking/confirmada/[id]/PagarReserva.tsx` |
+| Cancelar diciendo antes qué pasa con el dinero | `BookingActions.tsx` |
+| «Por pagar» en la lista del cliente · «Esperando pago» en el portal del Pawwer | `mis-reservas` · `cuidados` |
+| Ganancias cuenta las cancelaciones tardías y deja de decir «automático» *(era de S3)* | `GananciasClient.tsx` |
+| `sendEmail` a prueba de errores de red · avisos al equipo a `hola@pawwi.co` *(era de S3)* | `lib/email.ts` |
+| Términos (secciones 3, 4 y 10) y privacidad (sección 2) con las reglas nuevas | `/terminos` · `/privacidad` |
+
+**Lo que falta para cerrar S2:**
+
+1. **Correr la migración 68** y verificarla — ver la consulta al final del archivo
+2. **Separar las llaves de Bold por entorno en Vercel** — hoy las de producción llegan a los previews
+3. **Registrar el webhook en el panel de Bold**: Integraciones → Webhooks →
+   `https://app.pawwi.co/api/bold/webhook`
+4. **Configurar Resend** — sin él, el cliente no se entera de que el Pawwer aceptó
+5. **Probar de punta a punta con las llaves de pruebas**: reservar → aceptar → pagar con la tarjeta
+   de prueba `4111 1111 1111 1111` → confirmada → cancelar con más y con menos de 48 h
+6. **Una transacción real** con monto bajo — es el criterio de cierre
+
+**Lo que pasa a S3**, porque necesita el `/admin` que se construye allí: la pantalla de liquidación,
+el archivo de dispersión del banco y la **cola de reembolsos pendientes**. Hasta entonces, cada
+reembolso llega por correo a `hola@pawwi.co` y se marca a mano en `booking_payment.refunded_at`.
+
+### Qué hay construido hoy · el inventario con el que arrancó
 
 **Cero líneas de código de pasarela.** Un `grep` de Bold en `app/`, `lib/` y `components/` no
 devuelve nada. Es el único sprint que empieza en campo virgen — todos los demás arreglan o
@@ -373,16 +454,20 @@ existe**: entre que el Pawwer acepta y el cliente paga.
 ```
 
 Hoy `accept_booking` salta directo a `2`. Hay que decidir si ese intermedio es un `status_id`
-nuevo o `status_id = 2` con `paid_at IS NULL` — **la segunda opción no añade estados y ya es
-distinguible**, porque el ledger existe. Lo que no puede pasar es que el Pawwer y el cliente vean
-«Confirmada» sobre una reserva sin pagar.
+nuevo o `status_id = 2` sin pago registrado — **la segunda opción no añade estados**. Lo que no puede
+pasar es que el Pawwer y el cliente vean «Confirmada» sobre una reserva sin pagar.
+
+> **Corregido el 2026-09-11:** este párrafo proponía distinguirlo con `paid_at IS NULL`, «porque el
+> ledger existe». Pero `paid_at` es el pago **al Pawwer**, no el del cliente. El intermedio quedó
+> como `status_id = 2` con **`charged_at IS NULL`**, una columna nueva — ver el estado de S2 arriba.
 
 Y con él, dos cosas que sí o sí acompañan:
 
 - **El cupo se bloquea al aceptar**, no al pagar. Si se bloqueara al pagar, dos clientes podrían
   pagar el mismo lugar
-- **La expiración a los 30 minutos** libera ese cupo. Es el único riesgo que introduce la
-  secuencia —un Pawwer acepta y el cliente no paga— y queda acotado a media hora
+- **El vencimiento del plazo** libera ese cupo. Es el único riesgo que introduce la secuencia —un
+  Pawwer acepta y el cliente no paga—. Este plan decía media hora; quedó en **dos horas**, porque
+  sin campana ni correo nadie se entera en treinta minutos
 
 > ### ⚠️ La secuencia del dinero — corregida el 2026-09-09
 >
@@ -414,24 +499,26 @@ Y con él, dos cosas que sí o sí acompañan:
 > sin retenciones) es el que no se puede revertir limpiamente**, así que un reembolso por PSE
 > siempre será lento.
 
-**Entregables**
-- **Separar llaves de Bold por entorno en Vercel.** Hoy las llaves de PRODUCCIÓN están disponibles
-  también en los despliegues de vista previa: en cuanto exista código de cobro, un preview podría
-  procesar pagos reales. Producción → llaves reales; Preview y Development → llaves de pruebas
-- **Checkout de Bold.** Preferir el hospedado: el cliente paga en la interfaz de Bold y Pawwi nunca
-  toca datos de tarjeta
-- **El cobro se dispara al ACEPTAR el Pawwer**, no al crear la reserva. Endpoint de creación de la
-  sesión de pago con el monto total (cuidado + transporte), congelado desde la creación
-- **Webhook de confirmación** que sella `paid_at` y mueve la reserva a confirmada — es el segundo
-  de los dos consentimientos, no el primero
-- Retención de la comisión con la tasa congelada en `booking.commission_rate`
-- Pantalla de pago fallido con tres salidas: reintentar, cambiar método, escribir a soporte
-- **Expiración a los 30 minutos desde la aceptación**, liberando el cupo. Es el único riesgo que
-  introduce esta secuencia —un Pawwer acepta y el cliente no paga— y queda acotado a media hora
-- Reembolso en cancelación según la política de 48 horas, **solo para cuidados ya pagados**
-- **Pantalla de liquidación semanal** para ti: qué le debes a cada Pawwer el viernes, con su cuenta
-- **Exportación del archivo de dispersión masiva** con el formato del banco, y marcado en lote con
-  `mark_payouts_paid`
+**Entregables** · estado al 2026-09-11
+- ⏳ **Separar llaves de Bold por entorno en Vercel.** Hoy las llaves de PRODUCCIÓN están
+  disponibles también en los despliegues de vista previa: en cuanto exista código de cobro, un
+  preview podría procesar pagos reales. Producción → llaves reales; Preview y Development → llaves
+  de pruebas. *Es tuyo: se hace en el panel de Vercel*
+- ✅ **Checkout de Bold**, el botón de pagos personalizado: el cliente paga en la interfaz de Bold y
+  Pawwi nunca toca datos de tarjeta
+- ✅ **El cobro se abre al ACEPTAR el Pawwer**, no al crear la reserva, con el total congelado
+  desde la creación (cuidado + transporte)
+- ✅ **Webhook de confirmación** que sella **`charged_at`** —no `paid_at`— y confirma la reserva. Es
+  el segundo de los dos consentimientos, no el primero
+- ✅ Retención de la comisión, con la tasa **del Pawwer que acepta**, congelada al aceptar
+- ✅ Pago fallido con sus salidas: reintentar, cambiar de medio dentro del checkout, «ya pagué»
+- ✅ **Vencimiento a las 2 horas desde la aceptación** (con 20 minutos de gracia para PSE),
+  liberando el cupo
+- ✅ **Reembolso en cancelación** con la política de 48 horas, **solo para lo ya pagado** — se
+  anota solo; se ejecuta a mano
+- ➡️ **Pantalla de liquidación semanal** → **S3**, en `/admin/liquidacion`: necesita `is_admin`
+- ➡️ **Exportación del archivo de dispersión masiva** y marcado en lote con `mark_payouts_paid` →
+  **S3**, en la misma pantalla. Sigue faltando el formato del banco
 
 **❌ No se construye**
 - Dispersión automática — **Bold no la soporta**, es manual y punto
@@ -440,7 +527,8 @@ Y con él, dos cosas que sí o sí acompañan:
 - Suscripciones o membresías
 
 **✅ Criterio de cierre** — Una transacción real de punta a punta: el cliente paga con tarjeta, la
-reserva se confirma sola, la comisión queda retenida, y el viernes sale un archivo que el banco acepta.
+reserva se confirma sola, la comisión queda retenida y el Pawwer la ve en Ganancias como pendiente
+del viernes. *El archivo que el banco acepta pasó al criterio de S3, junto con la liquidación.*
 
 > ### ⚠️ La única operación recurrente que sobrevive
 > Bold no dispersa a terceros, así que Pawwi cobra el 100% y transfiere el 75% a cada Pawwer. A 30
@@ -530,14 +618,11 @@ cédula» no hay nada que llamar.
   Hoy el Pawwer puede reescribir sus propias filas por REST; no le abre el embudo a nadie, porque
   el cambio de estado es solo de `service_role`, pero **la ficha del admin decide `needs_review`
   leyendo esas filas**. Va antes de construir la pantalla que confía en ellas
-- 🔒 **`delete_availability` sin `search_path`** — la última `SECURITY DEFINER` sin él, desde la
-  migración 06. Un `ALTER FUNCTION … SET search_path = public`. Riesgo bajo; se cierra aquí porque
-  esta migración ya toca las funciones del Pawwer
-- **Un correo que falla no puede tumbar la acción que lo manda.** `sendEmail` atrapa el rechazo de
-  Resend pero **no los errores de red**: si Resend no responde, el server action lanza *después* de
-  haber cambiado el estado —el Pawwer ve «error» con el examen ya registrado—. Hoy no pasa porque
-  producción no tiene llave; pasará el día que se configure Resend, y el correo de aprobación de
-  este sprint es el más importante del embudo. Un `try/catch` en `lib/email.ts`
+- ✅ ~~🔒 **`delete_availability` sin `search_path`**~~ → **se adelantó a la migración 68 (S2)**, que
+  ya tocaba las funciones del Pawwer. De paso cambió `!=` por `IS DISTINCT FROM`: con `auth.uid()`
+  NULL, la comparación vieja no entraba al `IF`
+- ✅ ~~**Un correo que falla no puede tumbar la acción que lo manda**~~ → **hecho en S2**: `sendEmail`
+  ya atrapa los errores de red. S2 empezó a mandar correos desde el webhook y no podía esperar
 
 **Entregables · 3.2 · La visita, con herramienta** 🆕
 
@@ -582,8 +667,8 @@ es que **tres prometen cosas que el sistema no puede cumplir**, y una de ellas e
 
 **Qué se hace con cada una:**
 
-- **«Pago automático» → la verdad.** «Te transferimos cada viernes» y cómo se hace. Es menos
-  brillante y es cierto, y el Pawwer lo va a descubrir el primer viernes de todos modos
+- ✅ **«Pago automático» → la verdad** · *hecho en S2*. «Te transferimos cada viernes», en Ganancias,
+  en la cuenta de cobro y en la pantalla de la cuenta bancaria. Es menos brillante y es cierto
 - **«Élite» → leer `pawwer.level`.** Se quita el cálculo duplicado de las dos pantallas y se usa
   `lib/levels.ts`, que ya es la fuente única del marketplace y del perfil público. De paso se
   unifica el nombre: el modelo dice **Ranger**, no «Élite»
@@ -596,9 +681,9 @@ es que **tres prometen cosas que el sistema no puede cumplir**, y una de ellas e
 - **La bolsa general no se distingue de una solicitud directa.** Ambas caen en «Nuevas», separadas
   solo por una etiqueta de fase. Son cosas psicológicamente distintas — «te eligieron a ti» frente
   a «hay una oportunidad abierta» — y mezclarlas diluye la primera, que es la que sostiene el nivel
-- **No hay estado «aceptaste, falta que el cliente pague».** Con la secuencia de S2 el Pawwer
-  acepta y el cobro llega después: hoy pasaría de «Por revisar» a «Confirmada» sin que exista aún
-  el dinero. Necesita verlo, o va a creer que tiene un cuidado firme que puede caerse
+- ✅ **No había estado «aceptaste, falta que el cliente pague»** · *hecho en S2*. La pestaña pasó a
+  llamarse «Aceptadas», la tarjeta dice «Esperando pago» con la hora límite, y el detalle explica
+  que el chat y la dirección llegan con el pago
 
 **Y dos guards flojos**, que viven fuera del grupo `(portal)` y por eso no heredan su gate:
 
@@ -635,7 +720,7 @@ escritura por RPC. Gate con `is_admin()`.
 | `/admin/pawwers` | Estado del embudo, filtro, ficha con documentos y acciones |
 | `/admin/visitas` | Calendario del operador: abrir cupos por zona, confirmar, completar, reagendar |
 | `/admin/visita/[id]` | **La visita en vivo**, desde el móvil. Ver 3.2 |
-| `/admin/liquidacion` | Qué le debes a cada Pawwer y **marcado en lote** con `mark_payouts_paid` |
+| `/admin/liquidacion` | Qué le debes a cada Pawwer, **archivo de dispersión** del banco y **marcado en lote** con `mark_payouts_paid` · y la **cola de reembolsos pendientes** de `booking_payment`. *Las tres cosas llegan de S2* |
 | `/admin/metricas` | Embudo, GMV, reservas por estado y **búsquedas sin resultado** |
 
 Tecnologías, todas ya en el stack: `recharts` con carga diferida como en `EarningsChart`,
@@ -666,6 +751,7 @@ registrar un Pawwer por la interfaz → verificar su cédula desde `/admin` → 
 capacitación → agendar visita sobre un cupo que tú abriste → completar la visita desde el móvil con
 las cinco fotos, los hechos observados, precios, capacidad, agenda y términos → aprobar →
 **encontrarlo en el marketplace como cliente anónimo**, con sus fotos y sus datos verificados.
+Y, heredado de S2: **el viernes sale un archivo de dispersión que el banco acepta**.
 
 ---
 
@@ -682,7 +768,7 @@ convierte «dueños» en «dueños responsables».
 | `/` · home y buscador | ✅ **Construida** — 1.190 líneas, filtros de servicio y fecha reales, mapa, orden por nivel | Favoritos no persisten · `petsCount` decorativo · dos enlaces 404 · datos inventados en el hero |
 | `/pawwer/[id]` · perfil público | ✅ **Construida** — galería, calendario, reseñas, presencia en vivo, metadatos OG | Sin corazón de favorito |
 | `/booking/nuevo` · pasos 1–3 | ✅ **Construidos** — validan fechas, `week_pattern`, disponibilidad, tope de perros, ocupación real, consentimiento de bolsa | Al añadir un perro se pierde la reserva a medias (`?back=` que nadie lee) |
-| `/booking/nuevo` · paso 4 | 🔨 **Cartel** — «la pasarela se habilitará en la próxima versión» | Lo llena **S2** |
+| `/booking/nuevo` · paso 4 | ✅ **S2** — ya no es un cartel: dice que todavía no se paga y lleva a la reserva, donde aparece el pago cuando el Pawwer acepta | — |
 | `/mis-reservas` | ✅ **Construida** con realtime sobre `booking` | 🔴 **El Pawwer desaparece** · sin chat · sin temporizador · sin badge |
 | `/booking/confirmada/[id]` | ✅ **Construida** — aquí sí se cancela y se reseña | Está escondida: no se llega desde `/mis-reservas` |
 | `/mis-mascotas` | ✅ **Construida** | **Editar crea un duplicado** · queda sin navegación inferior |
@@ -737,7 +823,7 @@ cuando S4 y S5 estén cerrados:
 | **Reservar** | Cuatro pasos, con ocupación real del día y aviso de compatibilidad | `/booking/nuevo` | ✅ ya |
 | | Decidir si acepta un **sustituto de la bolsa** | paso 3 | ✅ S1 |
 | | Llenar el **Pasaporte** de su perro y registrar su cédula | paso 3 | S4 |
-| | **Pagar** | paso 4 | S2 |
+| | **Pagar**, cuando el Pawwer ya aceptó | detalle de la reserva | ✅ S2 |
 | **Esperar** | Ver **quién** tiene su reserva y en qué etapa, con temporizador | `/mis-reservas` | S4 |
 | | Enterarse si pasó a la bolsa y **quién la tomó**, con enlace a su perfil | aviso + tarjeta | S5 |
 | | Cancelar antes de que empiece | `/mis-reservas` | S4 · *hoy escondido* |

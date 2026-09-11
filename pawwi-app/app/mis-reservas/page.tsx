@@ -8,6 +8,9 @@ import { SERVICE_LABEL as SERVICE_DISPLAY } from "@/lib/services";
 
 export const metadata: Metadata = { title: "Mis reservas — Pawwi" };
 
+// El Pawwer aceptó y falta el pago del cliente (mig 68). No es «Confirmada».
+const POR_PAGAR = { label: "Por pagar", dot: "bg-[#FF7031]", bg: "bg-[#FFF1EB]", text: "text-[#FF7031]" };
+
 const STATUS_CONFIG: Record<number, { label: string; dot: string; bg: string; text: string }> = {
   1: { label: "Pendiente",   dot: "bg-amber-400",  bg: "bg-amber-50",  text: "text-amber-700" },
   2: { label: "Confirmada",  dot: "bg-blue-400",   bg: "bg-blue-50",   text: "text-blue-700" },
@@ -35,6 +38,7 @@ export default async function MisReservasPage() {
     .from("booking")
     .select(`
       id, start_date, end_date, total, status_id, created_at,
+      charged_at, payment_due_at,
       service_type!booking_service_type_fkey ( name ),
       pawwer!booking_pawwer_id_fkey (
         id,
@@ -123,7 +127,8 @@ export default async function MisReservasPage() {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function BookingCard({ booking: b, dimmed = false }: { booking: any; dimmed?: boolean }) {
-  const status    = STATUS_CONFIG[b.status_id as number] ?? STATUS_CONFIG[1]!;
+  const porPagar  = b.status_id === 2 && !b.charged_at && !!b.payment_due_at;
+  const status    = porPagar ? POR_PAGAR : STATUS_CONFIG[b.status_id as number] ?? STATUS_CONFIG[1]!;
   const pawwerName = b.pawwer?.profile?.name ?? "Pawwer";
   const pawwerAvatar = b.pawwer?.profile?.avatar_url ?? null;
   const dogs: string[] = (b.dog_booking ?? []).map((db: { dog: { name: string } | null }) => db.dog?.name).filter(Boolean);

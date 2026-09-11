@@ -140,7 +140,7 @@ export default async function CuentaCobroPage() {
 
             {payout && (
               <p className="text-xs text-gray-400 mt-4 leading-relaxed">
-                Pago automático programado para el <span className="font-bold text-[#120A2B]">viernes {fmtLong(payout.next_payout_date)}</span>.
+                Transferencia programada para el <span className="font-bold text-[#120A2B]">viernes {fmtLong(payout.next_payout_date)}</span>.
                 No necesitas enviar esta cuenta: Pawwi la genera por ti.
               </p>
             )}

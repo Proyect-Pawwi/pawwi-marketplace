@@ -131,9 +131,15 @@ Cero intervención humana. Explora libre sin registrarse; el filtro aparece **so
 | Reservar | Pasaporte del perro: salud, comportamiento, rutina, vacunas | Migración **57** · `dog` |
 | Reservar | Cédula (celular por OTP → v1.1) | Migración **58** · `client` |
 
-**El dato exacto aparece cuando hay compromiso firme, en las dos direcciones.** El Pawwer ve la
-dirección del cliente **al aceptar** (migración 65); el cliente ve la del Pawwer **al pagar**.
-Antes de eso, los dos ven barrio y distancia aproximada. Es la misma regla, simétrica.
+**El dato exacto aparece cuando hay compromiso firme, en las dos direcciones — y el compromiso
+firme es el pago.** El Pawwer ve la dirección del cliente **cuando el cliente paga** (migración 68);
+el cliente verá la del Pawwer también al pagar (S4). Antes de eso, los dos ven barrio y distancia
+aproximada. Es la misma regla, simétrica.
+
+> Hasta el 2026-09-11 este párrafo decía que el Pawwer la veía «al aceptar (migración 65)». No era
+> así: en la etapa 1 `pawwer_id` viene puesto desde la creación, y la 65 solo tapó a los candidatos
+> de la bolsa, así que **el Pawwer elegido veía la casa del cliente antes de aceptar nada**. La 68
+> lo corrige y retrasa el dato hasta el pago.
 
 **No hay chat antes de reservar.** El Pawwer publica sus FAQ y el Pasaporte hace que la información
 del perro viaje con la solicitud. Abrir el chat antes sería el camino más corto a que cierren el
@@ -218,8 +224,9 @@ La reserva **se ofrece, nunca se asigna.** Dos etapas, con derecho de rechazo en
 
 ```
 El cliente elige un Pawwer y reserva  →  estado 1 (pendiente)
-   →  el Pawwer acepta  →  se bloquea el cupo y se le pide el pago al cliente
-   →  el cliente paga   →  CONFIRMADA
+   →  el Pawwer acepta  →  se bloquea el cupo; el cliente tiene 2 horas para pagar
+   →  el cliente paga   →  CONFIRMADA, se abre el chat
+   →  no paga a tiempo  →  vence y el cupo se libera solo
 ```
 
 Si declina o se le vence la hora, la reserva pasa a la etapa 2 — **pero solo si el cliente lo
@@ -262,9 +269,15 @@ ventana.
 ```
 
 `1 pendiente` es el estado normal de arranque en las dos etapas: una reserva creada que aún no
-tiene la aceptación del Pawwer. Se mueve a `2 confirmada` cuando el Pawwer acepta **y** el cliente
-paga. `6 sin_cuidador` es el final si nadie aceptó en las siete horas — y en ese caso **nunca se
-movió un peso**.
+tiene la aceptación del Pawwer. Al aceptar pasa a `2` **sin pagar** —`charged_at` vacío—: el cupo
+está bloqueado pero la reserva no es firme, y el Pawwer y el cliente lo ven así, nunca como
+«Confirmada». Con el pago queda `2 confirmada`. Si el pago no llega en las dos horas (más 20
+minutos de gracia para PSE), pasa a `5` con `cancelled_by = 'system'`, que no cuenta contra el nivel
+del Pawwer. `6 sin_cuidador` es el final si nadie aceptó en las siete horas — y en ese caso **nunca
+se movió un peso**.
+
+Una reserva sin pagar **no empieza**: el avance a `3 en curso` exige el pago. Las aceptadas antes de
+S2 —con `payment_due_at` vacío— se respetan como confirmadas.
 
 Avance por tiempo automático, consciente de servicios que cruzan la medianoche, zona
 `America/Bogota`. Lo ejecuta `pg_cron` cada minuto.
@@ -369,8 +382,13 @@ Juliana M. · Suba · 6,2 km · ★4,9 (12) · Ranger · Daycare $65.000 · reco
 
 ## 💰 El dinero
 
-Total de una reserva = `cuidado + transporte`. La comisión se calcula siempre en el backend al
-crear la reserva y queda **congelada e inmutable** en `booking.commission_rate`.
+Total de una reserva = `cuidado + transporte`, fijado **al crear** la solicitud: el cliente nunca
+paga más que eso. La comisión se calcula siempre en el backend **al aceptar**, con el nivel **del
+Pawwer que acepta**, y queda **congelada e inmutable** en `booking.commission_rate`.
+
+> Hasta la migración 68 se congelaba al crear, con el nivel del Pawwer elegido: si la reserva la
+> tomaba otro desde la bolsa, heredaba una tasa ajena. Como el cliente paga después de la
+> aceptación, moverla no le cambia nada a él.
 
 | Concepto | Pawwer | Pawwi |
 |---|---|---|
@@ -382,6 +400,43 @@ crear la reserva y queda **congelada e inmutable** en `booking.commission_rate`.
 
 Cuenta de comercio **ya aprobada y apta para recibir pagos**. Resuelve la ambigüedad Wompi/Bold que
 los documentos anteriores nunca cerraron.
+
+### El cobro, paso a paso · S2, migración 68
+
+1. **El Pawwer acepta** → se bloquea el cupo y se abre un plazo de **dos horas** para pagar, que
+   nunca pasa del inicio del servicio (con un mínimo de 15 minutos)
+2. **El cliente paga** en el **checkout de Bold**, que se abre con una firma que calcula el servidor
+   y **se cierra solo** al vencer el plazo. Pawwi nunca toca datos de tarjeta
+3. **Bold confirma** por webhook —o por la consulta al volver del checkout, que en pruebas es la
+   única vía— y el servidor sella **`charged_at`**: la reserva queda confirmada y se abre el chat.
+   El sello es idempotente: el webhook y la consulta pueden llegar los dos, repetidos y en cualquier
+   orden, sin cobrar ni confirmar dos veces
+4. **Sin pago a tiempo**, la reserva vence y el cupo se libera. Si un pago llega tarde, se anota
+   para reembolso
+
+> ⚠️ **`paid_at` no es el pago del cliente.** Es cuándo Pawwi le **transfiere al Pawwer**, y lo
+> leen Ganancias y `mark_payouts_paid`. El pago del cliente es `charged_at`. El plan original de S2
+> los confundía — ver `07`.
+
+### Cancelaciones y reembolsos · decidido el 2026-09-11
+
+| Quién cancela | Cuándo | Qué pasa con el dinero |
+|---|---|---|
+| El cliente | Antes de pagar | No hay nada que devolver |
+| El cliente | Pagado, con **48 h o más** de anticipación | Se le devuelve el **100%** |
+| El cliente | Pagado, con **menos de 48 h** | **No hay reembolso**, y el Pawwer cobra su parte: bloqueó el día |
+| El Pawwer | Cuando sea | Se le devuelve al cliente el **100%**, y la cancelación cuenta contra su nivel |
+
+**Bold no tiene API de reembolsos.** Solo anula pagos con tarjeta de **crédito**, **el mismo día
+antes de las 9 p. m.**, desde su panel. Todo lo demás es una transferencia desde la cuenta de Pawwi.
+Por eso los reembolsos se **anotan solos** —en `booking_payment.refund_amount`, con aviso por correo
+al equipo— y se **ejecutan a mano**. Es la segunda pieza, junto con la liquidación de los viernes,
+que no pasa el filtro de diseño; a volumen bajo son casos contados, y la cola para gestionarlos llega
+en S3, en `/admin`.
+
+La regla de las 48 horas vive en **un solo sitio**: `cancel_booking_client` la aplica y
+`get_cancellation_terms` la muestra antes de confirmar, con la misma cuenta. La pantalla nunca promete
+un reembolso que no llega. Va en la sección 10 de los términos, pendientes del abogado.
 
 ### ⚠️ La excepción al diseño: el pago al Pawwer es manual
 
@@ -621,7 +676,7 @@ pero **la primera auditoría se equivocó dos veces**, y la corrección está ab
 
 | Control | Estado |
 |---|---|
-| Funciones `SECURITY DEFINER` | Todas con `SET search_path` **salvo una**: `delete_availability` (mig 06) · se corrige en S3. *Leído de los archivos el 2026-09-11; falta confirmarlo contra `pg_proc`* |
+| Funciones `SECURITY DEFINER` | Todas con `SET search_path` **salvo una**: `delete_availability` (mig 06) · la corrige la **migración 68**, de S2. *Leído de los archivos el 2026-09-11; su verificación lo confirma contra `pg_proc`* |
 | RPC que confiaban en el cliente | 🔒 Las del embudo —examen y capacitación— eran llamables por REST con el resultado a escribir. **Cerradas en el hotfix** (migs 66–67) |
 | Firmas huérfanas de una RPC | Tres de `complete_pawwer_onboarding`, una sin control de mayoría de edad · eliminadas (mig 67) |
 | Políticas RLS | 52 sobre 16 tablas *(conteo del 2026-09-07)* |
@@ -629,7 +684,8 @@ pero **la primera auditoría se equivocó dos veces**, y la corrección está ab
 | `dangerouslySetInnerHTML` en todo el proyecto | 0 |
 | Inyección SQL | Imposible — parámetros enlazados. Todo el `EXECUTE` que existe es DDL que corre al migrar (mig 50 y tres policies); ninguna función arma SQL con datos del usuario |
 | PII (cédula, cuenta de pago) | Escritura por RPC, lectura enmascarada |
-| Dirección del cliente | Exacta solo para el Pawwer que aceptó; al candidato, barrio y ~1 km (mig 65) |
+| Dirección del cliente | Exacta solo para el Pawwer que aceptó, **y solo cuando el cliente pagó**; a los demás, barrio y ~1 km (migs 65 y 68) |
+| El sello del pago | `record_booking_payment` es solo de `service_role`, y el estado que sella viene siempre de Bold —webhook firmado o consulta servidor a servidor—, nunca del navegador (mig 68) |
 | Moderación del chat | Server-side: bloquea correos y teléfonos |
 | Fotos del chat | Solo del bucket propio; MIME y tamaño validados |
 
@@ -644,7 +700,7 @@ pero **la primera auditoría se equivocó dos veces**, y la corrección está ab
 > la 25.** Solo dos: `create_booking` se redefinió y `revert_booking` se eliminó. A
 > `upsert_availability` y `delete_availability` la 25 solo les hizo `REVOKE`/`GRANT` — sus nombres
 > aparecen en ese archivo, y eso bastó para darlas por arregladas. La primera se corrigió de rebote
-> en la 63; **la segunda sigue viva**, y la llama el calendario del Pawwer.
+> en la 63; **la segunda la corrige la 68**, y hasta entonces la llama el calendario del Pawwer.
 >
 > El riesgo práctico de la segunda es bajo —solo la ejecuta `authenticated` y usa nombres
 > calificados—, pero la lección vale más que el arreglo: **que el nombre de una función aparezca en
@@ -684,7 +740,7 @@ cuesta la comisión del 20%, la visibilidad y el flujo de clientes nuevos.
 | Estructura del Pasaporte y del KYC (migs 57 y 58) | 🔨 Solo columnas |
 | Portal del cliente (favoritos, mensajes, perfil) | 🔨 Esqueleto |
 | Deploy | ✅ **`app.pawwi.co`** |
-| Pagos | ⏳ **cero líneas de pasarela** · S2 |
+| Pagos | 🔨 **S2 en curso** — cobro, webhook y checkout escritos (mig 68, `lib/bold.ts`); falta correr la migración y probar |
 | Correos | ⏳ Resend sin configurar |
 | Portal admin | 🆕 **no existe** y **bloquea el lanzamiento** · S3 |
 | Referidos, reporte diario | ⏳ S6 · S5 |

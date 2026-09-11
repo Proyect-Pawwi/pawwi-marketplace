@@ -69,18 +69,26 @@ export default function GananciasClient({ payout, completed, cancelled, today, r
   const nextAmount = payout?.next_payout_amount ?? 0;
   const pendingCount = payout?.pending_count ?? 0;
 
-  // ── Métricas del período seleccionado (client-side desde completed) ────────
+  // Lo que se le debe al Pawwer: lo completado y las cancelaciones tardías del
+  // cliente (menos de 48 h), que también se le pagan. `pawwer_earns` lo calcula
+  // la base (mig 68) — aquí no se repite la regla.
+  const earned = useMemo(
+    () => [...completed, ...cancelled.filter((b) => b.pawwer_earns)],
+    [completed, cancelled],
+  );
+
+  // ── Métricas del período seleccionado (client-side desde lo ganado) ────────
   const metrics = useMemo(() => {
     const r = rangeFor(range, today);
     const list = r
-      ? completed.filter((b) => {
+      ? earned.filter((b) => {
           const d = b.start_date.slice(0, 10);
           return d >= r.start && d <= r.end;
         })
-      : completed;
+      : earned;
     const net = list.reduce((s, b) => s + (b.pawwer_payout ?? 0), 0);
     return { net, count: list.length };
-  }, [range, today, completed]);
+  }, [range, today, earned]);
 
   // ── Barras últimos 6 meses (motivacional, fijo) ────────────────────────────
   const bars = useMemo(() => {
@@ -92,21 +100,26 @@ export default function GananciasClient({ payout, completed, cancelled, today, r
       const mi = d.getMonth();
       const start = isoOf(y, mi, 1);
       const end = isoOf(y, mi + 1, 0);
-      const value = completed
+      const value = earned
         .filter((b) => { const x = b.start_date.slice(0, 10); return x >= start && x <= end; })
         .reduce((s, b) => s + (b.pawwer_payout ?? 0), 0);
       out.push({ label: MONTHS[mi]!, value });
     }
     return out;
-  }, [today, completed]);
+  }, [today, earned]);
   const maxBar = Math.max(1, ...bars.map((b) => b.value));
 
-  // ── Historial: pagado/pendiente sale del ledger real (paid_at) ─────────────
-  const paid    = useMemo(() => completed.filter((b) => b.paid_at != null), [completed]);
-  const pending = useMemo(() => completed.filter((b) => b.paid_at == null), [completed]);
+  // ── Historial: pagado/pendiente sale del ledger real (paid_at = cuándo Pawwi
+  // te TRANSFIRIÓ; no es el pago del cliente, que es charged_at) ─────────────
+  const paid    = useMemo(() => earned.filter((b) => b.paid_at != null), [earned]);
+  const pending = useMemo(() => earned.filter((b) => b.paid_at == null), [earned]);
   // Cancelados: solo cuidados que REALMENTE aceptaste (accepted_at), no
-  // solicitudes directas canceladas antes de que las tomaras.
-  const cancelledReal = useMemo(() => cancelled.filter((b) => b.accepted_at != null), [cancelled]);
+  // solicitudes directas canceladas antes de que las tomaras. Las tardías del
+  // cliente no van aquí: esas se te pagan y están en pendientes o pagados.
+  const cancelledReal = useMemo(
+    () => cancelled.filter((b) => b.accepted_at != null && !b.pawwer_earns),
+    [cancelled],
+  );
 
   const isElite = rating >= 4.8 && reviewsCount >= 15;
   const ratingPct  = Math.min(100, Math.round((rating / 4.8) * 100));
@@ -139,13 +152,15 @@ export default function GananciasClient({ payout, completed, cancelled, today, r
 
       <main className="relative z-10 max-w-xl mx-auto px-6 space-y-6 enter enter-1">
 
-        {/* ── CAPA 1 · PRÓXIMO PAGO AUTOMÁTICO (TICKET SKEUOMORPHIC) ── */}
+        {/* ── CAPA 1 · PRÓXIMO PAGO (TICKET SKEUOMORPHIC) ──
+            Decía «automático»: Bold no dispersa a terceros y el pago al Pawwer es
+            una transferencia manual cada viernes. Se dice lo que es. */}
         <div className="bg-white rounded-[32px] border border-white shadow-[0_12px_30px_rgba(18,10,43,0.04)] overflow-hidden">
           <div className="px-6 pt-6 pb-4">
             <div className="flex items-center justify-between mb-4">
-              <p className="eyebrow text-gray-400 ">Próximo pago automático</p>
+              <p className="eyebrow text-gray-400 ">Tu próximo pago</p>
               <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[#FF7031] bg-[#FFF1EB] border border-[#FF7031]/20 px-2 py-1 rounded-full">
-                <Zap size={10} className="fill-[#FF7031]" /> Auto
+                <Zap size={10} className="fill-[#FF7031]" /> Cada viernes
               </span>
             </div>
 
@@ -156,7 +171,7 @@ export default function GananciasClient({ payout, completed, cancelled, today, r
                 </p>
                 {payout && (
                   <p className="text-sm text-[#120A2B]/60 font-semibold mt-2">
-                    Depósito: <span className="font-black text-[#120A2B]">viernes {fmtLongDate(payout.next_payout_date)}</span>.
+                    Te lo transferimos el <span className="font-black text-[#120A2B]">viernes {fmtLongDate(payout.next_payout_date)}</span>.
                   </p>
                 )}
               </>
@@ -164,7 +179,7 @@ export default function GananciasClient({ payout, completed, cancelled, today, r
               <>
                 <p className="text-[28px] leading-none font-black text-[#120A2B]/30 mt-2">Sin pagos en camino</p>
                 <p className="text-sm text-gray-400 font-semibold mt-2 leading-relaxed">
-                  Completa cuidados y aquí verás tu próximo pago automático de los viernes. 🐾
+                  Completa cuidados y aquí verás lo que te transferimos el próximo viernes. 🐾
                 </p>
               </>
             )}
@@ -416,7 +431,7 @@ export default function GananciasClient({ payout, completed, cancelled, today, r
           {/* Sello de confianza footer */}
           <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest pt-4 mt-2">
             <CheckCircle2 size={14} className="text-green-500" />
-            Pagos 100% automáticos · sin trámites
+            Te transferimos cada viernes a tu cuenta registrada
           </div>
         </section>
 

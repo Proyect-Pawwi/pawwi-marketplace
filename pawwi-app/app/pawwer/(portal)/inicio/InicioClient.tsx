@@ -157,9 +157,11 @@ function SolicitudCard({
     startTransition(async () => {
       const res = await acceptBooking(booking.id);
       if (res.error) { setError(res.error); setAction(null); return; }
-      // Si incluye transporte, ir al detalle para elegir quién lo hace (popup obligatorio)
-      if ((booking.transport_fee ?? 0) > 0) router.push(`/pawwer/cuidados/${booking.id}`);
-      else onAccept(booking.id);
+      // Aceptar ya no confirma (mig 68): el detalle le muestra que falta el
+      // pago del cliente y hasta qué hora. Sacar la tarjeta sin decir nada le
+      // haría creer que el cuidado ya es firme.
+      onAccept(booking.id);
+      router.push(`/pawwer/cuidados/${booking.id}`);
     });
   }
 

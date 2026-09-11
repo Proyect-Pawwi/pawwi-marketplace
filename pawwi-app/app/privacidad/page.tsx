@@ -9,7 +9,9 @@ export const metadata = {
 // Describe con exactitud qué datos se guardan y quién los ve — se verificó
 // contra el código y las RPC, no contra suposiciones. Al hacerlo se encontró
 // una fuga real (la dirección exacta llegaba a candidatos que no habían
-// aceptado la reserva), corregida en la migración 65.
+// aceptado la reserva), corregida en la migración 65. Y la 65 dejó otra: el
+// Pawwer ELEGIDO la veía antes de aceptar, porque en la etapa 1 pawwer_id viene
+// desde la creación. Corregida en la 68, que además la retrasa hasta el pago.
 //
 // Lo que NO contiene, porque requiere abogado: plazos de retención concretos,
 // el aviso de privacidad formal exigido por la Ley 1581 de 2012, el registro
@@ -73,19 +75,23 @@ export default function PrivacidadPage() {
 
         <Seccion n="2" titulo="Quién ve tu dirección exacta">
           <p>
-            <strong>Solo el Pawwer que aceptó tu reserva.</strong> Es la regla y está implementada en
-            la base de datos, no solo escrita aquí.
+            <strong>Solo el Pawwer que aceptó tu reserva, y solo cuando ya la pagaste.</strong> Es la
+            regla y está implementada en la base de datos, no solo escrita aquí. Mientras el cuidado
+            está confirmado o en curso la puede ver; después, ya no.
           </p>
           <p>
-            Si tu solicitud pasa a varios Pawwers, cada uno ve tu <strong>barrio</strong> y una
-            distancia aproximada —redondeada a alrededor de un kilómetro— para decidir si le queda
-            lejos. <strong>No ve tu dirección.</strong> La recibe únicamente quien acepta, y a partir
-            de ese momento.
+            Antes de eso —mientras tu solicitud espera respuesta, o si pasa a varios Pawwers— cada
+            uno ve tu <strong>barrio</strong> y una distancia aproximada, redondeada a alrededor de un
+            kilómetro, para decidir si le queda lejos. <strong>No ve tu dirección.</strong>
+          </p>
+          <p>
+            Al revés tampoco: el perfil público de un Pawwer muestra su barrio, nunca su dirección.
           </p>
           <p className="text-xs text-gray-500">
-            Antes de septiembre de 2026 esto no era así: la dirección exacta llegaba también a los
-            Pawwers que aún no habían aceptado. Lo encontramos al escribir esta página y lo
-            corregimos.
+            Antes de septiembre de 2026 esto no era así: la dirección exacta llegaba a Pawwers que
+            aún no habían aceptado —primero a todos los de la bolsa, y hasta el 11 de septiembre al
+            Pawwer que elegiste, desde que enviabas la solicitud—. Lo encontramos al verificar esta
+            página contra el código y lo corregimos.
           </p>
         </Seccion>
 

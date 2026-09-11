@@ -53,7 +53,11 @@ export default async function MensajesPage() {
   if (!user) redirect("/pawwer/login");
 
   const { data } = await supabase.rpc("get_pawwer_bookings", { p_status_ids: [2, 3] });
-  const threads = (data as BookingRow[]) ?? [];
+  // El chat se abre cuando el cliente paga (mig 68): una aceptada sin pagar
+  // todavía no tiene conversación. payment_due_at NULL = anterior a S2.
+  const threads = ((data as BookingRow[]) ?? []).filter(
+    (b) => b.status_id === 3 || b.charged_at || !b.payment_due_at,
+  );
 
   // Último mensaje + no-leídos por conversación (RLS ya restringe a las partes).
   const lastByBooking = new Map<string, Msg>();

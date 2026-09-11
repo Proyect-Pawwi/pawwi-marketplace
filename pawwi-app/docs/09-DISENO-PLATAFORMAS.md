@@ -114,8 +114,9 @@ Entra a su portal
 **Móvil primero, siempre**, salvo el admin de escritorio. El 85% del tráfico es móvil y la interfaz
 **nunca se revisó formalmente** en un teléfono — se hace en S7.
 
-**El dato exacto aparece cuando hay compromiso firme, en las dos direcciones.** El Pawwer ve la
-dirección del cliente al aceptar; el cliente ve la del Pawwer al pagar. Antes, barrio y distancia
+**El dato exacto aparece cuando hay compromiso firme, en las dos direcciones — y el compromiso
+firme es el pago.** El Pawwer ve la dirección del cliente cuando el cliente paga (mig 68); el cliente
+ve la del Pawwer también al pagar (S4). Antes, barrio y distancia
 aproximada a ~1 km.
 
 **`null` no es `false`.** Un dato que el usuario no ha dado se muestra como «sin informar», nunca como
@@ -179,7 +180,7 @@ Los dos **badges** —cambios en reservas y mensajes sin leer— ya están const
 │   ├── paso 1                 Servicio
 │   ├── paso 2                 Fechas y horas
 │   ├── paso 3                 Perros · Pasaporte · transporte · bolsa
-│   └── paso 4                 Pagar
+│   └── paso 4                 Solicitud enviada · todavía no se paga
 ├── /mis-favoritos             Pawwers guardados
 ├── /mis-reservas              Activas e historial
 │   └── /mis-reservas/[id]     Detalle de una reserva  (hoy: /booking/confirmada/[id])
@@ -235,7 +236,7 @@ quién le deja su perro, así que todo lo que aparece aquí tiene que sostener l
 **No hay chat antes de reservar.** Las FAQ y el Pasaporte cubren la duda previa; abrir el chat
 antes es el camino más corto a que cierren el trato por fuera de Pawwi.
 
-### Reservar · `/booking/nuevo` · pasos 1–3 ✅ · paso 4 🔨 · S2 · S4
+### Reservar · `/booking/nuevo` · pasos 1–4 ✅ · S4
 
 | Paso | Qué pide | Qué valida |
 |---|---|---|
@@ -244,7 +245,7 @@ antes es el camino más corto a que cierren el trato por fuera de Pawwi.
 | **3 · Perros** | Qué perros · dirección si hay transporte · notas | **Tope de perros** del Pawwer · Pasaporte completo · cédula registrada |
 | | Muestra **«tu perro sería 1 de 3 ese día»** y avisa si uno no es sociable | Ocupación del día más ocupado del rango |
 | | Pregunta **«si Juliana no puede, ¿buscamos otro por el mismo precio?»** | Se guarda como `allow_pool` |
-| **4 · Pagar** | Checkout de Bold | **S2** — hoy es un cartel |
+| **4 · Enviada** | Nada: *«Todavía no pagas nada»*. El pago no es un paso del asistente — ocurre después, en el detalle de la reserva, cuando el Pawwer acepta | ✅ S2 — antes era un cartel de «la pasarela se habilitará en la próxima versión» |
 
 **Si falta el Pasaporte**, el paso 3 abre el formulario y **vuelve a la reserva** al terminar. Hoy el
 `?back=` se ignora y se pierde la reserva a medias.
@@ -269,10 +270,10 @@ ella desde ninguna parte. Se mueve bajo `/mis-reservas` y se enlaza desde cada t
 | Estado | Etapa en lenguaje humano, con **quién** y **cuánto falta** | Siempre |
 | Su cuidador (el Pawwer) | Foto, nombre, nivel, enlace a su perfil | Siempre que haya uno |
 | Temporizador | Cuánto le queda al Pawwer para responder · o cuándo empieza y termina el cuidado | Pendiente · confirmada · en curso |
-| Pagar | Botón al checkout | 🆕 **Solo cuando el Pawwer ya aceptó** |
+| Pagar | Botón al checkout de Bold, con la hora límite, «pago en proceso», «el pago no pasó» y «ya pagué» | ✅ **S2** · solo cuando el Pawwer ya aceptó |
 | Dirección | **Dónde queda la casa**, con enlace a Maps | 🆕 **Solo al estar pagada** |
 | Chat | Entrada a la conversación | Confirmada y en curso |
-| Cancelar | Con la política de 48 horas | Pendiente y confirmada |
+| Cancelar | Diciendo **antes** qué pasa con el dinero: 100% con 48 h o más; con menos, sin reembolso (✅ S2) | Pendiente y confirmada |
 | Reseñar | Estrellas y comentario | Completada |
 | Reservar de nuevo | Mismo Pawwer, mismo servicio, solo fechas | 🆕 Completada |
 
@@ -417,7 +418,7 @@ Lo primero que ve cada día. Prioriza **reaccionar rápido**, porque las solicit
 | Cabecera | Saludo, **presencia propia**, campana de notificaciones |
 | 🆕 **Te eligieron a ti** | Solicitudes directas, cada una con **temporizador de 1 hora** |
 | 🆕 **Bolsa general** | Oportunidades abiertas, **separadas** de las directas. Hoy caen mezcladas en la misma lista, y son psicológicamente distintas: «te eligieron» sostiene el nivel; «hay una abierta» es una oportunidad |
-| Tarjeta de solicitud | Fechas · perros con **chips de comportamiento** · barrio y distancia (la dirección exacta solo al aceptar) · **cuánto gana** · Aceptar · Declinar · Ver detalle |
+| Tarjeta de solicitud | Fechas · perros con **chips de comportamiento** · barrio y distancia (la dirección exacta llega cuando el cliente paga) · **cuánto gana ÉL**, con su propia comisión · Aceptar · Declinar · Ver detalle |
 | En curso | Los cuidados de hoy |
 | Ingresos | Del período, con gráfica — hoy/semana/mes/rango |
 | Tu nivel | Solo **la próxima meta**, no la final. Checklist accionable |
@@ -427,7 +428,8 @@ Lo primero que ve cada día. Prioriza **reaccionar rápido**, porque las solicit
 
 ### Mis cuidados · `/pawwer/cuidados` · ✅ construida · S2
 
-Cinco pestañas: **Nuevas · Confirmadas · En curso · Completadas · Canceladas**. Cada tarjeta con la
+Cinco pestañas: **Nuevas · Aceptadas · En curso · Completadas · Canceladas** —«Aceptadas» se llamaba
+«Confirmadas» hasta S2, cuando aceptar dejó de confirmar—. Cada tarjeta con la
 etapa, el temporizador y la ganancia.
 
 🆕 **Aceptada, falta que el cliente pague** — con la secuencia de S2, entre aceptar y cobrar hay un
@@ -441,7 +443,7 @@ caerse a los 30 minutos.
 | El perro | Foto, raza, edad, peso, sexo, y **comportamiento**: en el detalle sí dice «sin informar» cuando falta — la ausencia no se lee como un «no» |
 | Observaciones | Notas del cliente, resaltadas mientras esté pendiente |
 | Transporte | Informativo: «tú haces el transporte, +$X». Pawwi no transporta |
-| Dónde | Barrio y distancia; **dirección exacta solo si ya aceptó** |
+| Dónde | Barrio y distancia; **dirección exacta cuando el cliente pagó**, mientras dura el cuidado |
 | Ganancia | Neto, con el desglose cuidado y transporte |
 | Acciones | Aceptar · Declinar · Cancelar (esta sí cuenta para el nivel) |
 
@@ -457,7 +459,7 @@ La columna `is_daily_report` existe desde la migración 02 y hoy se escribe siem
 
 | Zona | Qué muestra |
 |---|---|
-| Próximo pago | Monto y fecha del viernes. ⚠️ Hoy dice «**automático**» y «**100% automáticos, sin trámites**»: es falso, **Bold no dispersa a terceros** y el pago es una transferencia manual. S3: *«Te transferimos cada viernes»* |
+| Próximo pago | Monto y fecha del viernes: *«Te lo transferimos el viernes»*. ✅ Decía «automático» y «100% automáticos, sin trámites», que era falso —**Bold no dispersa a terceros**—; se corrigió en S2. Suma lo completado **y las cancelaciones tardías del cliente**, que también se le pagan |
 | Rendimiento | Este mes · mes pasado · año · todo, con barras de 6 meses |
 | Historial | Pagados · Pendientes · Cancelados, desde el ledger real `paid_at` |
 | Tu nivel | ⚠️ Hoy calcula «Élite» por su cuenta con una regla **incompleta**: puede decir «ganas 20%» y que se le cobre 25%. S3 lee `pawwer.level` y lo llama **Ranger** |
@@ -694,8 +696,9 @@ técnico ni un nombre genérico.**
 |---|---|---|---|
 | `1` · etapa 1 | *Esperando a Juliana · responde en 42 min* | **Te eligió a ti** · temporizador | — |
 | `1` · etapa 2 | *Juliana no pudo. Buscamos otro por el mismo precio* | **Bolsa general** · oportunidad abierta | — |
-| `2` · sin pagar | *La tomó **Pedro** · revisa su perfil y paga* | 🆕 *Aceptada · falta que el cliente pague* | — |
-| `2` · pagada | *Confirmada con Pedro · empieza el sábado* · dirección visible | *Confirmada* · dirección del cliente visible | — |
+| `2` · sin pagar | *Pedro aceptó · paga antes de las 3:30 p. m.* · botón de pago ✅ S2 | *Esperando pago · hasta las 3:30 p. m.* · sin chat ni dirección ✅ S2 | — |
+| `2` · pagada | *Confirmada con Pedro · empieza el sábado* · dirección visible (S4) | *Confirmada* · dirección del cliente y chat ✅ S2 | — |
+| `5` · sin pago a tiempo | *Se venció el plazo para pagar* | *La reserva no se pagó · tu cupo quedó libre* | — |
 | `3` | *En curso · termina mañana a las 6 pm* | *En curso* · temporizador | — |
 | `4` | *Completada · ¿cómo le fue?* · reseñar · reservar de nuevo | *Completada* · pago pendiente del viernes | Entra a liquidación |
 | `5` | *Cancelada* — por quién | *Cancelada* | — |
@@ -710,7 +713,9 @@ El admin **no aparece** en la columna mientras la reserva está viva. Solo entra
 | Evento | Cliente | Pawwer | Admin | Sprint |
 |---|---|---|---|---|
 | Nueva solicitud directa | — | 🔔 | — | ✅ ya |
-| El Pawwer aceptó · pagar | 🔔 ✉️ | — | — | S5 |
+| El Pawwer aceptó · pagar | 🔔 ✉️ | — | — | ✅ **S2** · la fila de la campana y el correo ya salen; falta la campana (S5) y Resend |
+| Venció el plazo de pago | 🔔 | 🔔 | — | ✅ S2 · sin campana del cliente hasta S5 |
+| Reembolso por hacer | — | — | ✉️ | ✅ S2 · a `hola@pawwi.co`, hasta la cola de S3 |
 | Salió a la bolsa | 🔔 ✉️ | — | — | S5 |
 | Nueva oportunidad en la bolsa | — | 🔔 | — | S5 |
 | La tomó otro Pawwer | 🔔 ✉️ | — | — | S5 |
@@ -722,7 +727,7 @@ El admin **no aparece** en la columna mientras la reserva está viva. Solo entra
 | Servicio terminado · reseñar | 🔔 ✉️ | — | — | S5 |
 | Cédula verificada | — | ✉️ | — | ✅ ya · por `curl` hasta S3 |
 | Resultado del examen | — | ✉️ | — | ✅ ya |
-| Visita agendada | — | — | ✉️ | ✅ ya · el correo solo lleva el UUID |
+| Visita agendada | — | — | ✉️ | ✅ desde S2 · antes solo salía si existía `PAWWI_ADMIN_EMAIL`, que nunca existió en producción: **ninguna visita avisó jamás**. Ahora va a `hola@pawwi.co`, y el correo sigue llevando solo el UUID |
 | **Aprobado · ya estás en línea** | — | ✉️ | — | 🆕 **S3** |
 | Pago del viernes | — | 🔔 ✉️ | — | S3 |
 
@@ -743,7 +748,7 @@ Contado por rutas reales (`page.tsx`), no por recuerdo:
 | **Admin** | 7 | — | — | — | **7** |
 | **Total** | **48** | **23** | **14** | **3** | **8** |
 
-- **Cliente ⚠️:** Explorar · Reservar (paso 4 es un cartel) · Mis reservas · el detalle escondido ·
+- **Cliente ⚠️:** Explorar · Reservar (el paso 4 dejó de ser un cartel en S2; queda el Pasaporte) · Mis reservas · el detalle escondido ·
   Mis peludos · el Pasaporte · la Política de Privacidad. 🔨: Favoritos, Mensajes, Mi perfil.
   🆕: el chat del cliente
 - **Pawwer ⚠️:** Inicio (referidos) · Ganancias (pago «automático» y «Élite») · Tarifas («Élite») ·

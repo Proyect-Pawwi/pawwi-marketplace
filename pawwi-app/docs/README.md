@@ -82,7 +82,7 @@ Estos puntos cambiaron con el rediseño. El detalle está en `06`:
 
 - **Producto y decisiones**: `06-PRODUCTO-REDISENO.md`.
 - **Rutas**: `app/**/page.tsx` (App Router de Next.js).
-- **Base de datos**: `supabase/NN_*.sql` — **67 migraciones** incrementales, que se corren a mano en
+- **Base de datos**: `supabase/NN_*.sql` — **68 migraciones** incrementales, que se corren a mano en
   el SQL Editor de Supabase como owner (el `service_role` no tiene grants sobre
   `booking`/`pawwer`/`client`). Lo que de verdad está vivo en la base se comprueba contra
   `pg_proc` e `information_schema`, no leyendo los archivos — ver `08`.

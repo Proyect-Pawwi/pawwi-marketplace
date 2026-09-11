@@ -44,18 +44,26 @@ export default function Step4Resumen({ bookingId, total }: Props) {
           </div>
         </div>
 
-        {/* Payment placeholder */}
+        {/* Cuándo se paga. No se cobra nada hasta que las dos partes aceptaron
+            (mig 68): el pago es el último paso, no el primero. */}
         <div className="bg-white/70 backdrop-blur-sm rounded-[24px] p-5 border border-white shadow-[0_4px_16px_rgba(18,10,43,0.04)]">
-          <div className="flex items-center justify-center gap-2 text-[#120A2B]/40 mb-1">
-            <CreditCard size={18} />
-            <span className="text-sm font-bold">Módulo de pago</span>
+          <div className="flex items-center justify-center gap-2 text-[#120A2B] mb-1">
+            <CreditCard size={18} className="text-[#FF7031]" />
+            <span className="text-sm font-bold">Todavía no pagas nada</span>
           </div>
-          <p className="text-xs text-[#120A2B]/35 text-center">
-            La pasarela de pagos se habilitará en la próxima versión.
+          <p className="text-xs text-[#120A2B]/50 text-center leading-relaxed">
+            Cuando tu Pawwer acepte, la reserva aparece en tus reservas y tienes 2 horas para
+            pagar. Hasta entonces no se te cobra nada.
           </p>
         </div>
 
-        {/* Back link */}
+        {/* A la reserva — ahí aparece el botón de pagar cuando acepten */}
+        <Link
+          href={`/booking/confirmada/${bookingId}`}
+          className="block w-full bg-[#120A2B] text-white rounded-full py-3.5 font-bold text-sm shadow-[0_8px_20px_rgba(18,10,43,0.2)] active:scale-95 transition-transform"
+        >
+          Ver mi reserva
+        </Link>
         <Link
           href="/"
           className="block text-sm font-semibold text-[#120A2B]/40 hover:text-[#120A2B] transition-colors underline underline-offset-2"

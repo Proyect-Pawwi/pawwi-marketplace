@@ -41,7 +41,8 @@ impide que tú las veas.
 | `SUPABASE_SERVICE_ROLE_KEY` | 🔒 **Secret** | Salta toda la RLS — la más peligrosa |
 | `PAWWI_WEBHOOK_SECRET` | 🔒 **Secret** | Sin ella, `/api/pawwer/notify-approved` responde 503 |
 | `BOLD_SECRET_KEY` | 🔒 **Secret** | Firma el hash de integridad y valida webhooks |
-| `RESEND_API_KEY` | — | ⏳ pendiente. **Sin la variable**, `lib/email.ts` omite el envío y sigue; con un valor inválido, Resend lo rechaza y solo queda un error en el log. En `.env.local` hay hoy un **marcador de 9 caracteres**, no una llave: reemplazarlo al abrir la cuenta |
+| `RESEND_API_KEY` | — | ⏳ pendiente. **Sin la variable**, `lib/email.ts` omite el envío y sigue; con un valor inválido, Resend lo rechaza y solo queda un error en el log. En `.env.local` hay hoy un **marcador de 9 caracteres**, no una llave: reemplazarlo al abrir la cuenta. **Desde S2 es ruta crítica**: es como se entera el cliente de que el Pawwer aceptó y tiene dos horas para pagar |
+| `PAWWI_ADMIN_EMAIL` | — | Opcional. Adónde llegan los avisos al equipo: reembolsos por hacer, visitas agendadas, preselecciones. **Sin ella, `hola@pawwi.co`** (antes el respaldo era `luisa@pawwi.co`) |
 
 **Regla:** en local (`.env.local`) van las llaves de **pruebas** de Bold; en Vercel las de
 **producción**. `.env.local` está en `.gitignore`; `.env.example` sí se versiona, sin valores.
@@ -168,6 +169,47 @@ strings.
 > ⚠️ **El remitente de Supabase tiene un límite muy bajo** en el plan Free y suele caer en spam.
 > Conectar Resend como SMTP personalizado (Project Settings → Authentication → SMTP Settings)
 > resuelve el límite y hace que los correos salgan desde `pawwi.co`.
+
+---
+
+## 💳 Bold · cómo está conectado
+
+Desde S2 (migración 68). El detalle del producto está en `06` § El dinero.
+
+| Pieza | Qué hace | Dónde |
+|---|---|---|
+| Botón de pagos personalizado | Abre el checkout de Bold con una **firma de integridad** que calcula el servidor: SHA-256 de `{orden}{monto}COP{llave secreta}`. Se carga `checkout.bold.co/library/boldPaymentButton.js` solo al pagar | `lib/bold.ts` · `PagarReserva.tsx` |
+| Webhook | `POST https://app.pawwi.co/api/bold/webhook`. Valida `x-bold-signature` = HMAC-SHA256 del cuerpo **en Base64**, con la llave secreta. Responde en menos de 2 s; los correos salen después, con `after()` | `app/api/bold/webhook/route.ts` |
+| API de consulta | `GET payments.api.bold.co/v2/payment-voucher/{orden}` con la llave de identidad. Verifica el pago cuando el cliente vuelve del checkout | `lib/bold.ts` |
+| El sello | `record_booking_payment`, solo `service_role`, idempotente | mig 68 · `lib/cobro.ts` |
+
+### Para dejarlo funcionando
+
+1. **Registrar el webhook** en el panel de Bold: Integraciones → Webhooks →
+   `https://app.pawwi.co/api/bold/webhook`. Admite hasta 5 URLs; solo HTTPS
+2. **Separar las llaves por entorno en Vercel**: Production con las de producción, Preview y
+   Development con las de pruebas. Hoy las de producción llegan a los previews
+3. **Resend**, para que el cliente se entere de que el Pawwer aceptó
+
+### Probar sin cobrar
+
+- **Modo de pruebas = llaves de pruebas.** Se sabe que está activo porque el checkout muestra la
+  etiqueta amarilla «Modo de pruebas». Las dos llaves tienen que ser del mismo ambiente
+- **Tarjetas:** Visa aprobada `4111 1111 1111 1111` · Mastercard aprobada `5100 0100 0000 0015` ·
+  rechazada `4970 1100 0000 0062` · fallida `5204 7300 0000 8404`
+- **En pruebas Bold no manda webhooks.** El pago se confirma por la consulta al volver del checkout
+  (o con «Ya pagué»). Para probar el webhook: botón «Probar el webhook» en el comprobante, apuntando
+  a una URL pública — un preview de Vercel, nunca `localhost`
+- **En pruebas la firma del webhook usa una llave vacía.** `lib/bold.ts` la acepta **solo fuera de
+  producción** (`VERCEL_ENV !== 'production'`)
+- Las órdenes de prueba se borran a las 12 horas
+
+### Lo que Bold no hace
+
+**No tiene API de reembolsos.** Solo anula pagos con tarjeta de **crédito**, **el mismo día antes de
+las 9 p. m.**, desde su panel; esa anulación llega por webhook (`VOID_APPROVED`) y se marca sola.
+Todo lo demás es una transferencia a mano y un `refunded_at` en `booking_payment`, hasta que S3
+construya la cola en `/admin`. Cada reembolso por hacer llega por correo a `PAWWI_ADMIN_EMAIL`.
 
 ---
 
@@ -501,6 +543,46 @@ llave.
 > **Método:** los dos hallazgos salieron de comprobar una frase de la documentación contra el
 > código, igual que la fuga de la dirección el 2026-09-09. Es la misma técnica, y sigue
 > funcionando.
+
+### 2026-09-11 (tarde) · S2 arranca con diecisiete días de adelanto
+
+Nicolás decidió empezar S2 el mismo día, en vez del 28. Todo el código quedó escrito en la sesión
+—migración 68, `lib/bold.ts`, `lib/cobro.ts`, el webhook, las acciones de pago y las pantallas de los
+dos lados—, con `tsc` en 0 y sin problemas de ESLint nuevos. **Falta correr la 68 y probar.**
+
+**Antes de escribir, se leyó la documentación de Bold** y respondió la pregunta que llevaba días
+pendiente: el checkout se puede abrir en cualquier momento con una firma del servidor, así que el
+cobro puede esperar a la aceptación. Y trajo dos restricciones que cambian el diseño: **en pruebas
+no hay webhooks**, y **no hay API de reembolsos** —solo anulación de tarjetas de crédito el mismo día—.
+
+**Y se auditó lo existente**, que encontró más que la documentación:
+
+- 🔴 **`paid_at` ya tenía dueño.** El plan decía «el webhook sella `paid_at`», y `paid_at` es desde la
+  migración 48 el pago **al Pawwer**. Habría marcado como pagado dinero nunca transferido. El cobro
+  va en `charged_at`
+- **El Pawwer elegido veía la dirección del cliente antes de aceptar.** La 65 solo tapó a los
+  candidatos de la bolsa; en la etapa 1 `pawwer_id` viene desde la creación. La política de
+  privacidad afirmaba lo contrario
+- **La bolsa ignoraba `allow_pool`** si el Pawwer abría su inicio en el minuto justo: la copia de
+  `advance_booking_statuses` seguía con la lógica de la migración 40
+- **El techo de precio de la bolsa medía mal**, no exigía transporte ni el tope de perros, y un
+  candidato veía su ganancia con la tasa de otro Pawwer
+- **Ninguna visita agendada avisó jamás al equipo**: el correo dependía de `PAWWI_ADMIN_EMAIL`, que
+  nunca existió en producción. Y el respaldo de los otros avisos era `luisa@pawwi.co`
+- Quedaban **tres promesas más de pago «automático»**: en Ganancias, en la cuenta de cobro y en la
+  pantalla de la cuenta bancaria
+
+**Cuatro decisiones de producto**, todas de Nicolás: dos horas para pagar; 100% de reembolso con 48
+horas o más y ninguno con menos, cobrando el Pawwer; dirección del cliente al pagar; comisión del
+Pawwer que acepta.
+
+**Una corrección propia en la misma sesión:** en la política de privacidad escribí que el cliente
+«ve dónde queda la casa del Pawwer cuando la reserva está pagada». Eso lo construye S4; hoy no es
+cierto. Se quitó antes de confirmar — el mismo error de «eliminar tu cuenta», atrapado a tiempo esta
+vez.
+
+**Limpieza:** 18 carpetas vacías de iCloud (`nuevo 2`, `confirmada 2`…) que vinieron con el `mv` del
+9 de septiembre. Eran anteriores a la mudanza y no se están creando nuevas.
 
 ---
 

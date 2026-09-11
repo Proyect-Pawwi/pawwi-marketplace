@@ -2,6 +2,9 @@
 
 import { createClient } from "@/lib/server";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { horaBogota, notifyRefundDue, userContact } from "@/lib/cobro";
+import { emailLayout, escapeHtml, sendEmail } from "@/lib/email";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,8 +15,9 @@ export interface PawwerStats {
   pending_bookings: number;
 }
 
-// Resumen del "próximo pago automático" (pantalla Ganancias). Fechas en Bogotá.
-// Pagado/pendiente sale del ledger real (booking.paid_at), no de una heurística.
+// Resumen del próximo pago al Pawwer (pantalla Ganancias). Fechas en Bogotá.
+// Pagado/pendiente sale del ledger real (booking.paid_at = cuándo Pawwi le
+// transfirió), no de una heurística. Lo que se le debe es `pawwer_earns`.
 export interface PayoutSummary {
   today: string;
   next_payout_date: string;
@@ -51,8 +55,12 @@ export interface BookingRow {
   total: number;
   pawwer_payout: number;
   commission_rate?: number | null;
-  paid_at?: string | null;
+  paid_at?: string | null;          // cuándo Pawwi le TRANSFIRIÓ al Pawwer
   accepted_at?: string | null;
+  charged_at?: string | null;       // cuándo pagó el CLIENTE (mig 68)
+  payment_due_at?: string | null;   // hasta cuándo puede pagar; NULL = anterior a S2
+  late_cancel?: boolean;
+  pawwer_earns?: boolean;           // se le debe: completado o cancelación tardía
   status_id: number;
   search_phase: 1 | 2 | 3;
   phase_expires_at: string | null;
@@ -74,12 +82,41 @@ export interface BookingRow {
 
 // ── Booking mutations ─────────────────────────────────────────────────────────
 
+// Aceptar ya no confirma: bloquea el cupo y abre al cliente un plazo de 2 horas
+// para pagar (mig 68). El cliente tiene que enterarse YA — por eso el correo.
 export async function acceptBooking(bookingId: string): Promise<{ error?: string }> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("accept_booking", { p_booking_id: bookingId });
+  const { data, error } = await supabase.rpc("accept_booking", { p_booking_id: bookingId });
   if (error) return { error: "No se pudo aceptar la reserva. Intenta de nuevo." };
   revalidatePath("/pawwer/inicio");
   revalidatePath("/pawwer/cuidados");
+
+  const aceptada = data as { client_id: string; payment_due_at: string } | null;
+  if (aceptada) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: yo } = await supabase.from("profile").select("name").eq("id", user?.id ?? "").maybeSingle();
+    const pawwer = (yo?.name as string | undefined) ?? "Tu Pawwer";
+
+    after(async () => {
+      const cliente = await userContact(aceptada.client_id);
+      if (!cliente?.email) return;
+      await sendEmail({
+        to: cliente.email,
+        subject: `${pawwer} aceptó tu reserva — paga antes de las ${horaBogota(aceptada.payment_due_at)}`,
+        html: emailLayout({
+          title: `${escapeHtml(pawwer)} aceptó tu reserva 🐾`,
+          paragraphs: [
+            `Tienes hasta las <strong>${horaBogota(aceptada.payment_due_at)}</strong> para pagar. Hasta que pagues, la reserva <strong>no está confirmada</strong>, y si se vence el plazo, el cupo se libera.`,
+            "No se te cobra nada más: el total es el mismo que viste al reservar.",
+          ],
+          cta: {
+            label: "Pagar ahora",
+            href: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.pawwi.co"}/booking/confirmada/${bookingId}`,
+          },
+        }),
+      });
+    });
+  }
   return {};
 }
 
@@ -100,6 +137,8 @@ export async function declineSolicitud(bookingId: string): Promise<{ error?: str
 
 // El pawwer cancela un cuidado confirmado o en curso.
 // Libera el cupo bloqueado al aceptar, avisa al cliente y lo pasa a "Cancelada".
+// Si el cliente ya había pagado, se le devuelve el 100%: la RPC lo anota y aquí
+// se avisa al equipo, que es quien hace la transferencia.
 export async function cancelBooking(bookingId: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("cancel_booking", { p_booking_id: bookingId });
@@ -109,6 +148,18 @@ export async function cancelBooking(bookingId: string): Promise<{ error?: string
   }
   revalidatePath("/pawwer/cuidados");
   revalidatePath("/pawwer/inicio");
+
+  const { data } = await supabase.rpc("get_pawwer_booking_detail", { p_booking_id: bookingId });
+  const cancelada = data as { charged_at?: string | null; total?: number } | null;
+  if (cancelada?.charged_at) {
+    after(() =>
+      notifyRefundDue({
+        bookingId,
+        reason: "El Pawwer canceló un cuidado ya pagado: se le devuelve el 100% al cliente.",
+        amount: cancelada.total,
+      }),
+    );
+  }
   return {};
 }
 

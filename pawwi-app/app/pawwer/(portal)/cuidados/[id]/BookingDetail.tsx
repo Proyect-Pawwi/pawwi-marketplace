@@ -38,6 +38,11 @@ function fmtDate(iso: string): string {
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
+// «3:30 p. m.» en hora de Bogotá — el plazo de pago del cliente.
+function horaBogota(iso: string): string {
+  return new Date(iso).toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", timeZone: "America/Bogota" });
+}
+
 function ageLabel(age: number | null | undefined): string | null {
   if (age == null) return null;
   if (age < 1) return "Cachorro";
@@ -120,17 +125,20 @@ export default function BookingDetail({
   const phase      = booking.search_phase as SearchPhase;
   const isPending1 = currentStatus === 1;
   const firstDog   = booking.dogs[0];
+  // Aceptada y sin pagar (mig 68): el cupo está bloqueado pero el cuidado no es
+  // firme. payment_due_at NULL = aceptada antes de S2, que no pasa por el pago.
+  const esperandoPago = currentStatus === 2 && !booking.charged_at && !!booking.payment_due_at;
 
   // Transporte
   const transportFee = booking.transport_fee ?? 0;
   const legs         = booking.transport_legs ?? 0;
   const hasTransport = transportFee > 0;
-  const rate         = booking.commission_rate ?? 0.25;  // tasa real congelada (0.20 élite / 0.25)
+  // La tasa es la del Pawwer que ACEPTA (mig 68). En una solicitud abierta la
+  // RPC ya la trae calculada con el nivel de quien la está mirando.
+  const rate         = booking.commission_rate ?? 0.25;
   const pay          = payoutBreakdown(booking.total, transportFee, rate);
   // El traslado siempre lo hace el Pawwer: Pawwi no transporta (decisión 06).
-  // Ya no hay nada que elegir tras aceptar, así que el pago es firme desde el
-  // momento en que create_booking lo congela.
-  const transportEarn = pay.transport; // 75% del transporte, igual que el cuidado
+  const transportEarn = pay.transport; // la misma tasa que el cuidado
   const payout = booking.pawwer_payout;
 
   const allNotes = [
@@ -538,13 +546,24 @@ export default function BookingDetail({
         {/* Acciones — confirmada / en curso */}
         {!doneType && (currentStatus === 2 || currentStatus === 3) && (
           <div className="space-y-3">
-            <Link
-              href={`/pawwer/mensajes/${booking.id}`}
-              className="flex items-center justify-center gap-2 w-full py-4 rounded-full font-black bg-[#120A2B] text-white text-sm active:scale-95 shadow-[0_12px_30px_rgba(18,10,43,0.25)] transition-transform"
-            >
-              <MessageCircle size={18} />
-              Ir al chat con el cliente
-            </Link>
+            {esperandoPago ? (
+              // Sin pago no hay chat ni dirección exacta: todavía puede caerse.
+              <div className="bg-amber-50 border border-amber-100 rounded-[24px] px-5 py-4 text-sm text-amber-800 leading-relaxed">
+                <p className="font-black mb-1">Falta el pago del cliente</p>
+                <p>
+                  Tiene hasta las <strong>{horaBogota(booking.payment_due_at!)}</strong> para pagar. Cuando
+                  pague, se abre el chat y ves su dirección. Si no paga, tu cupo se libera solo.
+                </p>
+              </div>
+            ) : (
+              <Link
+                href={`/pawwer/mensajes/${booking.id}`}
+                className="flex items-center justify-center gap-2 w-full py-4 rounded-full font-black bg-[#120A2B] text-white text-sm active:scale-95 shadow-[0_12px_30px_rgba(18,10,43,0.25)] transition-transform"
+              >
+                <MessageCircle size={18} />
+                Ir al chat con el cliente
+              </Link>
+            )}
             <button
               onClick={() => setShowCancel(true)}
               className="flex items-center justify-center gap-2 w-full py-3.5 rounded-full font-bold text-red-500 border border-red-100 bg-white text-sm hover:bg-red-50 active:scale-95 transition-all"
@@ -564,12 +583,17 @@ export default function BookingDetail({
               </div>
               <p className="text-sm font-bold text-[#120A2B]">¡Reserva aceptada!</p>
             </div>
+            {/* Aceptar ya no confirma (mig 68): confirma el pago del cliente. */}
+            <p className="text-sm text-gray-500 text-center leading-relaxed">
+              Tu cupo quedó bloqueado. Ahora el cliente tiene <strong className="text-[#120A2B]">2 horas para
+              pagar</strong>: cuando pague, el cuidado es firme y se abre el chat. Si no paga, el cupo se
+              libera solo.
+            </p>
             <Link
-              href={`/pawwer/mensajes/${booking.id}`}
-              className="flex items-center justify-center gap-2 w-full py-4 rounded-full font-black bg-[#120A2B] text-white text-sm shadow-[0_12px_30px_rgba(18,10,43,0.25)] active:scale-95 transition-transform"
+              href="/pawwer/cuidados?filter=confirmadas"
+              className="flex items-center justify-center w-full py-4 rounded-full font-black bg-gray-100 text-[#120A2B] text-sm hover:bg-gray-200 transition-colors"
             >
-              <MessageCircle size={18} />
-              Saludar al cliente
+              Ver mis cuidados aceptados
             </Link>
           </div>
         )}
@@ -606,8 +630,9 @@ export default function BookingDetail({
             </div>
             <h2 className="text-lg font-black text-[#120A2B] text-center mb-1">¿Cancelar este cuidado?</h2>
             <p className="text-sm text-gray-500 text-center mb-5 leading-relaxed">
-              Se liberará tu cupo de esa fecha y le avisaremos al cliente. Cancelar cuidados
-              confirmados afecta tu reputación como Pawwer.
+              Se liberará tu cupo de esa fecha y le avisaremos al cliente
+              {booking.charged_at ? ", a quien se le devuelve el 100% de lo que pagó" : ""}. Cancelar
+              un cuidado que ya aceptaste afecta tu nivel como Pawwer.
             </p>
             <div className="space-y-2.5">
               <button

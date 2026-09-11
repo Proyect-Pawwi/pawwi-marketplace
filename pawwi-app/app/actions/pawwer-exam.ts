@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/server";
 import { adminClient } from "@/lib/admin";
 import { calcularPuntaje, clasificarResultado, EXAM_SECTIONS } from "@/lib/exam-pawwer";
-import { sendEmail, escapeHtml } from "@/lib/email";
+import { sendEmail, escapeHtml, ADMIN_EMAIL } from "@/lib/email";
 
 export type ExamResult =
   | { ok: true; result: "preselected" | "needs_review" | "rejected" }
@@ -77,7 +77,7 @@ export async function submitExamen(
 
   const nombre   = profile?.name ?? "Pawwer";
   const emailTo  = user.email ?? "";
-  const adminEmail = process.env.PAWWI_ADMIN_EMAIL ?? "luisa@pawwi.co";
+  const adminEmail = ADMIN_EMAIL;
 
   // Email al Pawwer
   if (emailTo) {

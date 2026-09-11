@@ -108,7 +108,7 @@ export default function PagoClient({
         <div className="flex items-start gap-2.5 bg-[#E0F2FE]/50 border border-[#92C0E9]/30 rounded-2xl px-4 py-3">
           <ShieldCheck size={16} className="text-[#0284C7] shrink-0 mt-0.5" />
           <p className="text-xs font-semibold text-[#120A2B]/60 leading-relaxed">
-            Aquí depositamos tus pagos automáticos de los viernes. Registra una <span className="font-black text-[#120A2B]">llave Bre-B</span> y/o una <span className="font-black text-[#120A2B]">cuenta bancaria</span>. Tus datos se guardan cifrados y el número nunca se muestra completo.
+            Aquí te transferimos tus pagos cada viernes. Registra una <span className="font-black text-[#120A2B]">llave Bre-B</span> y/o una <span className="font-black text-[#120A2B]">cuenta bancaria</span>. Tus datos se guardan cifrados y el número nunca se muestra completo.
           </p>
         </div>
 

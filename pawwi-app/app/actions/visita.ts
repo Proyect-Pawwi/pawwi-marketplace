@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/server";
-import { escapeHtml } from "@/lib/email";
+import { escapeHtml, sendEmail, ADMIN_EMAIL } from "@/lib/email";
 
 import { type TimeSlot } from "@/lib/visita";
 
@@ -52,38 +52,22 @@ export async function scheduleVisita(
     return { error: "No se pudo agendar la visita. Intenta de nuevo." };
   }
 
-  // Notificar a Luisa por email
-  const adminEmail = process.env.PAWWI_ADMIN_EMAIL;
-  const resendKey  = process.env.RESEND_API_KEY;
-  const pawwiUrl   = process.env.PAWWI_URL ?? "https://pawwi.co";
-
-  if (adminEmail && resendKey) {
-    try {
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendKey}`,
-        },
-        body: JSON.stringify({
-          from: "Pawwi <hola@pawwi.co>",
-          to:   adminEmail,
-          subject: "Nueva visita domiciliaria agendada",
-          html: `
-            <p>Un Pawwer ha agendado una visita domiciliaria.</p>
-            <ul>
-              <li><strong>Pawwer ID:</strong> ${escapeHtml(user.id)}</li>
-              <li><strong>Fecha:</strong> ${escapeHtml(date)}</li>
-              <li><strong>Horario:</strong> ${escapeHtml(timeSlot)}</li>
-            </ul>
-            <p><a href="${pawwiUrl}">Ver en Pawwi</a></p>
-          `,
-        }),
-      });
-    } catch {
-      // graceful — no bloquear al usuario si el email falla
-    }
-  }
+  // Aviso al equipo. Antes solo salía si PAWWI_ADMIN_EMAIL existía, y en
+  // producción nunca existió: ninguna visita avisó jamás. sendEmail no lanza.
+  const pawwiUrl = process.env.PAWWI_URL ?? "https://app.pawwi.co";
+  await sendEmail({
+    to: ADMIN_EMAIL,
+    subject: "Nueva visita domiciliaria agendada",
+    html: `
+      <p>Un Pawwer ha agendado una visita domiciliaria.</p>
+      <ul>
+        <li><strong>Pawwer ID:</strong> ${escapeHtml(user.id)}</li>
+        <li><strong>Fecha:</strong> ${escapeHtml(date)}</li>
+        <li><strong>Horario:</strong> ${escapeHtml(timeSlot)}</li>
+      </ul>
+      <p><a href="${pawwiUrl}">Ver en Pawwi</a></p>
+    `,
+  });
 
   return { ok: true, visitaId: visitaId as string, date, timeSlot };
 }

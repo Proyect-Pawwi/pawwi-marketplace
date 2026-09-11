@@ -103,8 +103,9 @@ export default function TerminosPage() {
           </p>
           <p>
             <strong>No se te cobra nada hasta que un Pawwer haya aceptado.</strong> Cuando alguien
-            acepta, te pedimos el pago; hasta que pagues, la reserva no está confirmada. Si nadie
-            acepta, no se mueve un peso.
+            acepta, tienes <strong>dos horas</strong> para pagar —o hasta el inicio del cuidado, si
+            empieza antes—; hasta que pagues, la reserva no está confirmada. Si se vence el plazo, la
+            reserva se libera y el Pawwer recupera su cupo. Si nadie acepta, no se mueve un peso.
           </p>
           <p>
             Si tu reserva la tomó un Pawwer distinto al que elegiste, verás quién es y podrás
@@ -121,12 +122,13 @@ export default function TerminosPage() {
           </p>
           <p>
             Del valor del cuidado, Pawwi retiene una comisión del <strong>25%</strong>, que baja al{" "}
-            <strong>20%</strong> para Pawwers de nivel Ranger. La tasa queda congelada en cada
-            reserva al momento de crearla y no cambia después.
+            <strong>20%</strong> para Pawwers de nivel Ranger. La tasa es la del nivel del Pawwer{" "}
+            <strong>que acepta</strong> la reserva, queda congelada en ese momento y no cambia
+            después. El total que paga el cliente no depende de ella: se fija al crear la solicitud.
           </p>
           <p>
-            Al Pawwer se le transfiere su parte semanalmente. Pawwi cobra al cliente el 100% y
-            transfiere al Pawwer lo que le corresponde.
+            El pago se hace en la pasarela de Bold; Pawwi nunca recibe los datos de tu tarjeta. Pawwi
+            cobra al cliente el 100% y le transfiere al Pawwer su parte cada viernes.
           </p>
         </Seccion>
 
@@ -188,10 +190,28 @@ export default function TerminosPage() {
           </p>
         </Seccion>
 
-        <Seccion n="10" titulo="Cancelaciones y reseñas">
+        <Seccion n="10" titulo="Cancelaciones, reembolsos y reseñas">
           <p>
-            Puedes cancelar antes de que el cuidado empiece. Las cancelaciones del Pawwer afectan su
-            nivel dentro de la plataforma; las del cliente, no.
+            Puedes cancelar antes de que el cuidado empiece. Si todavía no habías pagado, no hay nada
+            que devolver. Si ya pagaste:
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              Si faltan <strong>48 horas o más</strong> para el inicio, te devolvemos el{" "}
+              <strong>100%</strong>.
+            </li>
+            <li>
+              Si faltan <strong>menos de 48 horas</strong>, no hay reembolso: el Pawwer bloqueó ese
+              día para tu perro y recibe su parte.
+            </li>
+            <li>
+              Si cancela el <strong>Pawwer</strong>, te devolvemos el <strong>100%</strong>, siempre.
+            </li>
+          </ul>
+          <p>
+            Las devoluciones se hacen anulando el cargo en tu tarjeta cuando se puede, o por
+            transferencia a la cuenta que nos indiques; te escribimos para coordinarla. Las cancelaciones del Pawwer afectan su nivel dentro de la plataforma;
+            las del cliente, no.
           </p>
           <p>
             Las reseñas solo puede dejarlas quien completó un cuidado. <strong>No se editan ni se

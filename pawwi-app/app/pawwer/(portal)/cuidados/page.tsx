@@ -11,9 +11,11 @@ import { SERVICE_LABEL_BRAND as SERVICE_DISPLAY, SERVICE_COLOR } from "@/lib/ser
 
 // ── Configuraciones ───────────────────────────────────────────────────────────
 
+// «Aceptadas» y no «Confirmadas»: desde S2 aceptar no confirma. Confirma el pago
+// del cliente, y hasta entonces la tarjeta lo dice.
 const FILTERS = [
   { key: "nuevas",      label: "Nuevas",     ids: [1] },
-  { key: "confirmadas", label: "Confirmadas", ids: [2] },
+  { key: "confirmadas", label: "Aceptadas",   ids: [2] },
   { key: "en-curso",    label: "En curso",    ids: [3] },
   { key: "completadas", label: "Completadas", ids: [4] },
   { key: "canceladas",  label: "Canceladas",  ids: [5] },
@@ -27,6 +29,14 @@ const STATUS_BADGE: Record<number, { label: string; cls: string; dot?: boolean; 
   5: { label: "Cancelada",    cls: "bg-red-50 text-red-500 border border-red-100" },
   6: { label: "Sin cuidador", cls: "bg-gray-100 text-gray-400 border border-gray-200" },
 };
+
+// Aceptada y sin pagar (mig 68): el cupo está bloqueado pero el cuidado todavía
+// no es firme — si el cliente no paga, se cae solo.
+const ESPERANDO_PAGO = { label: "Esperando pago", cls: "bg-amber-50 text-amber-700 border border-amber-100", dot: true, dotColor: "bg-amber-500" };
+
+function horaBogota(iso: string): string {
+  return new Date(iso).toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", timeZone: "America/Bogota" });
+}
 
 const PHASE_BADGE_CLS: Record<SearchPhase, string> = {
   1: "bg-[#FF7031]/10 text-[#FF7031]",
@@ -204,7 +214,8 @@ export default async function CuidadosPage({
           </div>
         ) : (
           bookings.map((b) => {
-            const badge    = STATUS_BADGE[b.status_id];
+            const esperandoPago = b.status_id === 2 && !b.charged_at && !!b.payment_due_at;
+            const badge    = esperandoPago ? ESPERANDO_PAGO : STATUS_BADGE[b.status_id];
             const firstDog = b.dogs[0];
             // Identidad: "Bimba (Mestizo, 15kg)" — raza y peso si existen
             const dogTraits = firstDog
@@ -244,8 +255,19 @@ export default async function CuidadosPage({
                   </div>
                 )}
 
+                {/* Aceptada y sin pagar: hasta cuándo tiene el cliente */}
+                {esperandoPago && (
+                  <div className="px-5 pt-3 pb-2 flex items-center justify-between bg-amber-50 text-amber-700">
+                    <span className="eyebrow">Falta el pago del cliente</span>
+                    <span className="flex items-center gap-1 text-[10px] font-bold">
+                      <Clock size={10} />
+                      hasta las {horaBogota(b.payment_due_at!)}
+                    </span>
+                  </div>
+                )}
+
                 {/* Timer de urgencia — confirmado (comienza en) / en curso (termina en) */}
-                {(b.status_id === 2 || b.status_id === 3) && (
+                {!esperandoPago && (b.status_id === 2 || b.status_id === 3) && (
                   <CuidadoTimer
                     statusId={b.status_id}
                     startDate={b.start_date}
