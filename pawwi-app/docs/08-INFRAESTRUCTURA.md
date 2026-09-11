@@ -481,7 +481,7 @@ trabajo de esta misma semana había dejado atrás:
 - **Cuatro memorias** conservaban el motor de tres fases, el transporte de Pawwi, la reserva
   instantánea y cifras del punto de equilibrio que `06` ya había corregido
 
-**Y dos hallazgos de seguridad**, ninguno explotable hoy, los dos para la migración 68 de S3:
+**Y dos hallazgos de seguridad**, ninguno explotable hoy, los dos para la primera migración de S3:
 
 1. **`delete_availability` es `SECURITY DEFINER` sin `search_path`** desde la migración 06. La
    auditoría del 2026-09-07 la dio por reemplazada porque su nombre aparecía en la 25, que solo le

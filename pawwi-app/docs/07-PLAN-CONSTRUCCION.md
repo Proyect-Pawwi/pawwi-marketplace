@@ -505,7 +505,8 @@ visita tiene que configurar cosas que exigen estar aprobado.
 
 **Y el contrato digital del protocolo no existe.** Cero código.
 
-**Entregables · 3.1 · Cerrar el embudo** (migración 68)
+**Entregables · 3.1 · Cerrar el embudo** (la primera migración de S3 — no la 68: S2 va antes y
+casi seguro necesita la suya, para la expiración a los 30 minutos y el sello del pago)
 
 Primero las funciones, después las pantallas — hoy para «aprobar la visita» o «rechazar una
 cédula» no hay nada que llamar.
@@ -531,7 +532,7 @@ cédula» no hay nada que llamar.
   leyendo esas filas**. Va antes de construir la pantalla que confía en ellas
 - 🔒 **`delete_availability` sin `search_path`** — la última `SECURITY DEFINER` sin él, desde la
   migración 06. Un `ALTER FUNCTION … SET search_path = public`. Riesgo bajo; se cierra aquí porque
-  la 68 ya toca las funciones del Pawwer
+  esta migración ya toca las funciones del Pawwer
 - **Un correo que falla no puede tumbar la acción que lo manda.** `sendEmail` atrapa el rechazo de
   Resend pero **no los errores de red**: si Resend no responde, el server action lanza *después* de
   haber cambiado el estado —el Pawwer ve «error» con el examen ya registrado—. Hoy no pasa porque
