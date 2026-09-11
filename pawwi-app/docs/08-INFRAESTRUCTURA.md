@@ -2,7 +2,7 @@
 
 > Dónde vive cada cosa, cómo se despliega, y qué hacer cuando algo falla.
 > Referencia operativa: si vuelves al proyecto después de una pausa, empieza por aquí.
-> _Última actualización: 2026-09-10 (auditoría de las tres superficies)_
+> _Última actualización: 2026-09-11_
 
 ---
 
@@ -41,7 +41,7 @@ impide que tú las veas.
 | `SUPABASE_SERVICE_ROLE_KEY` | 🔒 **Secret** | Salta toda la RLS — la más peligrosa |
 | `PAWWI_WEBHOOK_SECRET` | 🔒 **Secret** | Sin ella, `/api/pawwer/notify-approved` responde 503 |
 | `BOLD_SECRET_KEY` | 🔒 **Secret** | Firma el hash de integridad y valida webhooks |
-| `RESEND_API_KEY` | — | ⏳ pendiente. **Sin la variable**, `lib/email.ts` omite el envío y sigue; con un valor inválido, falla |
+| `RESEND_API_KEY` | — | ⏳ pendiente. **Sin la variable**, `lib/email.ts` omite el envío y sigue; con un valor inválido, Resend lo rechaza y solo queda un error en el log. En `.env.local` hay hoy un **marcador de 9 caracteres**, no una llave: reemplazarlo al abrir la cuenta |
 
 **Regla:** en local (`.env.local`) van las llaves de **pruebas** de Bold; en Vercel las de
 **producción**. `.env.local` está en `.gitignore`; `.env.example` sí se versiona, sin valores.
@@ -91,7 +91,7 @@ inofensivo.
 
 ### Verificar que una migración quedó aplicada
 
-Consultar `information_schema.columns`. Ejemplo, para las tres últimas:
+Consultar `information_schema.columns`. Ejemplo, con las migraciones 57 a 59:
 
 ```sql
 select
@@ -105,6 +105,50 @@ select
   (select is_nullable from information_schema.columns
     where table_name='profile' and column_name='phone')                        as mig_59;
 -- esperado: 9 · 4 · YES
+```
+
+### 🚨 Al cambiar la firma de una RPC: elimina la vieja
+
+`CREATE OR REPLACE FUNCTION` solo **reemplaza** cuando la lista de parámetros coincide. Si le
+añades o le quitas uno, **crea una sobrecarga** — y la versión anterior sigue viva, llamable por
+REST, y con las validaciones que tuviera en su día.
+
+Ya pasó dos veces. `complete_pawwer_onboarding` acumuló **tres firmas** entre las migraciones 07,
+08 y 09: la más vieja no tenía el control de mayoría de edad, así que se podía crear un Pawwer
+menor de 18 años llamándola directamente (limpiado en la migración 67). Y `create_booking` estuvo
+a punto de lo mismo en la 64, donde sí se puso el `DROP` a tiempo.
+
+**Después de cada migración que cambie una firma**, correr:
+
+```sql
+select p.proname, count(*),
+       string_agg(pg_get_function_identity_arguments(p.oid), E'\n' order by p.oid)
+from pg_proc p
+where p.pronamespace = 'public'::regnamespace
+group by p.proname having count(*) > 1;
+-- esperado: cero filas
+```
+
+Y **verificar siempre el número de firmas**, no solo que la función nueva exista: `count(*) = 1`
+es la comprobación que atrapa esto; `¿existe la función?` no.
+
+### 🚨 La verdad de una función está en `pg_proc`, no en los archivos
+
+Que el nombre de una función aparezca en una migración no significa que esa migración la haya
+cambiado. La auditoría del 2026-09-07 dio por reemplazadas cuatro funciones sin `search_path`
+porque sus nombres salían en la 25 — y a dos de ellas la 25 solo les hizo `REVOKE`/`GRANT`. Una
+siguió así hasta la 63; la otra, `delete_availability`, sigue viva.
+
+Para saber qué funciones `SECURITY DEFINER` hay de verdad sin `search_path`:
+
+```sql
+select p.proname, pg_get_function_identity_arguments(p.oid) as args
+from pg_proc p
+where p.pronamespace = 'public'::regnamespace
+  and p.prosecdef
+  and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c
+                  where c like 'search_path=%');
+-- esperado: cero filas · al 2026-09-11, según los archivos, sale delete_availability
 ```
 
 ### Autenticación
@@ -141,33 +185,6 @@ Respaldo de la zona al 2026-09-07. Indispensable si alguna vez hay que migrarla.
 | TXT | `@` | `mailerlite-domain-verification=a64edd…` | MailerLite |
 | A | `www`, `ftp`, `cpanel`, `webmail` | → Cloudflare | Proxiados |
 | A | `mail` | `162.241.60.182` | HostGator, **sin proxy** |
-
-### 🚨 Al cambiar la firma de una RPC: elimina la vieja
-
-`CREATE OR REPLACE FUNCTION` solo **reemplaza** cuando la lista de parámetros coincide. Si le
-añades o le quitas uno, **crea una sobrecarga** — y la versión anterior sigue viva, llamable por
-REST, y con las validaciones que tuviera en su día.
-
-Ya pasó dos veces. `complete_pawwer_onboarding` acumuló **tres firmas** entre las migraciones 07,
-08 y 09: la más vieja no tenía el control de mayoría de edad, así que se podía crear un Pawwer
-menor de 18 años llamándola directamente (limpiado en la migración 67). Y `create_booking` estuvo
-a punto de lo mismo en la 64, donde sí se puso el `DROP` a tiempo.
-
-**Después de cada migración que cambie una firma**, correr:
-
-```sql
-select p.proname, count(*),
-       string_agg(pg_get_function_identity_arguments(p.oid), E'\n' order by p.oid)
-from pg_proc p
-where p.pronamespace = 'public'::regnamespace
-group by p.proname having count(*) > 1;
--- esperado: cero filas
-```
-
-Y **verificar siempre el número de firmas**, no solo que la función nueva exista: `count(*) = 1`
-es la comprobación que atrapa esto; `¿existe la función?` no.
-
----
 
 ### 🚨 Al agregar Resend: NO crear un SPF nuevo
 
@@ -446,6 +463,44 @@ del cliente. Quedó un glosario al principio del `09`.
 **Las memorias estaban huérfanas.** Al mover el repo de `~/Desktop` a `~/Proyectos` el 2026-09-09,
 las memorias de sesiones anteriores quedaron bajo la ruta vieja y la sesión nueva leía de una
 carpeta vacía. Se migraron y se actualizaron las cuatro que estaban desfasadas.
+
+### 2026-09-11 · Relectura completa, contra el código
+
+Al cerrar la sesión anterior afirmé que ningún documento contradecía a otro. **No era cierto.** Una
+relectura completa de `06`–`09`, del índice y de las doce memorias encontró afirmaciones que el
+trabajo de esta misma semana había dejado atrás:
+
+- **El índice** tenía dos filas de «Portal admin» que se contradecían entre sí, describía la
+  reserva con «dos velocidades según nivel» —el modelo que se descartó el 2026-09-09— y contaba 59
+  migraciones
+- **`07`** titulaba «Tres promesas vivas» sobre una tabla de cinco, y hacía la cuenta de caja con
+  «doce semanas sin ingresos», que eran las del lanzamiento de noviembre
+- **`06`** seguía listando como pendiente la deuda de las dos capacidades, resuelta en la
+  migración 61; decía que el embudo del Pawwer tiene un solo paso humano, cuando la revisión de
+  cédula también lo es; y su sección de seguridad cerraba con «no queda deuda»
+- **Cuatro memorias** conservaban el motor de tres fases, el transporte de Pawwi, la reserva
+  instantánea y cifras del punto de equilibrio que `06` ya había corregido
+
+**Y dos hallazgos de seguridad**, ninguno explotable hoy, los dos para la migración 68 de S3:
+
+1. **`delete_availability` es `SECURITY DEFINER` sin `search_path`** desde la migración 06. La
+   auditoría del 2026-09-07 la dio por reemplazada porque su nombre aparecía en la 25, que solo le
+   hizo `REVOKE`/`GRANT`. Riesgo práctico bajo: solo la ejecuta `authenticated` y usa nombres
+   calificados. La lección está ahora en el apartado «Base de datos»
+2. **`exam_results` y `capacitacion_results` siguen escribibles por el propio Pawwer.** El cambio
+   de estado ya es solo de `service_role`, así que reescribirlas no le abre el embudo a nadie. Pero
+   en S3 la ficha del admin va a decidir `needs_review` **leyendo esas filas**: hay que cerrarlas
+   antes de construir la pantalla que confía en ellas
+
+**Y un defecto de robustez que aparecerá con Resend:** `sendEmail` no atrapa errores de red, así que
+un Resend caído tumbaría la acción que manda el correo *después* de haber cambiado el estado. Hoy
+no ocurre —producción no tiene llave y la función sale antes—; va a S3 junto con el correo de
+aprobación. De paso: el `RESEND_API_KEY` de `.env.local` es un marcador de 9 caracteres, no una
+llave.
+
+> **Método:** los dos hallazgos salieron de comprobar una frase de la documentación contra el
+> código, igual que la fuga de la dirección el 2026-09-09. Es la misma técnica, y sigue
+> funcionando.
 
 ---
 

@@ -94,23 +94,31 @@ derecho a saber que del otro lado hay una persona identificada y un perro con hi
 
 ### Puerta del Pawwer
 
-Cuatro pasos automáticos y **uno humano**. Ese único paso humano es toda la tesis del producto:
+Todo es automático salvo **dos toques humanos** —tres si el examen cae en revisión—, y todos son
+filtros de entrada: se pagan una vez por Pawwer y no crecen con el número de reservas, así que pasan
+el filtro de diseño. La visita es toda la tesis del producto:
 
 ```
-registro → examen → capacitación → agenda visita
-   auto      auto        auto           auto
-                                          ↓
-                            ┌─────────────────────────────┐
-                            │  VISITA DOMICILIARIA        │
-                            │  humano · una sola vez      │
-                            └─────────────────────────────┘
-                                          ↓
-                                    perfil activo
-                                        auto
+registro → revisión de cédula → examen → capacitación → agenda visita
+   auto      humano · minutos     auto        auto            auto
+                                                                ↓
+                                              ┌─────────────────────────────┐
+                                              │  VISITA DOMICILIARIA        │
+                                              │  humano · una sola vez      │
+                                              └─────────────────────────────┘
+                                                                ↓
+                                                  aprobación · cierra la visita
 ```
 
-El examen y la capacitación ya se autocalifican en `lib/exam-pawwer.ts` y `lib/capacitacion.ts`.
-La visita se agenda sola con los cupos de `15_visita_slots.sql`.
+- **La revisión de cédula** es un vistazo de escritorio desde una cola: que las fotos correspondan
+  al número y a la fecha de nacimiento que declaró. Existe para no gastar un sábado en alguien que
+  no pasa la identidad.
+- **El examen y la capacitación** se autocalifican en `lib/exam-pawwer.ts` y `lib/capacitacion.ts`.
+  Un examen de 40 a 59 puntos queda en `needs_review` y también lo resuelve una persona.
+- **La visita se agenda sola**, sobre cupos que el operador abre por zona. Hoy esos cupos están
+  inventados en el cliente —cuatro franjas fijas de lunes a viernes—; la agenda real la modela S3.
+- **La aprobación no es automática**: la da el operador al terminar la visita, y es lo que publica
+  el perfil. Hoy no existe en el código — ver [Estado del código](#-estado-del-código).
 
 ### Puerta del cliente
 
@@ -292,23 +300,28 @@ Sábado 14 · Tu perro sería 1 de 3 · Juliana acepta hasta 4 en Daycare
 
 El descubrimiento de precio solo funciona sobre la ocupación real.
 
-### ⚠️ Deuda técnica a resolver antes de subir la capacidad
+### ✅ Las dos capacidades, unificadas en S1
 
-Conviven **dos sistemas de capacidad**:
+Convivían **dos sistemas de capacidad**: `service_X_Pawwer.max_animals`, por servicio, que era lo
+que veía el cliente, y `availability.slots_remaining`, por día, que era lo que `accept_booking`
+descontaba de verdad. Con capacidad 1 nadie lo notaba; con capacidad 4 era un error garantizado.
 
-- `service_X_Pawwer.max_animals` — por servicio, es lo que se le muestra al cliente
-- `availability.slots_remaining` — por día, es lo que `accept_booking` descuenta de verdad
-
-Hay que unificarlos. Con capacidad 1 nadie lo nota; con capacidad 4 es un error garantizado.
-Además, `update_service_rules` (mig 49) impone un tope de 10 que la decisión 07 elimina.
+**Resuelto en la migración 61:** el cupo se mide en **perros** —una reserva de 2 perros consume 2
+cupos—, `create_booking` hace cumplir `max_animals`, y desapareció el tope de 10 de
+`update_service_rules`. La 63 añadió `availability.slots_total`, que es lo que permite mostrar la
+ocupación real del día.
 
 ### La compatibilidad se vuelve obligatoria
 
-`dog.friendly_dogs` existe desde la migración 57 y **hoy no se usa en ninguna parte del código**.
-Con esta decisión pasa a ser indispensable:
+Con esta decisión, `dog.friendly_dogs` (migración 57) pasa a ser indispensable:
 
 - Si la reserva pone al perro con otros y `friendly_dogs = false` → advertencia antes de confirmar
 - El Pawwer ve `friendly_dogs` y `separation_anxiety` del perro entrante **antes** de aceptar
+
+Las dos cosas están construidas desde S1 —la advertencia en el paso 3, los chips en el portal del
+Pawwer—, pero **nadie puede escribir el dato todavía**: el formulario del perro no tiene el campo.
+Hasta que el Pasaporte de S4 lo pida, la advertencia no se dispara nunca y el Pawwer ve «sin
+informar».
 
 ### El mensaje cambia de promesa
 
@@ -330,9 +343,10 @@ Deja de negociarse por reserva y pasa a ser un **atributo del Pawwer**.
 | Fuente de verdad | `booking.transport_provider` | `pawwer.transport_price` |
 | Fricción | Modal bloqueante tras aceptar | Ninguna |
 
-**Qué se desmonta:** `set_transport_provider` (migs 29/31/36), `booking.transport_decided`, el
-`CHECK` de la mig 29, el modal en `BookingDetail.tsx:673`, la rama `pawwiTransp` en
-`cuidados/page.tsx:226`, y el tipo en `actions/portal.ts:64`.
+**Se desmontó en S1** (migración 60): `set_transport_provider`, el modal bloqueante de
+`BookingDetail`, la rama `pawwiTransp` de `cuidados` y su tipo en `actions/portal.ts`. Las columnas
+`booking.transport_provider` y `transport_decided` siguen en la tabla, **congeladas** y comentadas
+como tales, para no romper el histórico.
 
 ### Y se convierte en palanca de crecimiento
 
@@ -579,8 +593,14 @@ Detalle completo del design system en [`04-BACKEND-Y-SEGURIDAD.md`](./04-BACKEND
 
 El frontend **nunca escribe directo** en tablas sensibles. Los server actions delegan toda la
 autorización a RPCs `SECURITY DEFINER` que validan contra `auth.uid()`. La escritura directa que
-queda para usuarios autenticados es solo `dog`, `profile` y las tablas de examen, capacitación y
-visita.
+queda para usuarios autenticados es `dog`, `profile`, `exam_results` y `capacitacion_results`.
+
+La de `visita_domiciliaria` se cerró en el hotfix (migración 66). **Las dos de resultados se cierran
+en S3**, y no por un agujero que exista hoy —el cambio de estado del embudo ya es solo de
+`service_role`— sino por el que abriría el panel: la ficha del admin decide `needs_review` leyendo
+esas filas, y hoy **el Pawwer puede reescribir las suyas** —puntaje, resultado y respuestas— por
+REST. Sus policies son `FOR ALL` sobre las filas propias y ninguna migración les revoca la
+escritura.
 
 ### Tiempo real
 
@@ -596,21 +616,41 @@ Privados: `cedula-docs`, `pago-docs`. Todos con inserción restringida a la carp
 
 ## 🛡️ Seguridad
 
-Auditado el 2026-09-07. Es la parte más sólida del proyecto.
+Auditado el 2026-09-07 y otra vez el 2026-09-10. Sigue siendo la parte más sólida del proyecto,
+pero **la primera auditoría se equivocó dos veces**, y la corrección está abajo.
 
 | Control | Estado |
 |---|---|
-| Funciones `SECURITY DEFINER` | 116 — **todas** con `SET search_path` |
-| Políticas RLS | 52 sobre 16 tablas |
-| Escritura directa a tablas sensibles | Revocada (migración 44) |
+| Funciones `SECURITY DEFINER` | Todas con `SET search_path` **salvo una**: `delete_availability` (mig 06) · se corrige en S3. *Leído de los archivos el 2026-09-11; falta confirmarlo contra `pg_proc`* |
+| RPC que confiaban en el cliente | 🔒 Las del embudo —examen y capacitación— eran llamables por REST con el resultado a escribir. **Cerradas en el hotfix** (migs 66–67) |
+| Firmas huérfanas de una RPC | Tres de `complete_pawwer_onboarding`, una sin control de mayoría de edad · eliminadas (mig 67) |
+| Políticas RLS | 52 sobre 16 tablas *(conteo del 2026-09-07)* |
+| Escritura directa a tablas sensibles | Revocada (mig 44 y, para la visita, mig 66). Quedan `exam_results` y `capacitacion_results` · S3 |
 | `dangerouslySetInnerHTML` en todo el proyecto | 0 |
-| Inyección SQL | Imposible — parámetros enlazados, sin SQL dinámico |
+| Inyección SQL | Imposible — parámetros enlazados. Todo el `EXECUTE` que existe es DDL que corre al migrar (mig 50 y tres policies); ninguna función arma SQL con datos del usuario |
 | PII (cédula, cuenta de pago) | Escritura por RPC, lectura enmascarada |
+| Dirección del cliente | Exacta solo para el Pawwer que aceptó; al candidato, barrio y ~1 km (mig 65) |
 | Moderación del chat | Server-side: bloquea correos y teléfonos |
 | Fotos del chat | Solo del bucket propio; MIME y tamaño validados |
 
-Las cuatro funciones sin `search_path` de la migración 06 fueron reemplazadas o eliminadas en las
-migraciones 25 y 44. No queda deuda.
+> ### Los dos errores de la auditoría del 2026-09-07
+>
+> **1. Decía «no queda deuda» y había una vulnerabilidad viva.** `set_pawwer_exam_result` y
+> `set_pawwer_capacitacion_result` recibían del cliente el resultado a escribir y conservaban el
+> `EXECUTE TO PUBLIC` por defecto: cualquier Pawwer podía certificarse a sí mismo. Se encontró tres
+> días después y se cerró ese mismo día. Ver el hotfix en [`07`](./07-PLAN-CONSTRUCCION.md).
+>
+> **2. Decía que las cuatro funciones sin `search_path` de la migración 06 se habían reemplazado en
+> la 25.** Solo dos: `create_booking` se redefinió y `revert_booking` se eliminó. A
+> `upsert_availability` y `delete_availability` la 25 solo les hizo `REVOKE`/`GRANT` — sus nombres
+> aparecen en ese archivo, y eso bastó para darlas por arregladas. La primera se corrigió de rebote
+> en la 63; **la segunda sigue viva**, y la llama el calendario del Pawwer.
+>
+> El riesgo práctico de la segunda es bajo —solo la ejecuta `authenticated` y usa nombres
+> calificados—, pero la lección vale más que el arreglo: **que el nombre de una función aparezca en
+> una migración no significa que la migración la haya cambiado.** La comprobación correcta es contra
+> `pg_proc` en la base, no contra los archivos — ver la consulta en
+> [`08`](./08-INFRAESTRUCTURA.md), apartado «Base de datos».
 
 **Anti-leakage:** los teléfonos nunca se exponen y toda comunicación ocurre en el chat de una
 reserva. Sin el Fondo de Asistencia, **el ancla del lado del Pawwer pasa a ser su nivel** — irse

@@ -59,13 +59,13 @@ Estos puntos cambiaron con el rediseño. El detalle está en `06`:
 | **Fondo de Asistencia** | $1,5 M COP por evento | **Eliminado.** Pawwi responde por la verificación, no por el incidente |
 | **Capacidad del Pawwer** | Tope de Pawwi (1–2, luego ≤10 en la mig 49) | La decide el Pawwer **sin tope**. Pawwi expone capacidad y ocupación del día |
 | **Búsqueda** | Filtro por radio de 2 km, expandible | **Sin corte por radio.** La distancia es componente del precio, no filtro |
-| **Reserva** | Instantánea para todos (specs) / aceptación para todos (código) | **Dos velocidades** según nivel del Pawwer |
+| **Reserva** | Instantánea para todos (specs) / aceptación para todos (código) | **Se ofrece, nunca se asigna.** Dos etapas —directa 1 h, bolsa general 6 h— con derecho de rechazo; la bolsa solo si el cliente consintió (`allow_pool`). La reserva instantánea se descartó el 2026-09-09 por riesgo laboral |
+| **Cobro** | Al reservar, con reembolso si nadie acepta | **Solo cuando los dos aceptaron:** el Pawwer acepta, el cliente paga, queda confirmada. Si nadie acepta, nunca se movió un peso |
 | **Alcance del lanzamiento** | Norte de Bogotá, por barrios | **Bogotá completa.** La unidad de densidad es el conjunto, no el barrio |
 | **Reporte diario** | Obligación policiada por el equipo | Métrica que alimenta el nivel |
-| **Portal admin** | Dashboard completo de operación | Dos pantallas: cola de visitas y liquidación semanal |
 | **Sprints** | 7 sprints, lanzamiento 2026-07-10 | Ver [`07-PLAN-CONSTRUCCION.md`](./07-PLAN-CONSTRUCCION.md): **8 sprints**, soft launch **2027-01-12** |
 | **Portal del cliente** | El backlog de `PENDIENTES-PORTAL-CLIENTE.md` | Superado por **S4** del `07`, que audita las doce pantallas |
-| **Portal admin** | «Después del lanzamiento» | Es **S3** y es un **bloqueador**: sin él ningún Pawwer real llega al marketplace |
+| **Portal admin** | Dashboard completo de operación · luego «dos pantallas, después del lanzamiento» | Es **S3** y es un **bloqueador**: sin él ningún Pawwer real llega al marketplace. Siete pantallas, acceso por `profile.is_admin` |
 
 ---
 
@@ -82,6 +82,8 @@ Estos puntos cambiaron con el rediseño. El detalle está en `06`:
 
 - **Producto y decisiones**: `06-PRODUCTO-REDISENO.md`.
 - **Rutas**: `app/**/page.tsx` (App Router de Next.js).
-- **Base de datos**: `supabase/*.sql` — **59 migraciones** incrementales, que se corren a mano en el
-  SQL Editor de Supabase como owner (el `service_role` no tiene grants sobre `booking`/`pawwer`/`client`).
+- **Base de datos**: `supabase/NN_*.sql` — **67 migraciones** incrementales, que se corren a mano en
+  el SQL Editor de Supabase como owner (el `service_role` no tiene grants sobre
+  `booking`/`pawwer`/`client`). Lo que de verdad está vivo en la base se comprueba contra
+  `pg_proc` e `information_schema`, no leyendo los archivos — ver `08`.
 - **Estilos/tokens**: `app/globals.css`; helpers en `lib/`.

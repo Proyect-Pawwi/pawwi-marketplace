@@ -6,7 +6,7 @@
 > Producto definido en [`06-PRODUCTO-REDISENO.md`](./06-PRODUCTO-REDISENO.md). Las tres plataformas
 > —qué pantallas tiene cada una y qué hace cada pantalla— en
 > [`09-DISENO-PLATAFORMAS.md`](./09-DISENO-PLATAFORMAS.md).
-> _Última actualización: 2026-09-10 (auditoría de las tres superficies)_
+> _Última actualización: 2026-09-11_
 
 ## 🚀 Lanzamiento objetivo: **12 de enero de 2027**
 
@@ -52,7 +52,7 @@ recordar lo que se planeó.
 3. 🔴 **El Pawwer desaparece** de la tarjeta del cliente y parece un error de la app · **S4**
 4. 🔴 **Pawwi no puede cobrar.** Cero líneas de pasarela · **S2**
 
-### Tres promesas vivas que el sistema no cumple
+### Cinco promesas vivas que el sistema no cumple
 
 Todas del mismo tipo que PawwiProtect, y todas en producción ahora mismo:
 
@@ -189,7 +189,9 @@ código y el que más desbloquea.
 - **Commit y push de todo.** 56 archivos, ~19.200 líneas de app y 8.319 de SQL, sin respaldar desde
   el 23 de mayo. Agrupado en commits coherentes por área
 - Verificar que `.env.local` está ignorado y que ningún secreto se cuela
-- ~~Credenciales de Bold en sandbox y producción~~ ✅ llaves de identidad en `.env.local`; falta pegar las secretas
+- ~~Credenciales de Bold en sandbox y producción~~ ✅ identidad y secreta con valor en `.env.local`
+  (comprobado el 2026-09-11 sin leerlas — **falta confirmar que la local sea la de pruebas**) y las
+  de producción en Vercel
 - ~~Confirmar la tarifa real de Bold~~ ✅ **2,99% + $900** (Visa/MC, modalidad «siguiente día»). Activar la **Cuenta Digital Bold**, que es la que habilita esa tarifa y es gratuita
 - Averiguar el formato de **dispersión masiva del banco** (pago a proveedores): define el archivo
   que exporta la liquidación en S2
@@ -522,6 +524,19 @@ cédula» no hay nada que llamar.
 - Registro de aceptación de términos: `terminos_version` y `terminos_aceptados_at` en `pawwer`
 - Alinear el filtro del marketplace: `verified` **y** `status = 'approved'`
 - Tabla `admin_audit` — un `UPDATE` a pelo en Studio no deja rastro; una RPC sí
+- 🔒 **Blindar `exam_results` y `capacitacion_results`** — `REVOKE INSERT, UPDATE, DELETE` a
+  `authenticated`, y el `INSERT` del examen pasa a `service_role` como ya hace la capacitación.
+  Hoy el Pawwer puede reescribir sus propias filas por REST; no le abre el embudo a nadie, porque
+  el cambio de estado es solo de `service_role`, pero **la ficha del admin decide `needs_review`
+  leyendo esas filas**. Va antes de construir la pantalla que confía en ellas
+- 🔒 **`delete_availability` sin `search_path`** — la última `SECURITY DEFINER` sin él, desde la
+  migración 06. Un `ALTER FUNCTION … SET search_path = public`. Riesgo bajo; se cierra aquí porque
+  la 68 ya toca las funciones del Pawwer
+- **Un correo que falla no puede tumbar la acción que lo manda.** `sendEmail` atrapa el rechazo de
+  Resend pero **no los errores de red**: si Resend no responde, el server action lanza *después* de
+  haber cambiado el estado —el Pawwer ve «error» con el examen ya registrado—. Hoy no pasa porque
+  producción no tiene llave; pasará el día que se configure Resend, y el correo de aprobación de
+  este sprint es el más importante del embudo. Un `try/catch` en `lib/email.ts`
 
 **Entregables · 3.2 · La visita, con herramienta** 🆕
 
@@ -1124,16 +1139,21 @@ a febrero.
 
 ### Sobre la caja
 
-Este plan asume **doce semanas sin ingresos**. El modelo financiero conservador ya marcaba alerta de
-caja en julio *con* la venta corriendo desde mayo. Antes de comprometerse con el calendario hay que
-cuantificar la caja real y la quema mensual — si el runway no llega a diciembre, el plan correcto no
-es este sino uno de **ocho semanas** que sacrifica S5 y la mitad de S3.
+Este plan asume **dieciocho semanas sin ingresos** —del 7 de septiembre al 12 de enero—; eran doce
+con la fecha de noviembre. El modelo financiero conservador ya marcaba alerta de caja en julio *con*
+la venta corriendo desde mayo. Antes de comprometerse con el calendario hay que cuantificar la caja
+real y la quema mensual.
+
+Si la caja no llega a mediados de enero, el plan correcto es uno más corto, que recorta por donde
+este documento ya dice que se recorta: las métricas de S3, la 4.7 y la 4.4 de S4, y S6 entero.
+**Nunca** el cierre del embudo, el cobro, que nadie desaparezca de la tarjeta del cliente ni los
+avisos de la bolsa — sin esos cuatro no hay producto que lanzar.
 
 ---
 
 ## 🔮 Después del lanzamiento
 
-Explícitamente fuera de las doce semanas, en orden de valor:
+Explícitamente fuera de este plan, en orden de valor:
 
 1. **Paseos.** El desbloqueo de frecuencia y de LTV. El uso hoy es episódico y sin esto el valor por
    cliente es bajo
