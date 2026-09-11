@@ -417,6 +417,36 @@ visitas sin modelar, y los 10 `test_*.sql` con un UUID quemado sobre un entorno 
 en Vercel. Ya estaba desde S0. Si algún día falta, el síntoma será que un Pawwer no puede terminar
 el embudo — `lib/admin.ts` lanza un error explícito en vez de caer a la clave anónima en silencio.
 
+### 2026-09-10 y 11 · El diseño de las tres plataformas
+
+Sin código: se diseñó lo que falta en los tres lados, pantalla por pantalla, y se dejó en
+[`09-DISENO-PLATAFORMAS.md`](./09-DISENO-PLATAFORMAS.md) — navegación, mapa de pantallas, qué hace
+cada una, la matriz de estados de una reserva vista por los tres, y quién recibe qué notificación.
+
+**Lo que salió al revisar cada lado**, ya repartido en `docs/07`:
+
+- **El embudo del Pawwer**, paso por paso: la visita no tiene herramienta, y su protocolo **no se
+  puede ejecutar** porque el portal del Pawwer exige `approved` y en la visita todavía no lo está.
+  Se resuelve con `/admin/visita/[id]` desde el móvil del admin
+- **El portal del Pawwer** promete tres cosas que no cumple: pago «automático», «Élite 20%» con una
+  regla incompleta —puede decir 20% y cobrar 25%—, y $20.000 por referido sin atribución posible
+- **El portal del cliente**: el Pawwer desaparece de la tarjeta cuando la reserva pasa a la bolsa;
+  el cliente nunca ve la dirección del cuidador; y la Política de Privacidad afirma que se puede
+  eliminar la cuenta, **cosa que el cliente no puede hacer** — lo escribí yo el 2026-09-09
+- Dos guards flojos: un cliente logueado puede abrir `/pawwer/cuenta-cobro`
+
+**Decisiones de diseño tomadas:** la dirección de cada lado se revela con compromiso firme (el
+Pawwer al aceptar, el cliente al pagar); no hay chat antes de reservar; reservar de nuevo en un
+toque; los hechos observados en la visita van separados de lo que el Pawwer declaró.
+
+**Terminología.** Nicolás aclaró que **Pawwer es siempre el cuidador, nunca el cliente**. No se
+encontró ningún uso incorrecto en docs, código ni memorias, pero había frases ambiguas en la sección
+del cliente. Quedó un glosario al principio del `09`.
+
+**Las memorias estaban huérfanas.** Al mover el repo de `~/Desktop` a `~/Proyectos` el 2026-09-09,
+las memorias de sesiones anteriores quedaron bajo la ruta vieja y la sesión nueva leía de una
+carpeta vacía. Se migraron y se actualizaron las cuatro que estaban desfasadas.
+
 ---
 
 **Pawwi S.A.S.** · NIT 901.937.952-7 · Bogotá, Colombia

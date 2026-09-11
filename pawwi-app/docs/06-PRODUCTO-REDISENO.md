@@ -2,7 +2,7 @@
 
 > **Documento maestro del producto.** Define qué es Pawwi, en qué se convierte y por qué.
 > Donde este documento contradiga a los `00`–`05`, **manda este**.
-> _Última actualización: 2026-09-09_
+> _Última actualización: 2026-09-11_
 
 ---
 
@@ -545,7 +545,7 @@ cliente es bajo** — es el siguiente movimiento estratégico.
 | Gráficas | recharts 3 | Carga diferida |
 | Pagos | **Bold** | Cuenta aprobada, sin integrar. Sin dispersión a terceros |
 | Email | Resend vía API directa | Cableado en `lib/email.ts`, sin clave |
-| Deploy | — | Sin definir. No hay `vercel.json` ni `railway.json` |
+| Deploy | **Vercel** | Producción en **`https://app.pawwi.co`**, HTTPS con Let's Encrypt. Cada push a `main` despliega. Detalle en [`08`](./08-INFRAESTRUCTURA.md) |
 
 ### Identidad visual
 
@@ -622,8 +622,8 @@ cuesta la comisión del 20%, la visibilidad y el flujo de clientes nuevos.
 
 | Métrica | Valor |
 |---|---|
-| Código de aplicación | ~19.200 líneas |
-| Migraciones SQL | 59 archivos · 8.319 líneas |
+| Código de aplicación | ~19.500 líneas |
+| Migraciones SQL | 67 archivos · 8.979 líneas |
 | `tsc --noEmit` | 0 errores |
 | ESLint | 16 errores · 8 avisos |
 | Cron activos | 2 — reservas (cada minuto) y niveles (8:00) |
@@ -632,7 +632,8 @@ cuesta la comisión del 20%, la visibilidad y el flujo de clientes nuevos.
 |---|---|
 | Marketplace, buscador y perfil público | ✅ Construido |
 | Wizard de reserva de 4 pasos | ✅ Construido |
-| Embudo completo del Pawwer (examen, capacitación, visita) | ✅ Construido |
+| Embudo del Pawwer (registro, examen, capacitación, agendar visita) | ✅ Construido |
+| 🔴 …pero **el embudo no cierra** | `visita_pendiente → approved` no existe en el código y `verified` solo lo pone el seed: ningún Pawwer real llega al marketplace. La visita no tiene herramienta. Se resuelve en **S3 · El operador** |
 | Portal del Pawwer (inicio, cuidados, chat, ganancias, perfil, tarifas) | ✅ Construido |
 | ⚠️ …pero **tres pantallas prometen lo que el sistema no cumple** | Pago «automático», «Élite» mal calculado, referidos sin atribución. Ver S3 en [`07`](./07-PLAN-CONSTRUCCION.md) |
 | Ciclo de vida por cron | ✅ Construido |
@@ -642,8 +643,14 @@ cuesta la comisión del 20%, la visibilidad y el flujo de clientes nuevos.
 | Ledger de pagos y cuenta de cobro imprimible | ✅ Construido |
 | Estructura del Pasaporte y del KYC (migs 57 y 58) | 🔨 Solo columnas |
 | Portal del cliente (favoritos, mensajes, perfil) | 🔨 Esqueleto |
-| Pagos, emails, deploy | ⏳ Falta |
-| Referidos, reporte diario, portal admin | ⏳ Falta |
+| Deploy | ✅ **`app.pawwi.co`** |
+| Pagos | ⏳ **cero líneas de pasarela** · S2 |
+| Correos | ⏳ Resend sin configurar |
+| Portal admin | 🆕 **no existe** y **bloquea el lanzamiento** · S3 |
+| Referidos, reporte diario | ⏳ S6 · S5 |
+
+El inventario completo de las 48 rutas, con el estado de cada una, está en
+[`09-DISENO-PLATAFORMAS.md`](./09-DISENO-PLATAFORMAS.md).
 
 ---
 
@@ -656,10 +663,13 @@ cuesta la comisión del 20%, la visibilidad y el flujo de clientes nuevos.
 3. **Precio bruto o neto para el Pawwer.** Los documentos viejos dicen tres cosas distintas: que ve
    lo que recibe, que ve el desglose completo, y que nunca ve la comisión. El código eligió una y el
    marketing dice otra.
-4. **Umbral de lealtad.** Alinear la promesa del 20% con la regla real de Ranger, o al revés.
-5. **Si los 15 Pawwers actuales ya tuvieron visita domiciliaria.** Si sí, la oferta inicial está
-   hecha. Si no, esos quince sábados son lo primero del calendario.
-6. **La tarifa real de Bold**, que mueve el ingreso neto y el punto de equilibrio.
+4. **Umbral de lealtad.** Alinear la promesa del 20% con la regla real de Ranger, o al revés. Parte
+   del problema ya tiene arreglo en S3: `/ingresos` y `tarifas` dejarán de recalcular la élite por
+   su cuenta y leerán `pawwer.level`. Lo que sigue abierto es si la regla es demasiado estricta.
+5. **Si los 15 Pawwers actuales ya tuvieron visita domiciliaria.** Con el lanzamiento en enero ya
+   no mueve la fecha —hay sábados de sobra—, pero sigue sin responderse.
+6. ~~**La tarifa real de Bold**~~ → **resuelta el 2026-09-07:** 2,99% + $900 Visa/Mastercard, 2,89%
+   + $900 PSE. Ver [El dinero](#-el-dinero).
 
 ---
 
