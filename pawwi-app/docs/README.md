@@ -1,9 +1,13 @@
 # 📚 Documentación de Pawwi
 
-Referencia técnica y de producto del **marketplace**, el **portal del pawwer** y el **portal del
+Referencia técnica y de producto del **marketplace**, el **portal del Pawwer** y el **portal del
 cliente**: qué es cada cosa, qué hace, qué tecnología usa, para qué está y por qué se construyó.
 
-> _Última actualización: 2026-09-07_
+> **Pawwer = el cuidador. Cliente = el dueño del perro.** Los Pawwers trabajan con Pawwi y reciben
+> perros en su casa; los clientes reservan con ellos. «Pawwer» nunca se refiere al cliente.
+> Glosario completo al principio de [`09-DISENO-PLATAFORMAS.md`](./09-DISENO-PLATAFORMAS.md).
+
+> _Última actualización: 2026-09-11_
 
 ---
 

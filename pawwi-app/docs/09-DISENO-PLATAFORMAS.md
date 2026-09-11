@@ -7,6 +7,22 @@
 > dice **cuándo y en qué orden** se construye. Este documento dice **qué se está construyendo**.
 > _Última actualización: 2026-09-11_
 
+## 📖 Quién es quién
+
+**Pawwer es siempre el cuidador. Nunca el cliente.**
+
+| Término | Quién es | En los ejemplos | En el código |
+|---|---|---|---|
+| **Pawwer** | El **cuidador** verificado que recibe perros en su casa y trabaja con Pawwi como contratista independiente | Juliana, Pedro | `role = 'pawwer'` · tabla `pawwer` · rutas `/pawwer/*` |
+| **Cliente** | El **dueño del perro**, que busca, reserva y paga | Sofía | `role = 'client'` · tabla `client` · rutas `/mis-*` y `/booking/*` |
+| **Pawwi** | La empresa: el intermediario que conecta a los dos | — | — |
+| **Admin** | Pawwi operando la plataforma — hoy, una persona | — | `profile.is_admin` · rutas `/admin/*` |
+
+Cuando una pantalla del cliente habla «del Pawwer», se refiere **a su cuidador**: la persona a la
+que el cliente le va a dejar su perro.
+
+---
+
 **Leyenda de estado**, en cada pantalla:
 
 | | |
@@ -191,7 +207,7 @@ La puerta de entrada y el buscador a la vez. Se explora **sin registrarse**.
 | Buscador | **Dónde** (autocompletado de Google) · **cuándo** (fecha, o rango para Travel) · **cuántos perros** |
 | Filtros | Todos · Daycare · Nightcare · Travel |
 | Resultados | Lista y mapa sincronizados. Orden **nivel → rating → distancia**. Sin corte por radio |
-| Tarjeta de Pawwer | Foto del hogar · chip de nivel · rating · barrio y distancia · precio desde · servicios · «recoge y entrega por $Xk» · ♡ |
+| Tarjeta de cada Pawwer (cuidador) | Foto de su hogar · chip de nivel · rating · barrio y distancia · precio desde · servicios · «recoge y entrega por $Xk» · ♡ |
 
 **Qué puede hacer:** buscar, filtrar, abrir un perfil, guardar favoritos.
 
@@ -199,9 +215,10 @@ La puerta de entrada y el buscador a la vez. Se explora **sin registrarse**.
 `max_animals` y viaja a la reserva — hoy es decorativo y un cliente con 3 perros se estrella en el
 paso 3; el hero pasa a datos reales; y los dos enlaces del menú que van a rutas 404.
 
-### Perfil del Pawwer · `/pawwer/[id]` · ✅ construida · S3 · S4
+### Perfil público del Pawwer · `/pawwer/[id]` · ✅ construida · S3 · S4
 
-La pantalla donde Sofía **decide**. Todo lo que aparece aquí tiene que sostener la confianza.
+La ficha pública **del cuidador**, tal como la ve el cliente. Es la pantalla donde Sofía **decide** a
+quién le deja su perro, así que todo lo que aparece aquí tiene que sostener la confianza.
 
 | Zona | Qué muestra |
 |---|---|
@@ -237,9 +254,10 @@ antes es el camino más corto a que cierren el trato por fuera de Pawwi.
 Activas arriba, historial abajo. Actualiza **en vivo** cuando cambia algo.
 
 **La tarjeta muestra la etapa, no solo el estado** — ver la matriz al final. La regla es simple:
-**nunca aparece la palabra «Pawwer» donde debería ir un nombre**. Hoy, cuando la reserva pasa a la
-bolsa, el cron hace `pawwer_id = NULL` y la tarjeta cae al texto de respaldo `"Pawwer"` con una «P»
-genérica. **Parece un error de la app**, en el momento de más ansiedad de Sofía.
+**la clienta siempre ve el nombre de su cuidador**, nunca la palabra genérica «Pawwer» en su lugar.
+Hoy, cuando la reserva pasa a la bolsa, el cron hace `pawwer_id = NULL` y la tarjeta, que debería
+decir «Juliana M.», cae al texto de respaldo `"Pawwer"` con una «P» genérica. **Parece un error de la
+app**, en el momento de más ansiedad de Sofía.
 
 ### Detalle de la reserva · `/mis-reservas/[id]` · ⚠️ construida y escondida · S4 · S5
 
@@ -249,7 +267,7 @@ ella desde ninguna parte. Se mueve bajo `/mis-reservas` y se enlaza desde cada t
 | Zona | Qué muestra | Cuándo |
 |---|---|---|
 | Estado | Etapa en lenguaje humano, con **quién** y **cuánto falta** | Siempre |
-| El Pawwer | Foto, nombre, nivel, enlace al perfil | Siempre que haya uno |
+| Su cuidador (el Pawwer) | Foto, nombre, nivel, enlace a su perfil | Siempre que haya uno |
 | Temporizador | Cuánto le queda al Pawwer para responder · o cuándo empieza y termina el cuidado | Pendiente · confirmada · en curso |
 | Pagar | Botón al checkout | 🆕 **Solo cuando el Pawwer ya aceptó** |
 | Dirección | **Dónde queda la casa**, con enlace a Maps | 🆕 **Solo al estar pagada** |
