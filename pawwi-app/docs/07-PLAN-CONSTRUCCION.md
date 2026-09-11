@@ -3,7 +3,9 @@
 > Ocho sprints, dos carriles en paralelo, y dos reglas contra el error que hundió el plan anterior:
 > **cada sprint declara qué NO se construye**, y **cada sprint abre con lo que hay construido de
 > verdad** — auditado contra el código, no recordado.
-> Producto definido en [`06-PRODUCTO-REDISENO.md`](./06-PRODUCTO-REDISENO.md).
+> Producto definido en [`06-PRODUCTO-REDISENO.md`](./06-PRODUCTO-REDISENO.md). Las tres plataformas
+> —qué pantallas tiene cada una y qué hace cada pantalla— en
+> [`09-DISENO-PLATAFORMAS.md`](./09-DISENO-PLATAFORMAS.md).
 > _Última actualización: 2026-09-10 (auditoría de las tres superficies)_
 
 ## 🚀 Lanzamiento objetivo: **12 de enero de 2027**
@@ -582,9 +584,22 @@ es que **tres prometen cosas que el sistema no puede cumplir**, y una de ellas e
   acepta y el cobro llega después: hoy pasaría de «Por revisar» a «Confirmada» sin que exista aún
   el dinero. Necesita verlo, o va a creer que tiene un cuidado firme que puede caerse
 
-**Lo que NO se toca:** `/inicio`, `/cuidados`, el chat, `perfil/vitrina`, `fotos`, `faq`, `pago`,
-`disponibilidad` y `cuenta-cobro` funcionan y escriben por RPC. El portal del Pawwer es la parte
-mejor construida del producto — por eso el trabajo aquí es de honestidad, no de construcción.
+**Y dos guards flojos**, que viven fuera del grupo `(portal)` y por eso no heredan su gate:
+
+- `/pawwer/disponibilidad` solo comprueba el rol → un Pawwer **sin aprobar** entra
+- `/pawwer/cuenta-cobro` solo comprueba que haya sesión → **cualquier usuario logueado**, incluido
+  un cliente, puede abrirla
+
+Las dos pasan a exigir `status = 'approved'`. Durante el diseño pareció que el guard flojo de
+disponibilidad servía para cargar la agenda en la visita; como la visita se hace desde el admin, ya
+no le sirve a nadie.
+
+**Lo que NO se toca:** `/cuidados`, el chat, `perfil/vitrina`, `fotos`, `faq` y `pago` funcionan y
+escriben por RPC. El portal del Pawwer es la parte mejor construida del producto — por eso el
+trabajo aquí es de honestidad, no de construcción.
+
+> **El diseño completo de cada pantalla** —qué muestra, qué puede hacer el usuario, en qué estado
+> está— vive en [`09-DISENO-PLATAFORMAS.md`](./09-DISENO-PLATAFORMAS.md).
 
 **Entregables · 3.4 · La agenda de visitas, modelada**
 

@@ -28,6 +28,7 @@ Los documentos `00`–`05` siguen siendo válidos como descripción de **lo que 
 | [`06-PRODUCTO-REDISENO.md`](./06-PRODUCTO-REDISENO.md) | **Documento maestro.** Qué es Pawwi, las 7 decisiones, las dos puertas, la visita, el motor de reservas, capacidad y precio, el dinero, los 5 loops de crecimiento, economía unitaria, stack y estado del código. |
 | [`07-PLAN-CONSTRUCCION.md`](./07-PLAN-CONSTRUCCION.md) | **El plan vigente**, hacia el soft launch del **12 de enero de 2027**. Ocho sprints en dos carriles. Empieza con un **cuadro de mando** y cada sprint abre con **«qué hay construido hoy»**, auditado contra el código. Incluye los cuatro bloqueadores y las cinco promesas que el producto hace y no cumple. |
 | [`08-INFRAESTRUCTURA.md`](./08-INFRAESTRUCTURA.md) | **Referencia operativa.** Cuentas y servicios, variables de entorno, cómo desplegar, cómo correr migraciones, inventario DNS, problemas conocidos y **bitácora** de sesiones. |
+| [`09-DISENO-PLATAFORMAS.md`](./09-DISENO-PLATAFORMAS.md) | **Las tres plataformas** —cliente, Pawwer y admin—: navegación, mapa de pantallas, qué muestra cada una y qué puede hacer el usuario, flujos, la **matriz de estados** de una reserva vista por los tres, quién recibe qué notificación, y el inventario de las 48 rutas con su estado. |
 
 ### Referencia de lo construido
 
