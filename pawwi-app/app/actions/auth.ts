@@ -79,14 +79,37 @@ export async function registrarCliente(
     },
   });
 
-  if (error) {
-    if (error.code === "user_already_exists") {
-      return { errors: { email: ["Ya tienes una cuenta con este email. Ingresa aquí."] } };
-    }
-    return { message: "Ocurrió un error al crear tu cuenta. Intenta de nuevo." };
-  }
+  if (error) return errorDeRegistro(error, "cliente");
 
   redirect("/registro/confirmar");
+}
+
+/**
+ * Traduce el error de `signUp` a algo que el usuario pueda accionar, y **lo deja
+ * en el log**. Antes devolvía «Ocurrió un error. Intenta de nuevo» para todo y no
+ * registraba nada: un registro que fallaba por teléfono repetido era indistinguible
+ * de una caída de Supabase, y reintentar no servía de nada.
+ */
+function errorDeRegistro(
+  error: { code?: string; message?: string; status?: number },
+  lado: "cliente" | "pawwer",
+): RegistroState {
+  console.error(`[Pawwi registro ${lado}]`, error.status, error.code, error.message);
+
+  if (error.code === "user_already_exists") {
+    return { errors: { email: ["Ya tienes una cuenta con este email. Ingresa aquí."] } };
+  }
+  // El trigger handle_new_user escribe en profile, donde phone es UNIQUE.
+  if (error.message?.includes("profile_phone_key")) {
+    return { errors: { telefono: ["Ese celular ya está registrado en otra cuenta."] } };
+  }
+  if (error.code === "weak_password") {
+    return { errors: { password: ["Esa contraseña es demasiado débil. Usa al menos 8 caracteres y un número."] } };
+  }
+  if (error.code === "over_email_send_rate_limit" || error.status === 429) {
+    return { message: "Demasiados intentos seguidos. Espera un minuto y vuelve a intentar." };
+  }
+  return { message: "Ocurrió un error al crear tu cuenta. Intenta de nuevo." };
 }
 
 // ── Login ──────────────────────────────────────────────────────────────────
@@ -330,12 +353,7 @@ export async function registrarPawwer(
     },
   });
 
-  if (error) {
-    if (error.code === "user_already_exists") {
-      return { errors: { email: ["Ya tienes una cuenta con este email. Ingresa aquí."] } };
-    }
-    return { message: "Ocurrió un error al crear tu cuenta. Intenta de nuevo." };
-  }
+  if (error) return errorDeRegistro(error, "pawwer");
 
   redirect("/registro/confirmar");
 }
