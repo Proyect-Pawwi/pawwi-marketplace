@@ -421,23 +421,29 @@ riesgo técnico y la cuenta de Bold ya está lista.
    `send.pawwi.co` y DMARC en monitoreo; `RESEND_API_KEY` en Vercel y en local, y un correo de
    prueba desde `hola@pawwi.co` que **llegó a la bandeja principal**. Queda como extra conectar el
    SMTP de Supabase, para que los correos de confirmación de cuenta dejen de caer en spam
-5. 🔴 **Probar de punta a punta con las llaves de pruebas**: reservar → aceptar → pagar con la
+5. 🔨 **Probar de punta a punta con las llaves de pruebas**: reservar → aceptar → pagar con la
    tarjeta de prueba `4111 1111 1111 1111` → confirmada → cancelar con más y con menos de 48 h.
-   **Bloqueada por dos cosas ajenas al cobro**, las dos del 2026-09-15 y documentadas en
-   [`08`](./08-INFRAESTRUCTURA.md) § Problemas conocidos:
-   - **El marketplace se ve vacío en el navegador.** El backend está descartado: los 11 Pawwers
-     salen con la llave de producción, como anónimo y como cliente autenticado. El navegador no
-     hace **ninguna** petición a Supabase, así que la página no está ejecutando sus efectos
-   - **Google Maps sin facturación** (`BillingNotEnabledMapError`): sin eso no funciona el
-     autocompletado de dirección del paso 3
+   **Desbloqueada el 2026-09-15 (noche)**: lo que la frenaba era un abrazo mortal en el candado de
+   sesión de `supabase-js` que **congelaba todas las consultas del navegador al iniciar sesión** —
+   causa y método en [`08`](./08-INFRAESTRUCTURA.md), problema 3, ya resuelto.
+   - **Google Maps sigue sin facturación**, pero **no bloquea**: el paso 3 solo pide dirección si el
+     Pawwer ofrece transporte, y el de pruebas lo tiene en 0
+   - **La prueba va en `localhost:3000`, no en `app.pawwi.co`**: la tarjeta de prueba solo funciona
+     con las llaves de pruebas, que viven en `.env.local`. Producción tiene las reales. Ojo: local
+     habla con **la misma base que producción**, así que la reserva de prueba es un dato real
 6. **Una transacción real** con monto bajo — es el criterio de cierre
 
-> **La preparación de la prueba encontró cinco bugs del lado del cliente**, todos corregidos el
-> 2026-09-15: el registro que fallaba sin decir por qué (celular único), la pantalla de «revisa tu
+> **La preparación de la prueba encontró siete bugs del lado del cliente**, todos del 2026-09-15 y
+> ninguno de S2: el registro que fallaba sin decir por qué (celular único), la pantalla de «revisa tu
 > correo» con la confirmación desactivada, los dos enlaces del menú que iban a 404, la sesión
-> invisible en el header, y el calendario que abría los días con cupo para un solo perro. Ninguno era
-> de S2: estaban ahí desde antes, y salieron porque **por primera vez alguien recorrió el producto
-> como cliente nuevo**.
+> invisible en el header, el calendario que abría los días con cupo para un solo perro, **el candado
+> de sesión que congelaba todas las consultas al iniciar sesión** —el que vaciaba el marketplace— y
+> **`useMapsLibrary` fuera de su proveedor**, que tiene muerto el buscador de ubicación de la home
+> (pendiente, problema 3b de [`08`](./08-INFRAESTRUCTURA.md)).
+>
+> Salieron porque **por primera vez alguien recorrió el producto como cliente nuevo**. Los dos
+> últimos, además, solo aparecen **con sesión iniciada** — que es justo el estado en el que ninguna
+> prueba anterior había mirado la home.
 
 **Lo que pasa a S3**, porque necesita el `/admin` que se construye allí: la pantalla de liquidación,
 el archivo de dispersión del banco y la **cola de reembolsos pendientes**. Hasta entonces, cada

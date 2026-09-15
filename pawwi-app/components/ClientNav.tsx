@@ -71,18 +71,15 @@ export default function ClientNav() {
     const supabase = createClient();
     let alive = true;
 
-    async function check() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
+    async function resolverRol(userId: string | null) {
+      if (!userId) {
         if (alive) setIsClient(false);
         return;
       }
       const { data: profile } = await supabase
         .from("profile")
         .select("role")
-        .eq("id", user.id)
+        .eq("id", userId)
         .maybeSingle();
       // Cualquier sesión que NO sea pawwer se trata como cliente — así también
       // cubrimos cuentas viejas con role null/'' (el default 'client' del trigger
@@ -90,10 +87,30 @@ export default function ClientNav() {
       if (alive) setIsClient(profile?.role !== "pawwer");
     }
 
-    check();
+    supabase.auth
+      .getUser()
+      .then(({ data: { user } }) => resolverRol(user?.id ?? null))
+      .catch((e) => console.error("[Pawwi] ClientNav getUser:", e));
+
+    // 🔒 NUNCA llamar a supabase.* dentro de este callback.
+    //
+    // Supabase avisa a los suscriptores *con el candado de sesión tomado*, y
+    // espera a que cada uno termine. Cualquier llamada de aquí dentro —incluida
+    // una consulta normal, que internamente pide la sesión— vuelve a pedir ese
+    // mismo candado y se queda esperando a que lo suelte quien la está
+    // esperando a ella. Abrazo mortal: el candado no se libera nunca y TODAS
+    // las consultas del navegador se cuelgan para siempre, sin error y sin
+    // llegar a hacer una sola petición. Eso es lo que dejaba el marketplace
+    // vacío al iniciar sesión (2026-09-15).
+    //
+    // Por eso: se usa la sesión que el propio callback entrega, y el trabajo se
+    // difiere con setTimeout(0) para que corra ya fuera del candado.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => check());
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const userId = session?.user?.id ?? null;
+      setTimeout(() => { void resolverRol(userId); }, 0);
+    });
 
     return () => {
       alive = false;

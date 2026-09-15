@@ -220,7 +220,9 @@ export default function PawwiHome() {
   // ── Effects ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser()
+      .then(({ data }) => setUser(data.user))
+      .catch((e) => console.error("[Pawwi] getUser LANZÓ:", e));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -229,24 +231,31 @@ export default function PawwiHome() {
 
   // Fetch pawwers from Supabase
   useEffect(() => {
-    const supabase = createClient();
-    supabase
-      .from("pawwer")
-      .select(`
-        id, price, rating, reviews_count, lat, lng, badge, level, neighborhood,
-        transport_price,
-        profile!pawwer_profile_fk ( name, avatar_url ),
-        services:service_X_Pawwer ( price, service_type!fk_service_x_pawwer_service_type ( name ) ),
-        images:Pawwer_images ( image )
-      `)
-      .eq("verified", true)
-      .eq("accepting_bookings", true)
-      .is("deactivated_at", null)
-      .not("lat", "is", null)
-      .then(({ data, error }) => {
+    // El try/catch no es decorativo: un fallo ANTES de salir a la red —token que
+    // no refresca, cookie de sesión ilegible— rechaza la promesa del builder, y
+    // sin atraparlo la lista se queda vacía sin ni una petición que inspeccionar.
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("pawwer")
+          .select(`
+            id, price, rating, reviews_count, lat, lng, badge, level, neighborhood,
+            transport_price,
+            profile!pawwer_profile_fk ( name, avatar_url ),
+            services:service_X_Pawwer ( price, service_type!fk_service_x_pawwer_service_type ( name ) ),
+            images:Pawwer_images ( image )
+          `)
+          .eq("verified", true)
+          .eq("accepting_bookings", true)
+          .is("deactivated_at", null)
+          .not("lat", "is", null);
         if (error) console.error("[Pawwi] fetch pawwers:", error.message, error.details);
         if (data) setPawwers(data.map(mapDbPawwer));
-      });
+      } catch (e) {
+        console.error("[Pawwi] fetch pawwers LANZÓ:", e);
+      }
+    })();
   }, []);
 
   // Clear selected marker when filter or search location changes
@@ -261,19 +270,24 @@ export default function PawwiHome() {
 
     if (!days) { setAvailablePawwerIds(null); return; }
 
-    const supabase = createClient();
-    supabase
-      .from("availability")
-      .select("pawwer_id, date")
-      .in("date", days)
-      .gt("slots_remaining", 0)
-      .then(({ data, error }) => {
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("availability")
+          .select("pawwer_id, date")
+          .in("date", days)
+          .gt("slots_remaining", 0);
         if (error) { console.error("[Pawwi] fetch availability:", error.message); setAvailablePawwerIds(null); return; }
         const counts = new Map<string, number>();
         (data ?? []).forEach((r) => counts.set(r.pawwer_id as string, (counts.get(r.pawwer_id as string) ?? 0) + 1));
         const ids = new Set([...counts.entries()].filter(([, c]) => c === days.length).map(([id]) => id));
         setAvailablePawwerIds(ids);
-      });
+      } catch (e) {
+        console.error("[Pawwi] fetch availability LANZÓ:", e);
+        setAvailablePawwerIds(null);
+      }
+    })();
   }, [activeTab, selectedDate, selectedRange.start, selectedRange.end]);
 
   // Reset mobile sheet to "Dónde" on every open

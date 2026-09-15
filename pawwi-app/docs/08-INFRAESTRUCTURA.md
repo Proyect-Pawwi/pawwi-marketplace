@@ -333,41 +333,63 @@ páginas, 0 vulnerabilidades. La regla de `.gitignore` contra los duplicados se 
 > para que las sesiones y ventanas abiertas en la ruta vieja no se rompan. **Bórralo** cuando ya no
 > tengas nada apuntando ahí: `rm ~/Desktop/pawwi-marketplace` (borra el enlace, no el repositorio).
 
-### 3. 🔴 El marketplace se ve vacío en el navegador · ABIERTO (2026-09-15)
+### ~~3. El marketplace se ve vacío en el navegador~~ · RESUELTO 2026-09-15
 
-`app.pawwi.co` muestra **«0 hogares verificados en Bogotá»** y el estado vacío «No hay Pawwers con
-ese servicio», con el filtro en «Todos». Las tarjetas no aparecen nunca.
+**El síntoma real no era «en Chrome»: era «con sesión iniciada».** Sin sesión el marketplace se ve
+entero; al iniciar sesión, los once Pawwers desaparecen. Como el primer diagnóstico se hizo en un
+navegador que estaba logueado y las comprobaciones de contraste en otro que no, pareció cosa del
+navegador durante una tarde entera.
 
-**Lo que ya está verificado — no repetirlo:**
+**Causa raíz — un abrazo mortal en el candado de sesión de `supabase-js`:**
 
-| Comprobación | Resultado |
-|---|---|
-| Los datos | **11 Pawwers** pasan los cuatro filtros de la consulta (`verified`, `accepting_bookings`, `deactivated_at` nulo, `lat` no nula) |
-| La consulta, desde fuera del navegador, con la **llave publicable de producción** | 11 filas, con el `select` exacto del bundle desplegado —incluidos los embeds de `profile`, `service_X_Pawwer` y `Pawwer_images`— |
-| La misma consulta como **cliente autenticado** (usuario temporal + su JWT) | 11 filas. La RLS no es el problema |
-| El bundle desplegado | Contiene la consulta correcta (leído de `_next/static/immutable/chunks/…`) |
-| URL y llave publicable de producción | **Idénticas** a las de `.env.local`, mismo proyecto de Supabase |
-| Peticiones del navegador a `supabase.co` | **Cero**, incluso con «Inhabilitar la memoria caché». Ni siquiera las de sesión |
-| Consola | Solo `BillingNotEnabledMapError` de Maps y un aviso de `preload`. **Ningún** error de hidratación ni `[Pawwi] fetch pawwers:` |
+`components/ClientNav.tsx` hacía `onAuthStateChange(() => check())`, y `check()` empezaba con
+`await supabase.auth.getUser()`. Supabase **avisa a los suscriptores con el candado tomado** y espera
+a que cada uno termine; pedir `getUser()` desde ahí dentro vuelve a pedir ese mismo candado, con
+espera infinita, y quien lo tiene está esperando al callback. El candado no se libera nunca.
 
-**Conclusión: el backend está descartado.** La página no está ejecutando sus efectos de cliente en
-ese navegador — de ahí que se vea el HTML del servidor, que ya trae «0 hogares» porque los datos se
-piden después de montar. Encaja también con los botones muertos («cerrar sesión no cerraba»).
+Y como **toda** consulta de PostgREST pide la sesión antes de salir —para decidir si manda el JWT del
+usuario o la llave anónima—, el bloqueo no se queda en la navegación: **congela todas las consultas
+del navegador**. De ahí las tres cosas que no encajaban:
 
-**Por dónde seguir:** otro navegador y otro dispositivo · fuera de incógnito · Application → Service
-Workers · buscar un 404 en `_next/static` · y comparar contra `npm run dev` en local, que es el único
-entorno donde se ven los errores completos.
+- **cero peticiones a `supabase.co`** — la petición nunca llega a construirse
+- **ningún error en consola** — la promesa no se rechaza, simplemente no se resuelve jamás
+- **botones muertos** («cerrar sesión no cerraba»), por la misma razón
+
+**Cómo se encontró, porque la técnica sirve para cualquier cuelgue:** se puso un `console.error`
+**después** del `await` y no salió nunca — lo que prueba que el problema está *en* el `await`, no en
+su resultado. Un `Promise.race` con 8 segundos lo confirmó («TIMEOUT»), y `auth: { debug: … }` señaló
+al culpable: `#_notifyAllSubscribers(SIGNED_IN) begin` sin su `end` y sin `lock released`.
+
+> **Next 16 reenvía la consola del navegador al log de `next dev`**, con prefijo `[browser]`. Eso
+> permite depurar un navegador ajeno sin pedir capturas ni pegar nada en la consola.
+
+**La regla, que vale para todo el proyecto:** **nunca llamar a `supabase.*` dentro de un callback de
+`onAuthStateChange`** — ni siquiera una consulta normal, porque internamente pide la sesión. Se usa
+la sesión que el propio callback entrega, y si hace falta llamar a Supabase se difiere con
+`setTimeout(…, 0)` para que corra ya fuera del candado. Hoy solo quedan dos suscriptores:
+`ClientNav` (corregido) y `app/page.tsx`, que se limita a un `setState`.
+
+### 3b. 🟠 `useMapsLibrary` fuera de su proveedor · ABIERTO (2026-09-15)
+
+`app/page.tsx` llama `useMapsLibrary("geocoding")` en `PawwiHome`, pero **renderiza el `APIProvider`
+como hijo suyo**. El contexto de React baja, no sube: `geocodingLib` es `null` siempre, y
+`handleSearch` sale por la puerta de atrás sin geocodificar. **El buscador «¿Dónde vives?» de la home
+nunca ha funcionado**, y arreglar la facturación de Maps no lo va a arreglar. El aviso
+`[@googlemaps/js-api-loader] No options were set before calling importLibrary` es este bug.
+
+El autocompletado del paso 3 y el del onboarding **sí** están bien: `AddressAutocomplete` se renderiza
+dentro del `APIProvider` de cada pantalla. Esos solo esperan la facturación.
 
 ### 4. 🟠 Google Maps sin facturación · ABIERTO (2026-09-15)
 
 `BillingNotEnabledMapError` en consola. La llave **está bien restringida por dominio** —una consulta
 directa a la API de geocoding la rechaza por eso—, pero el proyecto de Google Cloud **no tiene cuenta
-de facturación vinculada**.
+de facturación vinculada**. Se arregla vinculando una cuenta en Google Cloud; Maps trae crédito
+mensual gratuito, así que al volumen actual no debería costar nada.
 
-No es solo el mapa gris con la marca de agua «For development purposes only»: la misma llave alimenta
-el **autocompletado de direcciones del paso 3 de la reserva**, que la prueba de S2 necesita. Se
-arregla vinculando una cuenta de facturación en Google Cloud; Maps trae crédito mensual gratuito, así
-que al volumen actual no debería costar nada.
+Deja el mapa gris con la marca de agua «For development purposes only» y tumba el **autocompletado de
+direcciones**. **No bloquea la prueba de S2**: el paso 3 solo pide dirección si hay transporte
+(`offersTransport = transportPrice > 0`), y el Pawwer de pruebas lo tiene en 0.
 
 ---
 
@@ -709,6 +731,33 @@ Del ticket con HostGator salen dos lecciones, las dos operativas:
 - **Cambió sin avisar las prioridades del MX de la raíz**, de `1`/`1` a `10`/`20`. No rompió nada
   —son los valores que Titan documenta— pero es el correo de la empresa. Por eso el inventario DNS
   de este documento se verifica contra los nameservers, no contra lo que dice el ticket.
+
+### 2026-09-15 (noche) · El marketplace vacío no era el navegador
+
+Se desbloqueó la prueba de S2. El día se había cerrado dando por hecho que el marketplace vacío era
+cosa de Chrome; **era un abrazo mortal en el candado de sesión de `supabase-js`**, y el detalle que lo
+destapó lo dio Nicolás: *sin sesión aparecen los hogares, con sesión desaparecen*. Causa, mecanismo y
+método en el problema 3, ahora resuelto.
+
+**Lo que hizo perder la tarde fue una asimetría invisible:** el navegador «roto» estaba logueado y los
+«sanos» —iPhone y Safari— no. Con esa muestra, la hipótesis «es el navegador» explicaba todos los
+datos y era falsa. **Cuando dos entornos difieren, la primera pregunta es en qué difiere el estado de
+sesión, no el navegador.**
+
+**Tres cosas que salieron de paso:**
+
+- **Un cuelgue no deja rastro, y por eso engaña.** Ni petición, ni error, ni excepción: los tres
+  síntomas que hacían el caso «imposible» son la firma de una promesa que no resuelve. Se distingue de
+  un fallo poniendo un log **después** del `await`: si no sale, el problema está en la espera
+- **Faltaba el `catch`.** El `.then()` del builder de Supabase no llevaba manejo de rechazo, así que
+  cualquier fallo previo a la red se perdía en silencio. Los tres efectos de la home pasaron a
+  `async/await` con `try/catch` — es lo que convierte un fallo mudo en un error visible
+- 🆕 **`useMapsLibrary` fuera de su proveedor** (problema 3b): el buscador de ubicación de la home
+  **nunca ha geocodificado**, y no es culpa de la facturación de Maps
+
+**Higiene:** se borró el usuario de diagnóstico `diag-rls-…@example.com`. Como `profile` no tiene
+llave foránea a `auth.users` —el obstáculo de S4—, **dejó un perfil huérfano más**, «Diag RLS2», que
+se suma a la limpieza pendiente por SQL Editor.
 
 ---
 
