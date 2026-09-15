@@ -34,22 +34,26 @@ export default async function MisReservasPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/?modal=login&next=/mis-reservas");
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("booking")
     .select(`
       id, start_date, end_date, total, status_id, created_at,
       charged_at, payment_due_at,
-      service_type!booking_service_type_fkey ( name ),
-      pawwer!booking_pawwer_id_fkey (
+      service_type!fk_booking_service_type ( name ),
+      pawwer!fk_booking_pawwer (
         id,
         profile!pawwer_profile_fk ( name, avatar_url )
       ),
-      dog_booking!dog_booking_booking_id_fkey (
-        dog!dog_booking_dog_id_fkey ( name )
+      dog_booking!fk_dog_booking_booking (
+        dog!fk_dog_booking_dog ( name )
       )
     `)
     .eq("client_id", user.id)
     .order("created_at", { ascending: false });
+
+  // Si el select falla, `data` es null y la lista sale VACÍA — indistinguible de
+  // «no tienes reservas». Sin este log, el cliente ve un estado vacío que miente.
+  if (error) console.error("[Pawwi] mis-reservas:", error.message, error.details);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const bookings = (data ?? []) as any[];

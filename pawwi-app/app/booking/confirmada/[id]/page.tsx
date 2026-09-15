@@ -50,24 +50,30 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/?modal=login&next=/booking/confirmada/${id}`);
 
-  const { data: booking } = await supabase
+  // OJO con las observaciones del cliente: la COLUMNA se llama `comments`.
+  // `notes` es el nombre del PARÁMETRO de create_booking (p_notes), y pedirlo
+  // aquí como columna tumbaba la consulta entera y rebotaba al home.
+  const { data: booking, error } = await supabase
     .from("booking")
     .select(`
-      id, start_date, end_date, total, status_id, notes, created_at,
+      id, start_date, end_date, total, status_id, created_at,
       charged_at, payment_due_at,
-      service_type!booking_service_type_fkey ( name ),
-      pawwer!booking_pawwer_id_fkey (
+      service_type!fk_booking_service_type ( name ),
+      pawwer!fk_booking_pawwer (
         id,
         profile!pawwer_profile_fk ( name, avatar_url )
       ),
-      dog_booking!dog_booking_booking_id_fkey (
-        dog!dog_booking_dog_id_fkey ( name, breed )
+      dog_booking!fk_dog_booking_booking (
+        dog!fk_dog_booking_dog ( name, breed )
       )
     `)
     .eq("id", id)
     .eq("client_id", user.id)
     .single();
 
+  // Rebotar al home sin decir por qué fue lo que escondió durante horas que las
+  // pistas de FK del select no existían. Un redirect mudo no se depura.
+  if (error) console.error("[Pawwi] detalle de reserva:", error.message, error.details);
   if (!booking) redirect("/");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

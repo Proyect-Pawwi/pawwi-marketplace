@@ -62,16 +62,20 @@ export default async function BookingPage({ searchParams }: Props) {
 
   // ── Step 1: selección de servicio ─────────────────────────────────────────
   if (step === 1) {
-    const { data: pawwer } = await supabase
+    const { data: pawwer, error } = await supabase
       .from("pawwer")
       .select(`
         id, badge, neighborhood,
         profile!pawwer_profile_fk ( name, avatar_url ),
-        services:service_X_Pawwer ( id_service, price, max_animals, is_active, service_type ( id, name ) )
+        services:service_X_Pawwer ( id_service, price, max_animals, is_active, service_type!fk_service_x_pawwer_service_type ( id, name ) )
       `)
       .eq("id", pawwer_id)
       .single();
 
+    // Sin el nombre de la FK este embed es AMBIGUO —hay dos claves foráneas
+    // entre service_X_Pawwer(id_service) y service_type(id)— y PostgREST
+    // responde 300 con data=null. El paso 1 rebotaba al home sin decir nada.
+    if (error) console.error("[Pawwi] booking paso 1:", error.message, error.details);
     if (!pawwer) redirect("/");
 
     return (
@@ -139,7 +143,7 @@ export default async function BookingPage({ searchParams }: Props) {
         .order("created_at"),
       supabase
         .from("service_X_Pawwer")
-        .select("price, max_animals, service_type ( name )")
+        .select("price, max_animals, service_type!fk_service_x_pawwer_service_type ( name )")
         .eq("id_pawwer", pawwer_id)
         .eq("id_service", service_id)
         .single(),
@@ -154,6 +158,9 @@ export default async function BookingPage({ searchParams }: Props) {
         .order("date"),
     ]);
 
+    if (pawwerRes.error) console.error("[Pawwi] booking paso 3 · pawwer:", pawwerRes.error.message);
+    if (serviceRes.error) console.error("[Pawwi] booking paso 3 · servicio:", serviceRes.error.message);
+    if (dogsRes.error) console.error("[Pawwi] booking paso 3 · perros:", dogsRes.error.message);
     if (!pawwerRes.data) redirect("/");
 
     return (

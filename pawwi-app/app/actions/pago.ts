@@ -28,7 +28,9 @@ export type CheckoutConfig = {
   amount: string;
   apiKey: string;
   integritySignature: string;
-  redirectionUrl: string;
+  // Opcional: Bold exige https y en local puede no haberlo. Sin ella, Bold usa la
+  // URL principal del comercio y el pago se confirma con «Ya pagué».
+  redirectionUrl?: string;
   description: string;
   expirationDate: string;
 };
@@ -97,6 +99,23 @@ export async function iniciarPago(bookingId: string): Promise<IniciarPagoResult>
   }
 
   const amount = boldAmount(intento.amount);
+
+  // Bold EXIGE que la URL de retorno empiece por https:// (acepta localhost, pero
+  // cifrado). Con `http://` rechaza el checkout entero con BTN-001 —«atributos de
+  // configuración inválidos»—, que no dice cuál. En producción SITE ya es https;
+  // esto solo protege el desarrollo local: la URL es opcional, así que se omite y
+  // el pago se confirma con «Ya pagué», que consulta a Bold igual.
+  // Para probar el retorno completo en local: `npm run dev -- --experimental-https`
+  // y NEXT_PUBLIC_SITE_URL=https://localhost:3000
+  const volverA = `${SITE}/booking/confirmada/${bookingId}`;
+  const redirectOk = volverA.startsWith("https://");
+  if (!redirectOk) {
+    console.warn(
+      `[Pawwi pago] NEXT_PUBLIC_SITE_URL no es https (${SITE}): Bold rechazaría el ` +
+      `checkout con BTN-001, así que se omite la URL de retorno. Usa «Ya pagué» al volver.`,
+    );
+  }
+
   return {
     estado: "checkout",
     config: {
@@ -106,7 +125,7 @@ export async function iniciarPago(bookingId: string): Promise<IniciarPagoResult>
       apiKey,
       integritySignature: integritySignature(intento.order_id, amount),
       // Bold vuelve aquí y agrega ?bold-order-id=…&bold-tx-status=…
-      redirectionUrl: `${SITE}/booking/confirmada/${bookingId}`,
+      ...(redirectOk ? { redirectionUrl: volverA } : {}),
       description: await descripcion(supabase, bookingId),
       // El checkout se cierra cuando se vence el plazo: después de esa hora el
       // cupo se libera y un pago ya no tendría reserva que confirmar.
@@ -177,7 +196,7 @@ async function descripcion(
 ): Promise<string> {
   const { data } = await supabase
     .from("booking")
-    .select("start_date, service_type!booking_service_type_fkey ( name )")
+    .select("start_date, service_type!fk_booking_service_type ( name )")
     .eq("id", bookingId)
     .maybeSingle();
 
