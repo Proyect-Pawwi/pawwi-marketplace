@@ -15,6 +15,13 @@ interface Props {
   initialAvail: Record<string, number>;
   rangeStart:   string;
   rangeEnd:     string;
+  /**
+   * Cuántos perros acepta un día abierto: el máximo que el Pawwer declaró en
+   * Tarifas entre sus servicios activos. Antes esta pantalla escribía 1 fijo, así
+   * que «acepto hasta 4 perros» quedaba en papel y una reserva de 2 se caía por
+   * falta de cupo — la decisión 07 dice que la capacidad la decide el Pawwer.
+   */
+  maxAnimals:   number;
 }
 
 function toISO(d: Date): string { return d.toISOString().split("T")[0]!; }
@@ -23,7 +30,7 @@ function fmtShort(iso: string): string {
   return `${d.getDate()} ${MESES_SHORT[d.getMonth()]}`;
 }
 
-export default function DisponibilidadCalendar({ pawwerId, initialAvail, rangeEnd }: Props) {
+export default function DisponibilidadCalendar({ pawwerId, initialAvail, rangeEnd, maxAnimals }: Props) {
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
   const [avail, setAvail]     = useState<Record<string, number>>({ ...initialAvail });
@@ -81,7 +88,7 @@ export default function DisponibilidadCalendar({ pawwerId, initialAvail, rangeEn
     const changed: string[] = [];
     for (const iso of rangeDays) {
       const dayOpen = next[iso] !== undefined && next[iso]! > 0;
-      if (open && !dayOpen) { next[iso] = 1; changed.push(iso); }
+      if (open && !dayOpen) { next[iso] = maxAnimals; changed.push(iso); }
       else if (!open && dayOpen) { delete next[iso]; changed.push(iso); }
     }
     setAvail(next);
@@ -101,7 +108,7 @@ export default function DisponibilidadCalendar({ pawwerId, initialAvail, rangeEn
       if (d < today) continue;
       const iso = toISO(d);
       const dayOpen = next[iso] !== undefined && next[iso]! > 0;
-      if (open && !dayOpen) { next[iso] = 1; changed.push(iso); }
+      if (open && !dayOpen) { next[iso] = maxAnimals; changed.push(iso); }
       else if (!open && dayOpen) { delete next[iso]; changed.push(iso); }
     }
     if (changed.length === 0) return;
@@ -179,6 +186,9 @@ export default function DisponibilidadCalendar({ pawwerId, initialAvail, rangeEn
           <p className="text-xs font-semibold text-[#120A2B]/65 leading-relaxed">
             <span className="font-black text-green-600">Verde</span> = abierto para recibir cuidados.
             Toca el <span className="font-black">primer día</span> y luego el <span className="font-black">último</span> para elegir un rango (hasta {MAX_RANGE} días), y elige <span className="font-black">Habilitar</span> o <span className="font-black">Bloquear</span>.
+            Cada día que habilites acepta <span className="font-black">
+              {maxAnimals === 1 ? "1 perro" : `hasta ${maxAnimals} perros`}
+            </span>, según lo que configuraste en <Link href="/pawwer/perfil/tarifas" className="underline decoration-[#FF7031]/40 underline-offset-2">Tarifas</Link>.
           </p>
         </div>
 
