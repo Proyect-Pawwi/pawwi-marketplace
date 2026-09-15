@@ -139,7 +139,9 @@ export default function Step1Servicios({ pawwer, preSelectedServiceId, preStart,
                     {meta.desc}
                   </p>
                   <p className={`text-[10px] mt-1 font-bold ${isSelected ? "text-white/50" : "text-gray-400"}`}>
-                    Máx. {svc.max_animals} perro{svc.max_animals !== 1 ? "s" : ""}
+                    {/* «Máx. N perros» se leía como el tope de la CASA y chocaba con
+                        la ocupación del día del paso 3. Es el tope por reserva. */}
+                    Hasta {svc.max_animals} perro{svc.max_animals !== 1 ? "s" : ""} por reserva
                   </p>
                 </div>
                 <div className={[

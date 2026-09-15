@@ -241,9 +241,21 @@ antes es el camino más corto a que cierren el trato por fuera de Pawwi.
 | Paso | Qué pide | Qué valida |
 |---|---|---|
 | **1 · Servicio** | Uno de los servicios activos del Pawwer | Que esté activo |
-| **2 · Fechas** | Fecha o rango, horas de entrega y recogida | Pasado, `week_pattern`, disponibilidad, fin > inicio. Consciente de pernoctas |
+| **2 · Fechas** | Fecha o rango, horas de entrega y recogida. **Express también exige día** (antes no, y reservaba hoy en silencio) | Pasado, disponibilidad, fin > inicio. Consciente de pernoctas |
+| | 🆕 **Ocupación en el propio calendario**: un punto naranja por peludo ya reservado ese día | Es cuando de verdad sirve para decidir — antes solo aparecía en el paso 3 |
+| | Las etiquetas de horario dicen **el día real** («Entrega (30 Sep) · Recogida (1 Oct)»), no «(hoy)» y «(mañana)» fijos | |
 | **3 · Perros** | Qué perros · dirección si hay transporte · notas | **Tope de perros** del Pawwer · Pasaporte completo · cédula registrada |
-| | Muestra **«tu perro sería 1 de 3 ese día»** y avisa si uno no es sociable | Ocupación del día más ocupado del rango |
+| | Muestra **«ese día habría 2 peludos en casa, contando el tuyo»** y avisa si uno no es sociable | Ocupación del día más ocupado del rango |
+
+> **Dos números que no son lo mismo, y que se leían como un error.** `max_animals` es el tope de
+> **tu reserva** («hasta 1 perro por reserva»); los cupos de `availability` son los peludos **en la
+> casa ese día**, sumando todos los servicios. «Máx. 1 perro» junto a «1 de 2» parecía una
+> contradicción; cada frase dice ahora a qué se refiere.
+
+> **`week_pattern` es una plantilla, no un filtro.** Genera la agenda al crear el perfil (mig 08), y
+> `create_booking` **no lo valida** — solo `availability`. El calendario filtraba por los dos y
+> escondía días que el Pawwer había abierto a propósito: en la cuenta de pruebas, **8 de 16 días**.
+> Desde el 2026-09-15, con agenda cargada manda la agenda.
 | | Pregunta **«si Juliana no puede, ¿buscamos otro por el mismo precio?»** | Se guarda como `allow_pool` |
 | **4 · Enviada** | Nada: *«Todavía no pagas nada»*. El pago no es un paso del asistente — ocurre después, en el detalle de la reserva, cuando el Pawwer acepta | ✅ S2 — antes era un cartel de «la pasarela se habilitará en la próxima versión» |
 

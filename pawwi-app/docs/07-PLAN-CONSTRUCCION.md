@@ -421,8 +421,16 @@ riesgo técnico y la cuenta de Bold ya está lista.
    `send.pawwi.co` y DMARC en monitoreo; `RESEND_API_KEY` en Vercel y en local, y un correo de
    prueba desde `hola@pawwi.co` que **llegó a la bandeja principal**. Queda como extra conectar el
    SMTP de Supabase, para que los correos de confirmación de cuenta dejen de caer en spam
-5. 🔨 **Probar de punta a punta con las llaves de pruebas**: reservar → aceptar → pagar con la
-   tarjeta de prueba `4111 1111 1111 1111` → confirmada → cancelar con más y con menos de 48 h.
+5. ✅ **Probado de punta a punta con las llaves de pruebas** (2026-09-15): reserva Express de
+   $10.000 → el Pawwer acepta (cupo bloqueado, plazo de 2 h, correo real) → pago con
+   `4111 1111 1111 1111` (`T_8PCLLRPCIQ`, APPROVED) → **`charged_at` sellado por la consulta a Bold**
+   —en pruebas no hay webhooks— → notificación a los dos lados → **el Pawwer ve la dirección exacta
+   solo entonces**. `pawwer_payout` 7.500, con la comisión congelada al aceptar.
+   **Falta**: cancelar con más y con menos de 48 h, y el vencimiento del plazo.
+   > Llegar hasta ahí destapó **siete defectos entre el cliente y el cobro, ninguno del cobro** —
+   > entre ellos que **reservar era imposible desde julio** (`authenticated` nunca tuvo permisos
+   > sobre `dog`) y que **media agenda del Pawwer era invisible**. Detalle en
+   > [`08`](./08-INFRAESTRUCTURA.md), bitácora del 2026-09-15 (noche, III).
    **Desbloqueada el 2026-09-15 (noche)**: lo que la frenaba era un abrazo mortal en el candado de
    sesión de `supabase-js` que **congelaba todas las consultas del navegador al iniciar sesión** —
    causa y método en [`08`](./08-INFRAESTRUCTURA.md), problema 3, ya resuelto.

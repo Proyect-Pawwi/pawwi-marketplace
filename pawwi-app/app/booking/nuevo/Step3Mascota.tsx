@@ -202,14 +202,18 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
         {/* Ocupación real del día — lo que de verdad ayuda a decidir */}
         {busiestDay && busiestDay.total > 0 && (
           <div className="rounded-2xl border border-gray-100 bg-white/70 px-4 py-3">
+            {/* Dos números que miden cosas DISTINTAS y antes parecían contradecirse:
+                arriba, cuántos perros habrá en la casa ese día (todos los servicios);
+                abajo, cuántos caben en TU reserva (max_animals del servicio). Con
+                «1 de 2» y «acepta hasta 1» juntos, el cliente leía un error. */}
             <p className="text-sm font-semibold text-midnight font-body">
               {othersThatDay === 0
-                ? <>Tu peludo sería <span className="font-black">el único</span> ese día.</>
-                : <>Tu peludo sería <span className="font-black">1 de {othersThatDay + 1}</span> ese día.</>}
+                ? <>Tu peludo sería <span className="font-black">el único</span> en casa de {pawwer.profile?.name ?? "el Pawwer"} ese día.</>
+                : <>Ese día habría <span className="font-black">{othersThatDay + 1} peludos</span> en casa de {pawwer.profile?.name ?? "el Pawwer"}, contando el tuyo.</>}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
-              {pawwer.profile?.name ?? "El Pawwer"} acepta hasta {maxAnimals}{" "}
-              {maxAnimals === 1 ? "peludo" : "peludos"} en {serviceName}.
+              En {serviceName} puedes llevar hasta {maxAnimals}{" "}
+              {maxAnimals === 1 ? "peludo" : "peludos"} por reserva.
             </p>
           </div>
         )}

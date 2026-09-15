@@ -103,7 +103,10 @@ export default async function BookingPage({ searchParams }: Props) {
         .single(),
       supabase
         .from("availability")
-        .select("date")
+        // Los cupos vienen también para pintar la ocupación de cada día en el
+        // calendario: «acepta hasta 4» no ayuda a decidir; cuántos peludos habrá
+        // ESE día, sí (docs/06 § Capacidad y precio).
+        .select("date, slots_total, slots_remaining")
         .eq("pawwer_id", pawwer_id)
         .gte("date", today)
         .lte("date", in60days)
@@ -117,6 +120,12 @@ export default async function BookingPage({ searchParams }: Props) {
         pawwer={pawwerRes.data as unknown as Parameters<typeof Step2Fechas>[0]["pawwer"]}
         serviceId={service_id}
         availableDates={(availRes.data ?? []).map((r) => r.date as string)}
+        ocupacion={Object.fromEntries(
+          (availRes.data ?? []).map((r) => [
+            r.date as string,
+            Math.max(0, ((r.slots_total as number) ?? 0) - ((r.slots_remaining as number) ?? 0)),
+          ]),
+        )}
         preStart={start}
         preEnd={end}
         preHours={hours}

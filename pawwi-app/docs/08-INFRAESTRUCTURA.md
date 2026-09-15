@@ -818,6 +818,46 @@ permisos de tabla son estado ambiental»— para no ir descubriéndolas de una e
 > `next dev` reenviando la consola del navegador, **mirar el log antes que el código** dejó de ser
 > una cuestión de suerte.
 
+### 2026-09-15 (noche, III) · El circuito del dinero cerró, y el camino hasta él tenía siete trampas
+
+**Se cobró por primera vez de punta a punta.** Reserva Express de $10.000: el cliente reserva → el
+Pawwer acepta (cupo bloqueado, `charged_at` vacío, dos horas de plazo, correo real desde
+`hola@pawwi.co`) → el cliente paga con la tarjeta de pruebas (`T_8PCLLRPCIQ`, APPROVED) → la consulta
+a Bold sella `charged_at` → notificación a los dos lados → **el Pawwer ve la dirección exacta, y no
+antes**. `pawwer_payout` 7.500: la comisión del 25% congelada al aceptar.
+
+> La confirmación llegó **por la consulta, no por webhook** — en pruebas Bold no los manda. Ese
+> camino de respaldo existe porque se leyó su documentación antes de escribir el código.
+
+**Siete defectos entre el cliente y el cobro, ninguno del cobro.** Cinco tenían la misma forma: una
+consulta mal escrita que falla en silencio y una pantalla que reacciona rindiéndose sin decir nada.
+
+| # | Defecto | Qué rompía |
+|---|---|---|
+| 1 | `authenticated` **nunca tuvo permisos** sobre `dog` ni `dog_booking` | **Reservar era imposible** desde julio · mig 69 |
+| 2 | **FK duplicada** `service_X_Pawwer → service_type`: embed ambiguo | El paso 1 rebotaba al home · mig 70 |
+| 3 | **Cuatro pistas de FK inventadas** (`*_fkey` en vez de `fk_*`) | Detalle roto · **`/mis-reservas` vacía** · descripción genérica en el checkout |
+| 4 | `booking.notes` no existe — la columna es `comments` | Tumbaba la consulta del detalle |
+| 5 | `redirection-url` en `http://` | **BTN-001** de Bold, que no dice qué atributo falla |
+| 6 | Express **no exigía fecha** y no mostraba calendario | Reservaba **hoy** en silencio; la etiqueta decía «hoy» siempre |
+| 7 | El calendario filtraba por `week_pattern` **además** de por `availability` | **Media agenda invisible**: 8 de 16 días abiertos |
+
+**La lección que se repitió cinco veces:** *un redirect mudo y un estado vacío que miente no se
+depuran.* En cuanto cada guard registró el error antes de rendirse, el diagnóstico pasó de media hora
+de sondeos a **diez segundos de leer el log**. Con `next dev` reenviando la consola del navegador, el
+log es el primer sitio donde mirar, no el último.
+
+**Y dos de producto, que salieron de usar el producto:**
+
+- **`week_pattern` es una plantilla, no un filtro.** Genera la agenda al crear el perfil (mig 08);
+  `create_booking` **no lo valida** — solo `availability`. Filtrar por él escondía días que el Pawwer
+  había abierto a propósito y que el backend sí aceptaba. Ahora, **con agenda cargada manda la
+  agenda**; el patrón solo decide si no hay ninguna.
+- **Dos números que medían cosas distintas parecían contradecirse.** «Máx. 1 perro» (tope de *tu
+  reserva*, `max_animals`) junto a «1 de 2» (peludos *en la casa ese día*, los cupos) se leía como un
+  error. Ahora cada frase dice a qué se refiere, y **la ocupación se ve ya en el calendario del paso
+  2** —un punto por peludo reservado—, que es cuando sirve para decidir.
+
 ---
 
 **Pawwi S.A.S.** · NIT 901.937.952-7 · Bogotá, Colombia

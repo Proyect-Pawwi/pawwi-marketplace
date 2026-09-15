@@ -34,6 +34,8 @@ interface Props {
   pawwer:         Pawwer;
   serviceId:      number;
   availableDates: string[];
+  /** ISO → peludos YA reservados ese día (todos los servicios). */
+  ocupacion:      Record<string, number>;
   preStart:       string | null;
   preEnd:         string | null;
   preHours:       number | null;
@@ -56,7 +58,7 @@ function fmtDate(d: Date) {
   return `${d.getDate()} ${MESES[d.getMonth()]!.slice(0, 3)}`;
 }
 
-export default function Step2Fechas({ pawwer, serviceId, availableDates, preStart, preEnd, preHours, preStartTime, preEndTime }: Props) {
+export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupacion, preStart, preEnd, preHours, preStartTime, preEndTime }: Props) {
   const router   = useRouter();
   const isTravel  = serviceId === 3;
   const isExpress = serviceId === 4;
@@ -83,11 +85,17 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, preStar
   const wp = pawwer.week_pattern ?? {};
   const blockedDow: number[] = WEEK_KEYS.map((k, i) => (!wp[k] ? i : -1)).filter(n => n !== -1);
 
+  // Cuando el Pawwer ya cargó agenda, ESA manda. `availability` es lo que abrió
+  // de verdad —y lo único que valida `create_booking`—; `week_pattern` es solo la
+  // plantilla con la que esa agenda se genera al crear el perfil (mig 08).
+  // Filtrar además por el patrón escondía días que el Pawwer había abierto a
+  // propósito y que el backend sí habría aceptado: reservas perdidas en silencio.
+  const usaPatron = availableDates.length === 0;
+
   function isUnavail(d: Date): boolean {
     if (d < today) return true;
-    if (blockedDow.includes(d.getDay())) return true;
-    if (availableDates.length > 0 && !availableDates.includes(toISO(d))) return true;
-    return false;
+    if (usaPatron) return blockedDow.includes(d.getDay());
+    return !availableDates.includes(toISO(d));
   }
 
   function handleDay(d: Date) {
@@ -131,8 +139,15 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, preStar
     return d > start && d < end;
   }
 
-  const datesReady   = isExpress ? true : isTravel ? !!(start && end) : !!start;
+  // Express se cobra por horas, pero ocurre un DÍA CONCRETO como cualquier otro
+  // servicio: también exige fecha. Antes era `isExpress ? true`, y como el
+  // calendario tampoco se mostraba, quien entraba sin fecha previa reservaba HOY
+  // sin enterarse — el `start ?? today` de handleContinue lo hacía en silencio.
+  const datesReady   = isTravel ? !!(start && end) : !!start;
   const hasSelection = datesReady && timeValid;
+
+  // La leyenda de los puntos solo aparece si hay algo que explicar.
+  const hayOcupacion = Object.values(ocupacion).some((n) => n > 0);
 
   const nightsOrDays = start && end
     ? Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + (isTravel ? 1 : 0))
@@ -144,8 +159,10 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, preStar
       pawwer_id:  pawwer.id,
       step:       "3",
       service_id: String(serviceId),
-      start:      start ? toISO(start) : toISO(today),
-      end:        end   ? toISO(end)   : toISO(start ?? today),
+      // `hasSelection` ya garantiza que hay fecha; el respaldo a `today` que
+      // había aquí es justo lo que reservaba hoy sin que nadie lo pidiera.
+      start:      toISO(start!),
+      end:        toISO(end ?? start!),
     });
     if (isExpress) params.set("hours", String(hours));
     params.set("start_time", startTime);
@@ -153,8 +170,25 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, preStar
     router.push(`/booking/nuevo?${params.toString()}`);
   }
 
+  // Las etiquetas del horario dicen el DÍA REAL elegido. Decían «(hoy)» y
+  // «(mañana)» fijos: con el 30 seleccionado, la pantalla seguía diciendo «hoy».
+  const diaSiguiente = (d: Date) => { const x = new Date(d); x.setDate(x.getDate() + 1); return x; };
+  const etiquetaEntrega = isNight
+    ? `Entrega${start ? ` (${fmtDate(start)})` : ""}`
+    : isTravel
+    ? `Salida${start ? ` (${fmtDate(start)})` : ""}`
+    : "Entrega";
+  const etiquetaRecogida = isNight
+    ? `Recogida${start ? ` (${fmtDate(diaSiguiente(start))})` : ""}`
+    : isTravel
+    ? `Regreso${end ? ` (${fmtDate(end)})` : ""}`
+    : "Recogida";
+
+  // La etiqueta dice la fecha REAL de la reserva. Antes decía «hoy» fijo, y como
+  // la fecha sí viajaba desde el calendario del perfil del Pawwer, la pantalla
+  // afirmaba «hoy» mientras reservaba otro día.
   const selLabel = isExpress
-    ? `${hours} hora${hours !== 1 ? "s" : ""} · hoy`
+    ? `${hours} hora${hours !== 1 ? "s" : ""}${start ? ` · ${fmtDate(start)}` : ""}`
     : isTravel && start && end
     ? `${fmtDate(start)} → ${fmtDate(end)} (${nightsOrDays} días)`
     : start
@@ -173,7 +207,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, preStar
       <main className="max-w-xl mx-auto px-4 py-8">
         <div className="mb-5">
           <h1 className="text-xl font-heading font-extrabold text-midnight mb-1">
-            {isExpress ? "¿Cuántas horas?" : isTravel ? "¿Cuándo viajes?" : "¿Qué día?"}
+            {isExpress ? "¿Cuántas horas y qué día?" : isTravel ? "¿Cuándo viajes?" : "¿Qué día?"}
           </h1>
           <p className="text-sm text-midnight/50 font-body">
             {SERVICE_LABELS[serviceId]} · {pawwer.profile?.name}
@@ -204,74 +238,95 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, preStar
           </div>
         )}
 
-        {/* Calendario — siempre visible en desktop; bottom sheet hint en mobile */}
-        {!isExpress && (
-          <div className="bg-white/80 backdrop-blur-md border border-white rounded-2xl p-4 shadow-sm mb-5">
-            {/* Nav */}
-            <div className="flex justify-between items-center mb-3">
-              <button
-                onClick={prevMonth}
-                disabled={viewYear === today.getFullYear() && viewMonth === today.getMonth()}
-                className="w-9 h-9 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 disabled:opacity-30 shadow-sm transition-colors"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <span className="font-extrabold text-midnight">
-                {MESES[viewMonth]} {viewYear}
-              </span>
-              <button
-                onClick={nextMonth}
-                className="w-9 h-9 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 shadow-sm transition-colors"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-
-            {/* Header días */}
-            <div className="grid grid-cols-7 mb-1">
-              {DIAS_SHORT.map((d, i) => (
-                <div key={i} className={`text-center text-[10px] font-extrabold py-1 ${
-                  blockedDow.includes(i) ? "text-gray-300" : "text-gray-400"
-                }`}>{d}</div>
-              ))}
-            </div>
-
-            {/* Grid días */}
-            <div className="grid grid-cols-7 gap-0.5">
-              {cells.map(cell => {
-                if (cell.empty) return <div key={cell.key} />;
-                const d      = cell.date;
-                const unavail = isUnavail(d);
-                const sel     = isSel(d);
-                const mid     = inRange(d);
-                return (
-                  <button
-                    key={cell.key}
-                    type="button"
-                    disabled={unavail}
-                    onClick={() => handleDay(d)}
-                    className={[
-                      "h-10 w-full rounded-xl text-sm font-bold flex items-center justify-center transition-colors relative",
-                      unavail ? "text-gray-300 cursor-not-allowed line-through"
-                      : sel    ? "bg-[#120A2B] text-white shadow-md z-10"
-                      : mid    ? "bg-[#F7AEF1]/30 text-midnight"
-                      : "text-midnight hover:bg-white hover:border hover:border-gray-200 cursor-pointer",
-                    ].join(" ")}
-                  >
-                    {mid && <div className="absolute inset-0 bg-[#F7AEF1]/20 -z-10 w-[115%] -ml-[7.5%]" />}
-                    {cell.day}
-                  </button>
-                );
-              })}
-            </div>
-
-            {isTravel && (
-              <p className="text-[10px] text-center text-gray-400 mt-2 font-body">
-                {!start ? "Toca el día de llegada" : !end ? "Ahora toca el día de regreso" : `${nightsOrDays} noches seleccionadas`}
-              </p>
-            )}
+        {/* Calendario — también en Express: se cobra por horas, pero hay que
+            elegir el día. Sin él, la única fecha posible era la de la URL (o hoy). */}
+        <div className="bg-white/80 backdrop-blur-md border border-white rounded-2xl p-4 shadow-sm mb-5">
+          {/* Nav */}
+          <div className="flex justify-between items-center mb-3">
+            <button
+              onClick={prevMonth}
+              disabled={viewYear === today.getFullYear() && viewMonth === today.getMonth()}
+              className="w-9 h-9 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 disabled:opacity-30 shadow-sm transition-colors"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="font-extrabold text-midnight">
+              {MESES[viewMonth]} {viewYear}
+            </span>
+            <button
+              onClick={nextMonth}
+              className="w-9 h-9 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 shadow-sm transition-colors"
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
-        )}
+
+          {/* Header días */}
+          <div className="grid grid-cols-7 mb-1">
+            {DIAS_SHORT.map((d, i) => (
+              // Solo se apaga la columna si el patrón semanal es quien decide;
+              // con agenda cargada, el patrón ya no manda y apagarla mentiría.
+              <div key={i} className={`text-center text-[10px] font-extrabold py-1 ${
+                usaPatron && blockedDow.includes(i) ? "text-gray-300" : "text-gray-400"
+              }`}>{d}</div>
+            ))}
+          </div>
+
+          {/* Grid días */}
+          <div className="grid grid-cols-7 gap-0.5">
+            {cells.map(cell => {
+              if (cell.empty) return <div key={cell.key} />;
+              const d      = cell.date;
+              const unavail = isUnavail(d);
+              const sel     = isSel(d);
+              const mid     = inRange(d);
+              return (
+                <button
+                  key={cell.key}
+                  type="button"
+                  disabled={unavail}
+                  onClick={() => handleDay(d)}
+                  className={[
+                    "h-10 w-full rounded-xl text-sm font-bold flex items-center justify-center transition-colors relative",
+                    unavail ? "text-gray-300 cursor-not-allowed line-through"
+                    : sel    ? "bg-[#120A2B] text-white shadow-md z-10"
+                    : mid    ? "bg-[#F7AEF1]/30 text-midnight"
+                    : "text-midnight hover:bg-white hover:border hover:border-gray-200 cursor-pointer",
+                  ].join(" ")}
+                >
+                  {mid && <div className="absolute inset-0 bg-[#F7AEF1]/20 -z-10 w-[115%] -ml-[7.5%]" />}
+                  {cell.day}
+                  {/* Ocupación: un punto por peludo ya reservado ese día. Lo que
+                      ayuda a decidir no es el máximo del Pawwer, sino con cuántos
+                      perros estará el suyo (docs/06 § Capacidad y precio). */}
+                  {!unavail && (ocupacion[toISO(d)] ?? 0) > 0 && (
+                    <span className="absolute bottom-1 left-0 right-0 flex justify-center gap-[2px]">
+                      {Array.from({ length: Math.min(ocupacion[toISO(d)] ?? 0, 5) }).map((_, i) => (
+                        <span
+                          key={i}
+                          className={`w-1 h-1 rounded-full ${sel ? "bg-white/70" : "bg-[#FF7031]"}`}
+                        />
+                      ))}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {isTravel && (
+            <p className="text-[10px] text-center text-gray-400 mt-2 font-body">
+              {!start ? "Toca el día de llegada" : !end ? "Ahora toca el día de regreso" : `${nightsOrDays} noches seleccionadas`}
+            </p>
+          )}
+
+          {hayOcupacion && (
+            <p className="text-[10px] text-center text-gray-400 mt-2 font-body flex items-center justify-center gap-1.5">
+              <span className="w-1 h-1 rounded-full bg-[#FF7031] inline-block" />
+              cada punto es un peludo ya reservado ese día
+            </p>
+          )}
+        </div>
 
         {/* Horario — el cliente elige entrega/recogida */}
         {datesReady && (
@@ -295,7 +350,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, preStar
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-midnight/50 block mb-1">
-                    {isNight ? "Entrega (hoy)" : isTravel ? "Salida (día 1)" : "Entrega"}
+                    {etiquetaEntrega}
                   </label>
                   <input
                     type="time"
@@ -306,7 +361,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, preStar
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-midnight/50 block mb-1">
-                    {isNight ? "Recogida (mañana)" : isTravel ? "Regreso (día final)" : "Recogida"}
+                    {etiquetaRecogida}
                   </label>
                   <input
                     type="time"
