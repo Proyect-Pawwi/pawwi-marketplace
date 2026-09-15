@@ -473,7 +473,7 @@ La columna `is_daily_report` existe desde la migración 02 y hoy se escribe siem
 | **Horario de recepción** | A qué horas recibe perros |
 | **Vitrina** | Profesión, años, tiempo de respuesta, bio, sellos, detalles del hogar, medidor de completitud |
 | **Tarifas** | Precio por servicio con calculadora de neto · activar o desactivar servicio · **tamaño y número máximo de perros** · precio del transporte |
-| **Disponibilidad** | Calendario de 60 días, por rango, con capacidad por día |
+| **Disponibilidad** | Calendario de 60 días, por rango. Cada día que abre acepta **los perros que él declaró en Tarifas** (desde 2026-09-15; antes escribía 1 fijo y dejaba ese número en papel). Un cupo **distinto por día** sigue sin existir: es diseño pendiente |
 | **Fotos** | Subir, borrar, reordenar, portada, máximo 8 |
 | **Pago** | Llave Bre-B o cuenta bancaria —el número se escribe y no se vuelve a leer completo— y certificación bancaria obligatoria |
 | **FAQ** | Sus preguntas frecuentes — es lo que reemplaza al chat previo del cliente |

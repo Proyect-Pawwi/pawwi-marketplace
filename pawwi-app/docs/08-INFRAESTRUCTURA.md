@@ -333,6 +333,42 @@ páginas, 0 vulnerabilidades. La regla de `.gitignore` contra los duplicados se 
 > para que las sesiones y ventanas abiertas en la ruta vieja no se rompan. **Bórralo** cuando ya no
 > tengas nada apuntando ahí: `rm ~/Desktop/pawwi-marketplace` (borra el enlace, no el repositorio).
 
+### 3. 🔴 El marketplace se ve vacío en el navegador · ABIERTO (2026-09-15)
+
+`app.pawwi.co` muestra **«0 hogares verificados en Bogotá»** y el estado vacío «No hay Pawwers con
+ese servicio», con el filtro en «Todos». Las tarjetas no aparecen nunca.
+
+**Lo que ya está verificado — no repetirlo:**
+
+| Comprobación | Resultado |
+|---|---|
+| Los datos | **11 Pawwers** pasan los cuatro filtros de la consulta (`verified`, `accepting_bookings`, `deactivated_at` nulo, `lat` no nula) |
+| La consulta, desde fuera del navegador, con la **llave publicable de producción** | 11 filas, con el `select` exacto del bundle desplegado —incluidos los embeds de `profile`, `service_X_Pawwer` y `Pawwer_images`— |
+| La misma consulta como **cliente autenticado** (usuario temporal + su JWT) | 11 filas. La RLS no es el problema |
+| El bundle desplegado | Contiene la consulta correcta (leído de `_next/static/immutable/chunks/…`) |
+| URL y llave publicable de producción | **Idénticas** a las de `.env.local`, mismo proyecto de Supabase |
+| Peticiones del navegador a `supabase.co` | **Cero**, incluso con «Inhabilitar la memoria caché». Ni siquiera las de sesión |
+| Consola | Solo `BillingNotEnabledMapError` de Maps y un aviso de `preload`. **Ningún** error de hidratación ni `[Pawwi] fetch pawwers:` |
+
+**Conclusión: el backend está descartado.** La página no está ejecutando sus efectos de cliente en
+ese navegador — de ahí que se vea el HTML del servidor, que ya trae «0 hogares» porque los datos se
+piden después de montar. Encaja también con los botones muertos («cerrar sesión no cerraba»).
+
+**Por dónde seguir:** otro navegador y otro dispositivo · fuera de incógnito · Application → Service
+Workers · buscar un 404 en `_next/static` · y comparar contra `npm run dev` en local, que es el único
+entorno donde se ven los errores completos.
+
+### 4. 🟠 Google Maps sin facturación · ABIERTO (2026-09-15)
+
+`BillingNotEnabledMapError` en consola. La llave **está bien restringida por dominio** —una consulta
+directa a la API de geocoding la rechaza por eso—, pero el proyecto de Google Cloud **no tiene cuenta
+de facturación vinculada**.
+
+No es solo el mapa gris con la marca de agua «For development purposes only»: la misma llave alimenta
+el **autocompletado de direcciones del paso 3 de la reserva**, que la prueba de S2 necesita. Se
+arregla vinculando una cuenta de facturación en Google Cloud; Maps trae crédito mensual gratuito, así
+que al volumen actual no debería costar nada.
+
 ---
 
 ## 📓 Bitácora
@@ -627,6 +663,38 @@ pagar. Ahora esa puerta está **cerrada por defecto en todas partes** y solo la 
 sistema— y no van en un chat ni en una captura. No se rotaron: Bold advierte que generar llaves
 nuevas tumba las integraciones vivas hasta actualizarlas, y con la puerta ya cerrada el riesgo real
 es ninguno.
+
+### 2026-09-15 (tarde) · Preparar la prueba encontró cuatro bugs del lado del cliente
+
+Montar la cuenta de cliente y la agenda del Pawwer para probar el cobro sacó más defectos que el
+propio cobro. Los cuatro corregidos el mismo día:
+
+| Lo que pasó | La causa | El arreglo |
+|---|---|---|
+| El registro fallaba con «Ocurrió un error. Intenta de nuevo» | `profile.phone` es **UNIQUE** y el celular ya era de otra cuenta: el trigger `handle_new_user` moría con `23505`. El server action se tragaba el error sin registrarlo | Mensaje en el campo del celular, y **todo error de registro queda en el log** con código y estado |
+| Mandaba a «revisa tu correo» y el correo no llegaba nunca | `mailer_autoconfirm` está en **`true`**: Supabase confirma al instante y no envía nada | Si `signUp` ya devuelve sesión, el cliente entra directo y el Pawwer va a su embudo |
+| «Mis reservas» del menú no mostraba nada | Iba a `/reservas` y `/mascotas`, **dos rutas que no existen**: 404. Estaba en la auditoría para S4 | Ahora van a `/mis-reservas` y `/mis-mascotas`, más «Mi perfil» |
+| No se sabía si había sesión, y «cerrar sesión» parecía no funcionar | El único indicio era un ícono genérico, idéntico a estar fuera | El header muestra **nombre e inicial**, que ya vienen en la sesión |
+
+**Y un quinto, de capacidad:** el calendario de disponibilidad abría cada día con cupo para **un solo
+perro**, fijo en el código, aunque el Pawwer hubiera declarado 4 en Tarifas. «Acepto hasta 4 perros»
+quedaba en papel y una reserva de 2 se caía por falta de cupo. Ahora usa el máximo de sus servicios
+activos y lo dice en pantalla. *(La pantalla sigue sin permitir un cupo distinto por día; eso es
+diseño pendiente, no bug.)*
+
+**Dos hallazgos que van a S4:**
+
+- 🔴 **`profile.id` no tiene llave foránea hacia `auth.users`.** Borrar un usuario **deja su perfil
+  vivo**, con nombre, teléfono y dirección. Es justo lo que rompe «eliminar mi cuenta», que la Ley
+  1581 exige y la política de privacidad ya promete. Se comprobó creando y borrando usuarios de
+  diagnóstico: el perfil sobrevive y sigue ocupando el celular único
+- **¿El celular debe ser único?** Hoy lo es y no se verifica con OTP. Dos personas de una familia
+  comparten número, y la segunda no puede registrarse nunca. Decisión de producto para S4
+
+**Método, para la próxima:** casi todo el diagnóstico se hizo contra la API de Supabase con las llaves
+de `.env.local` —listar usuarios, reproducir un registro que debía fallar, consultar como anónimo y
+como cliente autenticado con un usuario temporal—. Es mucho más rápido que pedir capturas, y no hace
+falta SQL Editor salvo para escribir en `profile`, donde `service_role` no tiene permisos.
 
 **Y la misma tarde quedó Resend, que era lo último de S0** — llevaba abierto desde el 7 de
 septiembre. Dominio `pawwi.co` verificado, con DKIM en la raíz y SPF y MX en `send.pawwi.co`, así que

@@ -421,9 +421,23 @@ riesgo técnico y la cuenta de Bold ya está lista.
    `send.pawwi.co` y DMARC en monitoreo; `RESEND_API_KEY` en Vercel y en local, y un correo de
    prueba desde `hola@pawwi.co` que **llegó a la bandeja principal**. Queda como extra conectar el
    SMTP de Supabase, para que los correos de confirmación de cuenta dejen de caer en spam
-5. **Probar de punta a punta con las llaves de pruebas**: reservar → aceptar → pagar con la tarjeta
-   de prueba `4111 1111 1111 1111` → confirmada → cancelar con más y con menos de 48 h
+5. 🔴 **Probar de punta a punta con las llaves de pruebas**: reservar → aceptar → pagar con la
+   tarjeta de prueba `4111 1111 1111 1111` → confirmada → cancelar con más y con menos de 48 h.
+   **Bloqueada por dos cosas ajenas al cobro**, las dos del 2026-09-15 y documentadas en
+   [`08`](./08-INFRAESTRUCTURA.md) § Problemas conocidos:
+   - **El marketplace se ve vacío en el navegador.** El backend está descartado: los 11 Pawwers
+     salen con la llave de producción, como anónimo y como cliente autenticado. El navegador no
+     hace **ninguna** petición a Supabase, así que la página no está ejecutando sus efectos
+   - **Google Maps sin facturación** (`BillingNotEnabledMapError`): sin eso no funciona el
+     autocompletado de dirección del paso 3
 6. **Una transacción real** con monto bajo — es el criterio de cierre
+
+> **La preparación de la prueba encontró cinco bugs del lado del cliente**, todos corregidos el
+> 2026-09-15: el registro que fallaba sin decir por qué (celular único), la pantalla de «revisa tu
+> correo» con la confirmación desactivada, los dos enlaces del menú que iban a 404, la sesión
+> invisible en el header, y el calendario que abría los días con cupo para un solo perro. Ninguno era
+> de S2: estaban ahí desde antes, y salieron porque **por primera vez alguien recorrió el producto
+> como cliente nuevo**.
 
 **Lo que pasa a S3**, porque necesita el `/admin` que se construye allí: la pantalla de liquidación,
 el archivo de dispersión del banco y la **cola de reembolsos pendientes**. Hasta entonces, cada
@@ -911,6 +925,15 @@ recorra tres pasos para estrellarse en el cuarto.
 - ⚖️ **Eliminar la cuenta.** El Pawwer tiene `deactivate_pawwer_account` con su modal de «escribe
   ELIMINAR». **El cliente no tiene nada.** Suprimir datos es un derecho de la Ley 1581, no una
   función opcional
+
+  > 🔴 **Y hay un obstáculo de esquema, encontrado el 2026-09-15:** `profile.id` **no tiene llave
+  > foránea hacia `auth.users`**, así que borrar el usuario de Auth **deja el perfil vivo** —con
+  > nombre, teléfono y dirección— y su celular sigue ocupando el índice único. Comprobado creando y
+  > borrando usuarios de diagnóstico. La migración de S4 tiene que borrar el perfil de verdad, no
+  > solo el usuario.
+- **¿El celular debe seguir siendo único?** `profile.phone` es UNIQUE y no se verifica con OTP. Dos
+  personas que comparten número —una familia— no pueden tener las dos cuenta, y hasta el 2026-09-15
+  la app respondía «Ocurrió un error» sin decir por qué. Decisión de producto de este sprint
 
   > **Y la Política de Privacidad publicada ya afirma que existe:** «puedes editar tu perfil y tus
   > mascotas desde la aplicación, y eliminar tu cuenta desde tu perfil». Para el cliente **las dos
