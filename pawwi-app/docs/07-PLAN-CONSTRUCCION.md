@@ -410,11 +410,14 @@ riesgo técnico y la cuenta de Bold ya está lista.
 
 **Lo que falta para cerrar S2:**
 
-1. **Correr la migración 68** y verificarla — ver la consulta al final del archivo
-2. **Separar las llaves de Bold por entorno en Vercel** — hoy las de producción llegan a los previews
-3. **Registrar el webhook en el panel de Bold**: Integraciones → Webhooks →
-   `https://app.pawwi.co/api/bold/webhook`
-4. **Configurar Resend** — sin él, el cliente no se entera de que el Pawwer aceptó
+1. ✅ **Migración 68 corrida y verificada** (2026-09-15): `4 · true · false · false · 6 · 0 · 0`, y
+   desplegada — el webhook responde 405 a un GET y 401 sin firma, comprobado contra producción
+2. ✅ **Llaves de Bold separadas por entorno en Vercel** (2026-09-15): las reales solo en Production,
+   las de pruebas en Preview y Development
+3. ✅ **Webhook registrado en Bold** (2026-09-15): `https://app.pawwi.co/api/bold/webhook`, activo,
+   con `SALE_APPROVED`, `SALE_REJECTED` y `VOID_APPROVED`. Sin «webhook de prueba»: en producción la
+   firma de pruebas se rechaza a propósito
+4. ⏳ **Configurar Resend** — sin él, el cliente no se entera de que el Pawwer aceptó
 5. **Probar de punta a punta con las llaves de pruebas**: reservar → aceptar → pagar con la tarjeta
    de prueba `4111 1111 1111 1111` → confirmada → cancelar con más y con menos de 48 h
 6. **Una transacción real** con monto bajo — es el criterio de cierre
