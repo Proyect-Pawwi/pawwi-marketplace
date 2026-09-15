@@ -71,8 +71,16 @@ export function boldExpiration(iso: string): string {
  * Valida el header `x-bold-signature`: HMAC-SHA256 del cuerpo CRUDO codificado
  * en Base64, con la llave secreta, en hexadecimal.
  *
- * En modo de pruebas Bold firma con una llave **vacía**. Se acepta solo fuera
- * de producción: allí, una firma con llave vacía la puede fabricar cualquiera.
+ * En modo de pruebas Bold firma con una llave **vacía**, y una firma con llave
+ * vacía la puede fabricar cualquiera. Por eso esa puerta está **cerrada por
+ * defecto en todas partes** y solo se abre con `BOLD_ALLOW_TEST_WEBHOOK=1`,
+ * nunca en producción.
+ *
+ * No basta con cerrarla «fuera de producción», que fue el primer intento: los
+ * previews de Vercel son públicos y hablan con la MISMA base que producción, y
+ * el identificador de orden se deriva del id de la reserva —que el cliente ve
+ * en su propia URL—. Con un preview vivo, el cliente podría firmarse un pago
+ * aprobado y confirmar su reserva sin pagar.
  */
 export function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
   if (!signature) return false;
@@ -80,7 +88,9 @@ export function verifyWebhookSignature(rawBody: string, signature: string | null
   const encoded = Buffer.from(rawBody, "utf8").toString("base64");
   const keys: string[] = [];
   if (process.env.BOLD_SECRET_KEY) keys.push(process.env.BOLD_SECRET_KEY);
-  if (process.env.VERCEL_ENV !== "production") keys.push("");
+  if (process.env.BOLD_ALLOW_TEST_WEBHOOK === "1" && process.env.VERCEL_ENV !== "production") {
+    keys.push("");
+  }
 
   return keys.some((key) =>
     safeEqual(createHmac("sha256", key).update(encoded).digest("hex"), signature),

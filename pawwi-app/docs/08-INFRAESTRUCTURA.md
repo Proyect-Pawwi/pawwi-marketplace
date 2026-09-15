@@ -43,6 +43,7 @@ impide que tú las veas.
 | `BOLD_SECRET_KEY` | 🔒 **Secret** | Firma el hash de integridad y valida webhooks |
 | `RESEND_API_KEY` | — | ⏳ pendiente. **Sin la variable**, `lib/email.ts` omite el envío y sigue; con un valor inválido, Resend lo rechaza y solo queda un error en el log. En `.env.local` hay hoy un **marcador de 9 caracteres**, no una llave: reemplazarlo al abrir la cuenta. **Desde S2 es ruta crítica**: es como se entera el cliente de que el Pawwer aceptó y tiene dos horas para pagar |
 | `PAWWI_ADMIN_EMAIL` | — | Opcional. Adónde llegan los avisos al equipo: reembolsos por hacer, visitas agendadas, preselecciones. **Sin ella, `hola@pawwi.co`** (antes el respaldo era `luisa@pawwi.co`) |
+| `BOLD_ALLOW_TEST_WEBHOOK` | — | Apagada salvo mientras se prueba el webhook en modo pruebas, donde Bold firma con **llave vacía**. En `1` acepta esa firma —que cualquiera puede fabricar—, y **en producción se ignora**. Se pone en el preview donde se prueba y se quita al terminar |
 
 **Regla:** en local (`.env.local`) van las llaves de **pruebas** de Bold; en Vercel las de
 **producción**. `.env.local` está en `.gitignore`; `.env.example` sí se versiona, sin valores.
@@ -200,8 +201,13 @@ Desde S2 (migración 68). El detalle del producto está en `06` § El dinero.
 - **En pruebas Bold no manda webhooks.** El pago se confirma por la consulta al volver del checkout
   (o con «Ya pagué»). Para probar el webhook: botón «Probar el webhook» en el comprobante, apuntando
   a una URL pública — un preview de Vercel, nunca `localhost`
-- **En pruebas la firma del webhook usa una llave vacía.** `lib/bold.ts` la acepta **solo fuera de
-  producción** (`VERCEL_ENV !== 'production'`)
+- **En pruebas la firma del webhook usa una llave vacía**, y esa firma la puede fabricar cualquiera.
+  `lib/bold.ts` la acepta **solo con `BOLD_ALLOW_TEST_WEBHOOK=1`**, y nunca en producción. Se
+  enciende en el preview donde se prueba y se apaga al terminar
+  > No basta con aceptarla «fuera de producción», que fue el primer intento (2026-09-11): los
+  > previews son públicos, hablan con **la misma base que producción**, y el `order_id` se deriva del
+  > id de la reserva, que el cliente ve en su propia URL. Un cliente podía firmarse un pago aprobado
+  > y confirmar su reserva sin pagar. Corregido el 2026-09-15
 - Las órdenes de prueba se borran a las 12 horas
 
 ### Lo que Bold no hace
@@ -583,6 +589,30 @@ vez.
 
 **Limpieza:** 18 carpetas vacías de iCloud (`nuevo 2`, `confirmada 2`…) que vinieron con el `mv` del
 9 de septiembre. Eran anteriores a la mudanza y no se están creando nuevas.
+
+### 2026-09-15 · La 68 en producción, y un hueco propio cerrado
+
+La migración 68 se corrió y se verificó: `4 · true · false · false · 6 · 0 · 0`. Ese último cero
+confirma además que **ninguna función `SECURITY DEFINER` quedó sin `search_path`** — la comprobación
+que los archivos no podían dar. Push, y el despliegue quedó vivo en 60 segundos; el webhook responde
+405 a un GET y **401 a un POST sin firma o con firma falsa**, comprobado contra producción.
+
+**Y se cerró un hueco que había dejado yo el 11.** La regla «acepta la firma con llave vacía fuera de
+producción» parecía inofensiva, y no lo era: los previews de Vercel son públicos, usan **la misma
+base que producción** y el `order_id` sale del id de la reserva, que el cliente ve en su URL. Con un
+preview vivo, un cliente podía firmarse un «pago aprobado» de su propia reserva y confirmarla sin
+pagar. Ahora esa puerta está **cerrada por defecto en todas partes** y solo la abre
+`BOLD_ALLOW_TEST_WEBHOOK=1`, que en producción se ignora. Verificado en los seis escenarios
+—local, preview y producción, con y sin bandera—.
+
+> **De dónde salió:** de revisar una captura del panel de Bold. No estaba buscando esto; estaba
+> confirmando cuáles eran las llaves de pruebas. Mirar el propio código con la pregunta «¿y si esto
+> lo hace el cliente?» encima sigue siendo la técnica que más encuentra.
+
+**Nota de higiene:** las llaves de **pruebas** también son secretos —firman cobros en nuestro propio
+sistema— y no van en un chat ni en una captura. No se rotaron: Bold advierte que generar llaves
+nuevas tumba las integraciones vivas hasta actualizarlas, y con la puerta ya cerrada el riesgo real
+es ninguno.
 
 ---
 

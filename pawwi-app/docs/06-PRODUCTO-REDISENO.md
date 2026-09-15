@@ -686,6 +686,7 @@ pero **la primera auditoría se equivocó dos veces**, y la corrección está ab
 | PII (cédula, cuenta de pago) | Escritura por RPC, lectura enmascarada |
 | Dirección del cliente | Exacta solo para el Pawwer que aceptó, **y solo cuando el cliente pagó**; a los demás, barrio y ~1 km (migs 65 y 68) |
 | El sello del pago | `record_booking_payment` es solo de `service_role`, y el estado que sella viene siempre de Bold —webhook firmado o consulta servidor a servidor—, nunca del navegador (mig 68) |
+| Webhook de pagos | Firma HMAC obligatoria. La firma de **modo pruebas** —llave vacía, que cualquiera fabrica— se rechaza salvo que se encienda a mano, y en producción siempre |
 | Moderación del chat | Server-side: bloquea correos y teléfonos |
 | Fotos del chat | Solo del bucket propio; MIME y tamaño validados |
 
