@@ -67,7 +67,7 @@ export async function registrarCliente(
 
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -81,7 +81,10 @@ export async function registrarCliente(
 
   if (error) return errorDeRegistro(error, "cliente");
 
-  redirect("/registro/confirmar");
+  // Si la confirmación por correo está desactivada en Supabase, `signUp` ya
+  // devuelve sesión: mandar a «revisa tu correo» sería dejar al cliente
+  // esperando un correo que nunca llega.
+  redirect(data.session ? next : "/registro/confirmar");
 }
 
 /**
@@ -338,7 +341,7 @@ export async function registrarPawwer(
   const { nombre, email, telefono, password } = validated.data;
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -355,5 +358,7 @@ export async function registrarPawwer(
 
   if (error) return errorDeRegistro(error, "pawwer");
 
-  redirect("/registro/confirmar");
+  // Con la confirmación desactivada entra directo al embudo, que es donde
+  // apuntaba el correo de confirmación.
+  redirect(data.session ? "/pawwer/bienvenida" : "/registro/confirmar");
 }

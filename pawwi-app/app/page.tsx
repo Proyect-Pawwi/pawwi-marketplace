@@ -162,6 +162,20 @@ function startOfDay(d: Date): Date {
   return c;
 }
 
+// El nombre viene en la sesión (user_metadata.full_name), así que mostrarlo no
+// cuesta una consulta extra.
+function nombreDe(user: SupabaseUser | null): string | null {
+  const meta = user?.user_metadata as { full_name?: unknown } | undefined;
+  const n = typeof meta?.full_name === "string" ? meta.full_name.trim() : "";
+  return n.length > 0 ? n : null;
+}
+function primerNombre(user: SupabaseUser | null): string | null {
+  return nombreDe(user)?.split(" ")[0] ?? null;
+}
+function inicial(user: SupabaseUser | null): string | null {
+  return nombreDe(user)?.[0]?.toUpperCase() ?? null;
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 export default function PawwiHome() {
   const [activeTab, setActiveTab] = useState("daycare");
@@ -533,19 +547,26 @@ export default function PawwiHome() {
             </Link>
             {user ? (
               <div className="relative" ref={userMenuRef}>
+                {/* El nombre hace visible que hay sesión: antes el único indicio
+                    era este ícono genérico, y no se distinguía de estar fuera. */}
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-3 bg-white px-3 py-2 rounded-full shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+                  className="flex items-center gap-2.5 bg-white pl-3 pr-2 py-1.5 rounded-full shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
                 >
-                  <Menu size={18} className="text-gray-500 ml-1" />
-                  <div className="bg-[#FF7031] text-white p-1.5 rounded-full">
-                    <User size={16} />
+                  <Menu size={18} className="text-gray-500" />
+                  <span className="hidden sm:block text-sm font-bold text-[#120A2B] max-w-[9rem] truncate">
+                    {primerNombre(user) ?? "Mi cuenta"}
+                  </span>
+                  <div className="bg-[#FF7031] text-white w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0">
+                    {inicial(user) ?? <User size={16} />}
                   </div>
                 </button>
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50">
-                    <Link href="/reservas" className="block px-4 py-2.5 text-sm font-medium text-[#120A2B] hover:bg-gray-50">Mis reservas</Link>
-                    <Link href="/mascotas" className="block px-4 py-2.5 text-sm font-medium text-[#120A2B] hover:bg-gray-50">Mis mascotas</Link>
+                    {/* Iban a /reservas y /mascotas, que no existen: 404 */}
+                    <Link href="/mis-reservas" className="block px-4 py-2.5 text-sm font-medium text-[#120A2B] hover:bg-gray-50">Mis reservas</Link>
+                    <Link href="/mis-mascotas" className="block px-4 py-2.5 text-sm font-medium text-[#120A2B] hover:bg-gray-50">Mis peludos</Link>
+                    <Link href="/mi-perfil" className="block px-4 py-2.5 text-sm font-medium text-[#120A2B] hover:bg-gray-50">Mi perfil</Link>
                     <div className="my-1 h-px bg-gray-100" />
                     <button onClick={handleSignOut} className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50">
                       Cerrar sesión
