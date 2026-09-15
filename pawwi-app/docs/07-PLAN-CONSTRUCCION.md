@@ -908,6 +908,13 @@ Va primero porque es lo único que hoy **parece un error de la app**.
   Falta la acción `actualizarMascota`
 - **Arreglar `?back=`**, que hoy manda a `/mis-mascotas` y **pierde la reserva a medias**
 
+> ⚠️ **Antes de escribir una línea de 4.3 y 4.5: faltan permisos de tabla.** `client`, `favourite` y
+> `dog_size` **no tienen ningún privilegio para `authenticated`** (comprobado el 2026-09-15). Es el
+> mismo defecto que tumbó `dog` en la migración 69 y que ocultó que reservar era imposible. La
+> primera migración de S4 tiene que concederlos, o el KYC y los favoritos fallarán con
+> `permission denied` en cuanto se cableen. Detalle en [`08`](./08-INFRAESTRUCTURA.md) §
+> «Los permisos de tabla son estado ambiental».
+
 **Entregables · 4.3 · Favoritos, de verdad**
 
 El corazón es solo `setFavorites`; la tabla `favourite` existe con RLS desde la migración 03 y está

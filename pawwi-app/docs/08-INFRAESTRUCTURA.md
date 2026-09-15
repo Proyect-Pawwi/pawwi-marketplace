@@ -134,6 +134,38 @@ group by p.proname having count(*) > 1;
 Y **verificar siempre el número de firmas**, no solo que la función nueva exista: `count(*) = 1`
 es la comprobación que atrapa esto; `¿existe la función?` no.
 
+### 🚨 Los permisos de tabla son estado ambiental, no declarado
+
+Es el mismo problema que `pg_proc`, en otra esquina: **las migraciones casi no declaran `GRANT`s.**
+Los privilegios de cada tabla son los que quedaron al crearla —fuera del repo— y solo dos
+migraciones los han tocado desde entonces: la 43 (SELECT sobre `booking` y `messages`), la 44
+(revocar escritura en ocho tablas) y la 69 (`dog` y `dog_booking`).
+
+Consecuencia: **un `grep` por el nombre de una tabla no dice qué permisos tiene.** `dog` no aparecía
+en un solo `GRANT` ni `REVOKE` de todo `supabase/` — y era porque nunca se los dio nadie, no porque
+estuvieran bien. La comprobación correcta:
+
+```sql
+SELECT table_name, string_agg(privilege_type, ', ' ORDER BY privilege_type) AS privilegios
+FROM   information_schema.role_table_grants
+WHERE  grantee = 'authenticated' AND table_schema = 'public'
+GROUP  BY table_name ORDER BY table_name;
+```
+
+**Estado al 2026-09-15**, comprobado tabla por tabla con la sesión real de un cliente:
+
+| Tabla | `authenticated` | |
+|---|---|---|
+| `booking`, `messages`, `notifications`, `reviews`, `availability`, `pawwer`, `service_X_Pawwer`, `booking_candidates`, `profile`, `service_type`, `presence` | lectura ✅ | |
+| `dog` | lectura y escritura ✅ | desde la **mig 69**; antes, nada |
+| `dog_booking` | lectura ✅ | desde la **mig 69**; la necesita la RLS de `dog` |
+| `booking_payment` | **sin permisos** ✅ | **a propósito** (mig 68): el sello del pago es solo de `service_role` |
+| `client`, `favourite`, `dog_size` | **sin permisos** ⚠️ | hoy ningún código las lee directo. **S4 va a chocar con esto** al construir el KYC y los favoritos |
+
+> **Nota menor:** `authenticated` conserva `TRUNCATE`, `REFERENCES` y `TRIGGER` en varias tablas, de
+> cuando se crearon. `TRUNCATE` **no pasa por la RLS**, pero PostgREST no lo expone y ninguna función
+> llamable lo ejecuta, así que hoy no es alcanzable. Anotado por si algún día se abre SQL directo.
+
 ### 🚨 La verdad de una función está en `pg_proc`, no en los archivos
 
 Que el nombre de una función aparezca en una migración no significa que esa migración la haya
@@ -758,6 +790,33 @@ sesión, no el navegador.**
 **Higiene:** se borró el usuario de diagnóstico `diag-rls-…@example.com`. Como `profile` no tiene
 llave foránea a `auth.users` —el obstáculo de S4—, **dejó un perfil huérfano más**, «Diag RLS2», que
 se suma a la limpieza pendiente por SQL Editor.
+
+### 2026-09-15 (noche, II) · Reservar era imposible, y nadie lo sabía · mig 69
+
+Con el marketplace ya visible, el siguiente paso de la prueba —crear una mascota— falló con «No se
+pudo guardar la mascota». El log del servidor dio la causa en una línea:
+`[Pawwi] crearMascota: permission denied for table dog`.
+
+**`authenticated` nunca tuvo privilegios sobre `dog`.** No se los revocó nadie: no existe un solo
+`GRANT` ni `REVOKE` sobre esa tabla en todo `supabase/`. La migración 44 lo daba por hecho en su
+comentario de cierre —«deberían quedar solo: dog, profile, exam_results»— pero **dar por sentado no
+es conceder**. El segundo error, sobre `dog_booking`, es calcado al que resolvió la **mig 43** con
+`booking`: la policy `dog_booking_visible` consulta esa tabla en un subquery, y evaluarla exige
+`SELECT` sobre ella.
+
+**Rompía los cinco accesos directos a `dog`** —`/mis-mascotas`, `/bienvenida`, crear, eliminar y el
+selector de perros del paso 3—, así que **no se podía reservar**. Por eso `perros_de_clientes = 0`:
+no era que nadie hubiera cargado un perro, es que no se podía. Llevaba ahí desde julio, invisible
+porque nunca se había recorrido el producto como cliente.
+
+**Lo corrige la migración 69**, verificada por REST con la sesión real del cliente: `SELECT` 200,
+`INSERT` 201, `DELETE` 204. De paso se auditaron las 17 tablas —el resultado, arriba, en «Los
+permisos de tabla son estado ambiental»— para no ir descubriéndolas de una en una.
+
+> **El patrón que se repitió tres veces hoy:** el síntoma que ve el usuario («no se guarda») no
+> nombra la causa, y el mensaje real estaba a una línea de distancia en el log. Con
+> `next dev` reenviando la consola del navegador, **mirar el log antes que el código** dejó de ser
+> una cuestión de suerte.
 
 ---
 
