@@ -221,18 +221,34 @@ construya la cola en `/admin`. Cada reembolso por hacer llega por correo a `PAWW
 
 ## 🌐 DNS · inventario de `pawwi.co`
 
-Respaldo de la zona al 2026-09-07. Indispensable si alguna vez hay que migrarla.
+Respaldo de la zona, verificado contra los nameservers el **2026-09-15**. Indispensable si alguna
+vez hay que migrarla.
 
 | Tipo | Nombre | Valor | Qué es |
 |---|---|---|---|
 | NS | `@` | `miki.ns.cloudflare.com` · `uriah.ns.cloudflare.com` | Autoritativos |
 | A | `@` | `104.21.66.53` · `172.67.201.77` | Landing (proxiada por Cloudflare) |
 | AAAA | `@` | `2606:4700:3034::6815:4235` · `2606:4700:3033::ac43:c94d` | Landing IPv6 |
-| MX | `@` | `mx1.titan.email` · `mx2.titan.email` (prio 1) | **Correo de negocio** |
-| TXT | `@` | `v=spf1 include:_spf.mlsend.com include:spf.titan.email ~all` | SPF |
+| MX | `@` | `mx1.titan.email` (prio **10**) · `mx2.titan.email` (prio **20**) | **Correo de negocio** |
+| TXT | `@` | `v=spf1 include:_spf.mlsend.com include:spf.titan.email ~all` | SPF de la raíz — **se edita, nunca se duplica** |
 | TXT | `@` | `mailerlite-domain-verification=a64edd…` | MailerLite |
+| TXT | `resend._domainkey` | `p=MIGfMA…IDAQAB` (218 car.) | **DKIM de Resend** |
+| TXT | `send` | `v=spf1 include:amazonses.com ~all` | SPF del remitente de Resend |
+| MX | `send` | `feedback-smtp.sa-east-1.amazonses.com` (prio 10) | Rebotes de Resend |
+| TXT | `_dmarc` | `v=DMARC1; p=none;` | DMARC en modo monitoreo |
 | A | `www`, `ftp`, `cpanel`, `webmail` | → Cloudflare | Proxiados |
 | A | `mail` | `162.241.60.182` | HostGator, **sin proxy** |
+| CNAME | `app` | `…vercel-dns-017.com` | La app, **sin proxy** (si no, Vercel no emite el certificado) |
+
+> **Las prioridades del MX de la raíz cambiaron el 2026-09-15**, de `1`/`1` a `10`/`20`. No lo
+> pedimos: lo hizo el asesor de HostGator al crear el MX de Resend. No rompe nada —son los valores
+> que Titan documenta, y dejan `mx1` como principal— pero queda anotado, porque es el correo de la
+> empresa y nadie lo pidió.
+>
+> **Resend va en un subdominio, y eso es lo importante:** su SPF y su MX viven en `send.pawwi.co`, así
+> que **el SPF de la raíz no se tocó**. Es lo que evita el accidente de duplicarlo. Del ticket salió
+> mal una vez —el MX se creó como TXT, porque «cuatro registros TXT» fue lo que leyó el asesor—, así
+> que al pedir un MX conviene escribir el tipo en mayúsculas y aparte.
 
 ### 🚨 Al agregar Resend: NO crear un SPF nuevo
 
