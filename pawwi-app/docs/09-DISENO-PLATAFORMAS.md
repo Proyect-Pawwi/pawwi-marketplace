@@ -713,7 +713,7 @@ El admin **no aparece** en la columna mientras la reserva está viva. Solo entra
 | Evento | Cliente | Pawwer | Admin | Sprint |
 |---|---|---|---|---|
 | Nueva solicitud directa | — | 🔔 | — | ✅ ya |
-| El Pawwer aceptó · pagar | 🔔 ✉️ | — | — | ✅ **S2** · la fila de la campana y el correo ya salen; falta la campana (S5) y Resend |
+| El Pawwer aceptó · pagar | 🔔 ✉️ | — | — | ✅ **S2** · el correo ya sale y la fila de la campana se escribe; falta la campana del cliente (S5) |
 | Venció el plazo de pago | 🔔 | 🔔 | — | ✅ S2 · sin campana del cliente hasta S5 |
 | Reembolso por hacer | — | — | ✉️ | ✅ S2 · a `hola@pawwi.co`, hasta la cola de S3 |
 | Salió a la bolsa | 🔔 ✉️ | — | — | S5 |
@@ -731,8 +731,9 @@ El admin **no aparece** en la columna mientras la reserva está viva. Solo entra
 | **Aprobado · ya estás en línea** | — | ✉️ | — | 🆕 **S3** |
 | Pago del viernes | — | 🔔 ✉️ | — | S3 |
 
-🔔 campana en la app · ✉️ correo por Resend — que **sigue sin configurar**: sin la clave,
-`lib/email.ts` omite el envío y sigue.
+🔔 campana en la app · ✉️ correo por Resend, **funcionando desde el 2026-09-15** con el remitente
+`hola@pawwi.co`. Si algún día falta la clave, `lib/email.ts` omite el envío y sigue, sin tumbar la
+acción que lo manda.
 
 ---
 

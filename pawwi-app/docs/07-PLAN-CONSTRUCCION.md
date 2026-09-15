@@ -30,7 +30,7 @@ Soft launch a los 22 clientes históricos.
 
 | Sprint | Fechas | Estado | Lo que decide |
 |---|---|---|---|
-| **S0** · Rescate | sep 7–13 | ✅ **cerrado**, salvo Resend | El código está a salvo y en internet |
+| **S0** · Rescate | sep 7–13 | ✅ **cerrado por completo** — Resend, el último hilo, quedó el 15 de septiembre | El código está a salvo y en internet |
 | **S1** · Rediseño en código | sep 14–27 | ✅ **cerrado y verificado** — terminó el 9, dos semanas antes | El código dice lo que el producto promete |
 | 🔒 **Hotfix** de seguridad | sep 10 | ✅ **en producción** | El Pawwer no puede auto-certificarse |
 | **S2** · El dinero | ~~sep 28~~ **sep 11** – 25 | 🔨 **en curso** — código escrito, falta correr la mig 68 y probar | Pawwi puede cobrar |
@@ -122,7 +122,7 @@ disponibilidad es un plan que se incumple en la semana tres.
 | Dependencia | Por qué bloquea | Latencia |
 |---|---|---|
 | Cuenta de comercio Bold | Sin cuenta aprobada no hay cobro real | ✅ **Ya resuelta** |
-| Verificación de dominio en Resend | Registros DNS en `pawwi.co` + propagación | 1–3 días |
+| Verificación de dominio en Resend | Registros DNS en `pawwi.co` + propagación | ✅ **Resuelta el 2026-09-15**, en una tarde |
 | Deploy con dominio y HTTPS | **Los webhooks de Bold exigen una URL pública** | 1–2 días |
 
 > ### La inversión de secuencia
@@ -237,7 +237,7 @@ las credenciales de Bold están en producción.
 | Fuga de la landing | ✅ tapada con formulario de dos lados |
 | **Retirar PawwiProtect** *(era de S1)* | ✅ adelantado — 10 lugares |
 | Dominio `app.pawwi.co` | ✅ **resuelto 2026-09-09** — HTTPS con certificado válido |
-| Resend (cuenta, API key, DNS) | ⏳ hilo paralelo |
+| Resend (cuenta, API key, DNS) | ✅ **2026-09-15** — dominio verificado y primer correo entregado |
 | Formato de dispersión masiva del banco | ⏳ pendiente, se necesita en S2 |
 | Activar Cuenta Digital Bold | ❓ por confirmar |
 
@@ -417,7 +417,10 @@ riesgo técnico y la cuenta de Bold ya está lista.
 3. ✅ **Webhook registrado en Bold** (2026-09-15): `https://app.pawwi.co/api/bold/webhook`, activo,
    con `SALE_APPROVED`, `SALE_REJECTED` y `VOID_APPROVED`. Sin «webhook de prueba»: en producción la
    firma de pruebas se rechaza a propósito
-4. ⏳ **Configurar Resend** — sin él, el cliente no se entera de que el Pawwer aceptó
+4. ✅ **Resend configurado** (2026-09-15): dominio `pawwi.co` verificado con DKIM, SPF en
+   `send.pawwi.co` y DMARC en monitoreo; `RESEND_API_KEY` en Vercel y en local, y un correo de
+   prueba desde `hola@pawwi.co` que **llegó a la bandeja principal**. Queda como extra conectar el
+   SMTP de Supabase, para que los correos de confirmación de cuenta dejen de caer en spam
 5. **Probar de punta a punta con las llaves de pruebas**: reservar → aceptar → pagar con la tarjeta
    de prueba `4111 1111 1111 1111` → confirmada → cancelar con más y con menos de 48 h
 6. **Una transacción real** con monto bajo — es el criterio de cierre

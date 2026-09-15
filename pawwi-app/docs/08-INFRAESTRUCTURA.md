@@ -18,7 +18,7 @@
 | **Cloudflare** | DNS autoritativo | `miki.ns.cloudflare.com` · `uriah.ns.cloudflare.com` |
 | **Titan Email** | Correo de negocio | `@pawwi.co` · MX `mx1/mx2.titan.email` |
 | **MailerLite** | Marketing por correo | Aparece en el SPF |
-| **Resend** | Correo transaccional | ⏳ **sin configurar** |
+| **Resend** | Correo transaccional | ✅ dominio `pawwi.co` verificado (2026-09-15) · región **São Paulo (sa-east-1)**, no se puede cambiar sin recrear el dominio · remitente `hola@pawwi.co` · tres API keys por sitio de uso: `vercel-produccion`, `local-dev`, `supabase-smtp`, todas con *Sending access* y restringidas a `pawwi.co` |
 
 **URL de producción:** `https://app.pawwi.co` ✅ HTTPS con certificado Let's Encrypt (renovación automática)
 **URL alterna:** `https://pawwi-marketplace-zeta.vercel.app` (sigue activa)
@@ -41,7 +41,7 @@ impide que tú las veas.
 | `SUPABASE_SERVICE_ROLE_KEY` | 🔒 **Secret** | Salta toda la RLS — la más peligrosa |
 | `PAWWI_WEBHOOK_SECRET` | 🔒 **Secret** | Sin ella, `/api/pawwer/notify-approved` responde 503 |
 | `BOLD_SECRET_KEY` | 🔒 **Secret** | Firma el hash de integridad y valida webhooks |
-| `RESEND_API_KEY` | — | ⏳ pendiente. **Sin la variable**, `lib/email.ts` omite el envío y sigue; con un valor inválido, Resend lo rechaza y solo queda un error en el log. En `.env.local` hay hoy un **marcador de 9 caracteres**, no una llave: reemplazarlo al abrir la cuenta. **Desde S2 es ruta crítica**: es como se entera el cliente de que el Pawwer aceptó y tiene dos horas para pagar |
+| `RESEND_API_KEY` | 🔒 **Secret** | ✅ desde el 2026-09-15, en Production y Preview (y en `.env.local` con su propia llave). **Sin la variable**, `lib/email.ts` omite el envío y sigue; con un valor inválido, Resend lo rechaza y solo queda un error en el log — nunca tumba la acción que manda el correo. **Es ruta crítica de S2**: así se entera el cliente de que el Pawwer aceptó y tiene dos horas para pagar |
 | `PAWWI_ADMIN_EMAIL` | — | Opcional. Adónde llegan los avisos al equipo: reembolsos por hacer, visitas agendadas, preselecciones. **Sin ella, `hola@pawwi.co`** (antes el respaldo era `luisa@pawwi.co`) |
 | `BOLD_ALLOW_TEST_WEBHOOK` | — | Apagada salvo mientras se prueba el webhook en modo pruebas, donde Bold firma con **llave vacía**. En `1` acepta esa firma —que cualquiera puede fabricar—, y **en producción se ignora**. Se pone en el preview donde se prueba y se quita al terminar |
 
@@ -190,7 +190,7 @@ Desde S2 (migración 68). El detalle del producto está en `06` § El dinero.
    `https://app.pawwi.co/api/bold/webhook`. Admite hasta 5 URLs; solo HTTPS
 2. **Separar las llaves por entorno en Vercel**: Production con las de producción, Preview y
    Development con las de pruebas. Hoy las de producción llegan a los previews
-3. **Resend**, para que el cliente se entere de que el Pawwer aceptó
+3. ✅ **Resend**, para que el cliente se entere de que el Pawwer aceptó — hecho el 2026-09-15
 
 ### Probar sin cobrar
 
@@ -250,19 +250,17 @@ vez hay que migrarla.
 > mal una vez —el MX se creó como TXT, porque «cuatro registros TXT» fue lo que leyó el asesor—, así
 > que al pedir un MX conviene escribir el tipo en mayúsculas y aparte.
 
-### 🚨 Al agregar Resend: NO crear un SPF nuevo
+### 🚨 El SPF de la raíz: nunca dos
 
-Ya existe un registro SPF con Titan y MailerLite. **El estándar permite un solo SPF por dominio** —
-dos registros no se suman, **rompen la autenticación de todo el correo** y `@pawwi.co` empieza a
-rebotar o caer en spam.
+**El estándar permite un solo registro SPF por dominio.** Dos no se suman: rompen la autenticación
+de todo el correo y `@pawwi.co` empieza a rebotar o a caer en spam. El de la raíz tiene a Titan y a
+MailerLite, y si algún proveedor nuevo pide SPF en `pawwi.co`, se **edita** esa línea, nunca se
+duplica.
 
-Hay que **editar el existente** y agregar el `include` de Resend dentro de la misma línea:
-
-```
-v=spf1 include:_spf.mlsend.com include:spf.titan.email include:<el-de-resend> ~all
-```
-
-El DKIM y el MX de Resend sí se agregan como registros nuevos, sin problema.
+> **Con Resend no hizo falta** (2026-09-15): su SPF y su MX van en el subdominio `send.pawwi.co`, y
+> solo el DKIM en la raíz. La raíz no se tocó. Era el riesgo que traía este apartado desde el
+> principio, y el diseño de Resend lo evita solo — conviene preguntarle lo mismo a cualquier
+> proveedor futuro antes de abrir un ticket.
 
 ---
 
@@ -629,6 +627,20 @@ pagar. Ahora esa puerta está **cerrada por defecto en todas partes** y solo la 
 sistema— y no van en un chat ni en una captura. No se rotaron: Bold advierte que generar llaves
 nuevas tumba las integraciones vivas hasta actualizarlas, y con la puerta ya cerrada el riesgo real
 es ninguno.
+
+**Y la misma tarde quedó Resend, que era lo último de S0** — llevaba abierto desde el 7 de
+septiembre. Dominio `pawwi.co` verificado, con DKIM en la raíz y SPF y MX en `send.pawwi.co`, así que
+**el SPF de la raíz nunca se tocó**: el riesgo que más nos preocupaba de este paso lo evita el propio
+diseño de Resend. Un correo de prueba desde `hola@pawwi.co` llegó a la bandeja principal, no a spam.
+
+Del ticket con HostGator salen dos lecciones, las dos operativas:
+
+- **El asesor creó los cuatro registros como TXT**, incluido el que tenía que ser MX — «cuatro
+  registros TXT» fue lo que leyó. Al pedir un MX conviene escribir el tipo aparte y en mayúsculas,
+  y decir explícitamente qué registro hay que **eliminar** si quedó mal.
+- **Cambió sin avisar las prioridades del MX de la raíz**, de `1`/`1` a `10`/`20`. No rompió nada
+  —son los valores que Titan documenta— pero es el correo de la empresa. Por eso el inventario DNS
+  de este documento se verifica contra los nameservers, no contra lo que dice el ticket.
 
 ---
 

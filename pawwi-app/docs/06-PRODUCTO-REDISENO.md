@@ -613,7 +613,7 @@ cliente es bajo** — es el siguiente movimiento estratégico.
 | Validación | zod 4 | Formularios a mano, sin react-hook-form |
 | Gráficas | recharts 3 | Carga diferida |
 | Pagos | **Bold** | Cuenta aprobada, sin integrar. Sin dispersión a terceros |
-| Email | Resend vía API directa | Cableado en `lib/email.ts`, sin clave |
+| Email | **Resend** vía API directa | `lib/email.ts`. Dominio `pawwi.co` verificado el 2026-09-15; remitente `hola@pawwi.co` |
 | Deploy | **Vercel** | Producción en **`https://app.pawwi.co`**, HTTPS con Let's Encrypt. Cada push a `main` despliega. Detalle en [`08`](./08-INFRAESTRUCTURA.md) |
 
 ### Identidad visual
@@ -742,7 +742,7 @@ cuesta la comisión del 20%, la visibilidad y el flujo de clientes nuevos.
 | Portal del cliente (favoritos, mensajes, perfil) | 🔨 Esqueleto |
 | Deploy | ✅ **`app.pawwi.co`** |
 | Pagos | 🔨 **S2 en curso** — cobro, webhook y checkout escritos (mig 68, `lib/bold.ts`); falta correr la migración y probar |
-| Correos | ⏳ Resend sin configurar |
+| Correos | ✅ **Resend funcionando** desde el 2026-09-15 · los avisos que faltan son de S5 |
 | Portal admin | 🆕 **no existe** y **bloquea el lanzamiento** · S3 |
 | Referidos, reporte diario | ⏳ S6 · S5 |
 
