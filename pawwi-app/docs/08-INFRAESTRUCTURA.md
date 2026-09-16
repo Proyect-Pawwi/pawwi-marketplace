@@ -858,6 +858,58 @@ log es el primer sitio donde mirar, no el último.
   error. Ahora cada frase dice a qué se refiere, y **la ocupación se ve ya en el calendario del paso
   2** —un punto por peludo reservado—, que es cuando sirve para decidir.
 
+### 2026-09-15 (noche, IV) · Dos pantallas rediseñadas, y una lección de diseño
+
+Con el cobro ya funcionando, Nicolás recorrió el producto como cliente y encontró tres cosas más —
+todas de interfaz, todas por usarlo.
+
+**El calendario del perfil público repetía el bug del wizard.** La misma lógica de `week_pattern`
+estaba **duplicada en dos archivos**, así que arreglar el wizard no arregló el perfil. Cuando una
+regla vive en dos sitios, se corrige dos veces o no se corrige.
+
+**La galería tenía un defecto geométrico, no de gusto.** Era `grid-cols-4` con la principal a
+`col-span-2`: la grande quedaba a `W/2 × H` y las pequeñas a `W/2 × H/2`, o sea **el doble de
+apaisadas**. Cualquier foto con el sujeto centrado se cortaba. Con `grid-cols-3` y la principal a
+2×2, **las tres piezas tienen exactamente la misma proporción** — es geometría, no ajuste a ojo.
+Además `object-top` recortaba por arriba (bien para un interior, fatal para un perro), y el
+componente leía `images[0..2]` a pelo: con menos de tres dejaba cuadros grises y con más escondía
+el resto.
+
+> **La tabla `Pawwer_images` está vacía**: las fotos que se ven son tres de relleno de Unsplash sin
+> relación entre sí. Las reales llegan en **S3**, con el set de cinco tomas de la visita.
+
+**Y la lección que más vale guardar: «se ve apretado» casi nunca es falta de padding.**
+
+En el perfil eran dos cosas distintas:
+
+1. **Repetición.** El bloque de servicios estaba marcado en el código como `{/* Services — mobile */}`
+   pero **le faltaba `lg:hidden`**, así que en desktop se veían los servicios dos veces, la píldora
+   de capacidad dos veces y el precio tres. Con la misma información en dos columnas, la vista no
+   sabe dónde posarse — y eso se percibe como «no hay orden», no como «hay repetición». Ahora cada
+   columna tiene un trabajo: **izquierda = confianza, derecha = transacción.**
+2. **Falta de escala.** Convivían `mb-2`/`mb-3` en títulos, `p-3`/`p-3.5`/`p-4` en tarjetas
+   equivalentes y cuatro huecos distintos. Cada valor era razonable; lo que cansa es que **ninguno
+   repite el mismo ritmo**. Se unificó y quedó anotado en el design system.
+
+> Y tres márgenes distintos en la misma pantalla —nav `px-4`, barra inferior `px-5`, contenido
+> `px-6`— hacen que nada parezca alineado aunque cada pieza esté bien puesta.
+
+### ⏳ Pendientes al cerrar el 2026-09-15
+
+| Qué | Dónde | Nota |
+|---|---|---|
+| **Transacción real** de monto bajo | producción | **Criterio de cierre de S2.** Temprano y con **crédito**: Bold solo anula el mismo día antes de las 9 p. m. |
+| Cancelar con ≥48 h y con <48 h | localhost | Escenario montado — ver `07` § «Lo que queda por probar» |
+| Vencimiento del plazo | solo | `7c1ad024` vence a las **20:09**; comprobar `status 5`, `cancelled_by='system'` y el cupo devuelto del 30 de septiembre |
+| **Migración 70** | SQL Editor | Quita la FK duplicada. El código ya funciona sin ella; evita que el problema vuelva en S3/S4 |
+| Perfiles huérfanos | SQL Editor | Teléfonos `3009998877`, `3007776655`, `3007776600` y el de «Diag RLS2» |
+| Facturación de Google Cloud | Google Cloud | Mapa + autocompletado de dirección. **No bloquea** la prueba |
+| `useMapsLibrary` fuera de su proveedor | código | Problema 3b · el buscador de ubicación de la home |
+| Error de hidratación en la pantalla de pago | código | Visto en el log; probablemente la cuenta regresiva, que servidor y navegador calculan distinto |
+| Bajar el DayCare de prueba ($500.000) | app | Cosmético, para demos |
+| Formato de dispersión del banco | externo | Se necesita en **S3** |
+| Cuenta Digital Bold | externo | Por confirmar |
+
 ---
 
 **Pawwi S.A.S.** · NIT 901.937.952-7 · Bogotá, Colombia

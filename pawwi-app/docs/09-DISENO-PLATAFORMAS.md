@@ -236,6 +236,17 @@ quién le deja su perro, así que todo lo que aparece aquí tiene que sostener l
 **No hay chat antes de reservar.** Las FAQ y el Pasaporte cubren la duda previa; abrir el chat
 antes es el camino más corto a que cierren el trato por fuera de Pawwi.
 
+**Cada columna tiene un trabajo** (rediseño del 2026-09-15). En escritorio, la **izquierda es
+confianza** —quién es, qué está verificado, su hogar, disponibilidad, FAQ, reseñas— y la **derecha,
+fija, es la transacción**: precio, servicio, fecha, reservar. Hasta ese día el selector de servicios,
+la píldora de capacidad y el precio aparecían en **las dos**, y con la misma información repetida la
+vista no encuentra jerarquía. En móvil no hay dos columnas: el configurador va en el flujo y el
+precio en la barra inferior fija.
+
+**La galería usa `grid-cols-3` con la foto principal a 2×2**, y no `grid-cols-4`: así las tres piezas
+tienen **idéntica proporción** y ninguna foto se deforma. Se adapta a 1, 2 o 3+ fotos, con «+N» sobre
+la última. Las imágenes van `object-center` — `object-top` decapitaba a los perros.
+
 ### Reservar · `/booking/nuevo` · pasos 1–4 ✅ · S4
 
 | Paso | Qué pide | Qué valida |

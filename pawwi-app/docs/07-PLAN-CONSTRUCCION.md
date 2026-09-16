@@ -33,7 +33,7 @@ Soft launch a los 22 clientes históricos.
 | **S0** · Rescate | sep 7–13 | ✅ **cerrado por completo** — Resend, el último hilo, quedó el 15 de septiembre | El código está a salvo y en internet |
 | **S1** · Rediseño en código | sep 14–27 | ✅ **cerrado y verificado** — terminó el 9, dos semanas antes | El código dice lo que el producto promete |
 | 🔒 **Hotfix** de seguridad | sep 10 | ✅ **en producción** | El Pawwer no puede auto-certificarse |
-| **S2** · El dinero | ~~sep 28~~ **sep 11** – 25 | 🔨 **en curso** — código escrito, falta correr la mig 68 y probar | Pawwi puede cobrar |
+| **S2** · El dinero | ~~sep 28~~ **sep 11** – 25 | 🟢 **cobra de verdad** desde el 15 de septiembre — falta cancelar, vencer y una transacción real | Pawwi puede cobrar |
 | **S3** · El operador | oct 12 – nov 1 | 🆕 3 semanas · **el sprint que faltaba** | Un Pawwer real puede llegar al marketplace |
 | **S4** · Puerta del cliente | nov 2–15 | ⏳ **~11 días en 8** — ver el aviso de tamaño | El cliente deja de ver errores donde debería ver nombres |
 | **S5** · Cerrar el círculo | nov 16–29 | ⏳ backend listo, frontend cero | El cliente deja de estar ciego |
@@ -57,7 +57,19 @@ recordar lo que se planeó.
 1. 🔴 **El embudo del Pawwer no cierra.** `visita_pendiente → approved` no existe · **S3**
 2. 🔴 **La visita no tiene herramienta** y su protocolo **no se puede ejecutar** hoy · **S3**
 3. 🔴 **El Pawwer desaparece** de la tarjeta del cliente y parece un error de la app · **S4**
-4. 🟠 **Pawwi no puede cobrar.** El código ya está escrito; falta correr la mig 68 y probar · **S2, en curso**
+4. ✅ ~~**Pawwi no puede cobrar.**~~ **Resuelto el 2026-09-15**: se cobró de punta a punta con la
+   tarjeta de pruebas y el sello quedó en la base. Queda cerrar S2 con las cancelaciones, el
+   vencimiento y una transacción real · **S2**
+
+> ### ⚠️ El quinto bloqueador, que no estaba en ninguna lista · 2026-09-15
+> **Reservar era imposible desde julio.** `authenticated` nunca tuvo permisos sobre `dog` ni
+> `dog_booking`, así que el cliente no podía crear una mascota ni verla en el paso 3. No lo detectó
+> ninguna auditoría porque **se auditó el código, no el recorrido**: las consultas estaban bien
+> escritas y los permisos son estado ambiental que no vive en las migraciones.
+>
+> Salió —con otros seis— la primera vez que una persona usó el producto como cliente nuevo. **La
+> lección no es sobre permisos: es que auditar código no sustituye a usar el producto.** Es el
+> argumento más fuerte a favor de las dos semanas de QA de S7, y de no recortarlas.
 
 ### Cinco promesas vivas que el sistema no cumple
 
@@ -439,19 +451,50 @@ riesgo técnico y la cuenta de Bold ya está lista.
    - **La prueba va en `localhost:3000`, no en `app.pawwi.co`**: la tarjeta de prueba solo funciona
      con las llaves de pruebas, que viven en `.env.local`. Producción tiene las reales. Ojo: local
      habla con **la misma base que producción**, así que la reserva de prueba es un dato real
-6. **Una transacción real** con monto bajo — es el criterio de cierre
+6. **Una transacción real** con monto bajo — **es el criterio de cierre y es lo único que falta de
+   verdad**. Va en producción, con tarjeta propia. Hazla **temprano y con tarjeta de crédito**: Bold
+   solo anula crédito **el mismo día antes de las 9 p. m.**; lo demás es una transferencia a mano
 
-> **La preparación de la prueba encontró siete bugs del lado del cliente**, todos del 2026-09-15 y
-> ninguno de S2: el registro que fallaba sin decir por qué (celular único), la pantalla de «revisa tu
-> correo» con la confirmación desactivada, los dos enlaces del menú que iban a 404, la sesión
-> invisible en el header, el calendario que abría los días con cupo para un solo perro, **el candado
-> de sesión que congelaba todas las consultas al iniciar sesión** —el que vaciaba el marketplace— y
-> **`useMapsLibrary` fuera de su proveedor**, que tiene muerto el buscador de ubicación de la home
-> (pendiente, problema 3b de [`08`](./08-INFRAESTRUCTURA.md)).
->
-> Salieron porque **por primera vez alguien recorrió el producto como cliente nuevo**. Los dos
-> últimos, además, solo aparecen **con sesión iniciada** — que es justo el estado en el que ninguna
-> prueba anterior había mirado la home.
+### Lo que queda por probar, con el escenario ya montado
+
+Las tres reservas de prueba quedaron, por casualidad, en los tres estados que faltan:
+
+| Reserva | Estado | Prueba |
+|---|---|---|
+| `ff39ac44` · Night $70.000, empieza en +169 h | pagada | Cancelar con **≥48 h** → reembolso **100%**. `get_cancellation_terms` ya devuelve `refund 70000 · late false` |
+| `6671f283` · Express $10.000, empieza en 15 h | pagada | Cancelar con **<48 h** → **sin reembolso**, `late_cancel` y `pawwer_earns` en `true`. Ya devuelve `refund 0 · late true` |
+| `7c1ad024` · Express $50.000, **sin pagar** | plazo vencido a las 19:49 | **Vencimiento**: el cron debe pasarla a `5` con `cancelled_by='system'` y **devolver el cupo** a las **20:09** (20 min de gracia para PSE). Se comprueba mirando `slots_remaining` del 30 de septiembre |
+
+> **Los reembolsos se anotan, no se ejecutan.** Bold no tiene API de reembolsos: lo que hay que
+> verificar es que `booking_payment.refund_amount` quede escrito y que llegue el correo a
+> `hola@pawwi.co`. La transferencia es a mano hasta la cola de S3.
+
+### Lo que costó llegar hasta aquí · 2026-09-15
+
+**Nueve defectos, y ninguno era del cobro.** Todos estaban *entre el cliente y el cobro*, y varios
+llevaban ahí desde julio. Detalle y método en [`08`](./08-INFRAESTRUCTURA.md), bitácora de esa noche.
+
+| Defecto | Qué rompía |
+|---|---|
+| `authenticated` **sin permisos** sobre `dog` y `dog_booking` | 🔴 **Reservar era imposible** · mig 69 |
+| **FK duplicada** `service_X_Pawwer → service_type` | El paso 1 del wizard rebotaba al home · mig 70 |
+| **Cuatro pistas de FK inventadas** (`*_fkey` en vez de `fk_*`) | Detalle roto · **`/mis-reservas` vacía** · descripción genérica en el checkout |
+| `booking.notes` no existe (la columna es `comments`) | Tumbaba la consulta del detalle |
+| **Candado de sesión de `supabase-js`** en `onAuthStateChange` | **Congelaba TODAS las consultas** al iniciar sesión — el marketplace vacío |
+| `redirection-url` en `http://` | **BTN-001** de Bold, sin decir qué atributo fallaba |
+| **Express no exigía fecha** y no mostraba calendario | Reservaba **hoy** en silencio; la etiqueta decía «hoy» siempre |
+| `week_pattern` filtrando **además** de `availability` | **Media agenda invisible**: 8 de 16 días abiertos |
+| `useMapsLibrary` fuera de su `APIProvider` | El buscador de ubicación de la home **nunca ha geocodificado** · 🟠 **abierto** |
+
+**Cinco compartían la misma forma:** una consulta que falla en silencio y una pantalla que reacciona
+rindiéndose —un `redirect` mudo o un estado vacío que miente—. En cuanto cada guard **registró el
+error antes de rendirse**, el diagnóstico pasó de media hora de sondeos a diez segundos de leer el
+log. Es la corrección más barata y la que más tiempo ahorró.
+
+> **Todos salieron de USAR el producto, no de leerlo.** Las auditorías de septiembre revisaron el
+> código a fondo y no encontraron ninguno, porque las consultas estaban bien escritas y los permisos
+> son estado ambiental que no vive en las migraciones. **Auditar código no sustituye a recorrer el
+> producto**, y es el argumento más fuerte para no recortar el QA de S7.
 
 **Lo que pasa a S3**, porque necesita el `/admin` que se construye allí: la pantalla de liquidación,
 el archivo de dispersión del banco y la **cola de reembolsos pendientes**. Hasta entonces, cada

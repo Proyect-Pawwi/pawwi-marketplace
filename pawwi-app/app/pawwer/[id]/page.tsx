@@ -241,15 +241,18 @@ function CalendarWidget({
     if (!isTravel || !rangeStart || !rangeEnd) return false;
     return d > rangeStart && d < rangeEnd;
   }
+  // Con agenda cargada manda la agenda: `availability` es lo que el Pawwer abrió
+  // de verdad y lo único que valida `create_booking`. `week_pattern` es solo la
+  // plantilla con la que esa agenda se genera (mig 08); filtrar por los dos
+  // escondía días abiertos a propósito — media agenda, en la cuenta de pruebas.
+  // Mismo criterio que el paso 2 del wizard.
+  const usaPatron = availableDates.length === 0;
+
   function isUnavailable(d: Date) {
     if (d < today) return true;
-    if (blockedDaysOfWeek.includes(d.getDay())) return true;
-    // Si hay datos de disponibilidad cargados, solo permitir fechas con slots
-    if (availableDates.length > 0) {
-      const iso = d.toISOString().split("T")[0]!;
-      return !availableDates.includes(iso);
-    }
-    return false;
+    if (usaPatron) return blockedDaysOfWeek.includes(d.getDay());
+    const iso = d.toISOString().split("T")[0]!;
+    return !availableDates.includes(iso);
   }
 
   return (
@@ -274,7 +277,7 @@ function CalendarWidget({
       <div className="grid grid-cols-7 mb-1">
         {DIAS_SEMANA.map((d, i) => (
           <div key={i} className={`text-center text-[10px] font-extrabold py-1 ${
-            blockedDaysOfWeek.includes(i === 0 ? 0 : i) ? "text-gray-300" : "text-gray-400"
+            usaPatron && blockedDaysOfWeek.includes(i === 0 ? 0 : i) ? "text-gray-300" : "text-gray-400"
           }`}>{d}</div>
         ))}
       </div>
@@ -303,8 +306,8 @@ function CalendarWidget({
         })}
       </div>
 
-      {/* Legend */}
-      {blockedDaysOfWeek.length > 0 && (
+      {/* Legend — solo si de verdad hay días tachados que explicar */}
+      {(usaPatron ? blockedDaysOfWeek.length > 0 : availableDates.length > 0) && (
         <p className="text-[10px] text-gray-400 text-center mt-2">
           Días tachados = no disponible para este Pawwer
         </p>
@@ -320,22 +323,41 @@ function PhotoGallery({ images, level }: { images: string[]; level: Level }) {
   const LvlIcon = lvl.icon;
   return (
     <>
-      {/* Desktop: asymmetric grid — original design ratios */}
-      <div className="hidden md:grid grid-cols-4 grid-rows-2 gap-3 h-[480px] rounded-[32px] overflow-hidden relative">
-        {/* Main image — full height, left half */}
-        <div className="col-span-2 row-span-2 relative group cursor-pointer bg-gray-200">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={images[0]} alt="" className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" />
-        </div>
-        {/* Top-right */}
-        <div className="col-span-2 row-span-1 relative group cursor-pointer bg-gray-200">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={images[1]} alt="" className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" />
-        </div>
-        {/* Bottom-right */}
-        <div className="col-span-2 row-span-1 relative group cursor-pointer bg-gray-200">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={images[2]} alt="" className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" />
+      {/* Desktop.
+          Era `grid-cols-4` con la principal a `col-span-2`: la grande quedaba a
+          W/2 × H y las dos pequeñas a W/2 × H/2, o sea el DOBLE de apaisadas.
+          Cualquier foto con el sujeto centrado se cortaba. Con `grid-cols-3` y la
+          principal a 2×2, las tres piezas tienen EXACTAMENTE la misma proporción
+          —(2/3 W)/H— y encajan pase lo que pase.
+          Y se adapta al número de fotos: antes leía images[0..2] a pelo, así que
+          con menos de tres dejaba huecos grises y con más escondía el resto. */}
+      <div className="hidden md:block relative h-[440px] rounded-[32px] overflow-hidden">
+        <div className={`grid gap-2 h-full ${
+          images.length === 1 ? "grid-cols-1"
+          : images.length === 2 ? "grid-cols-2"
+          : "grid-cols-3 grid-rows-2"
+        }`}>
+          {images.slice(0, 3).map((src, i) => (
+            <div
+              key={i}
+              className={`relative group cursor-pointer bg-gray-200 overflow-hidden ${
+                images.length >= 3 && i === 0 ? "col-span-2 row-span-2" : ""
+              }`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
+              />
+              {/* La última pieza avisa de las fotos que no caben */}
+              {i === 2 && images.length > 3 && (
+                <div className="absolute inset-0 bg-black/45 flex items-center justify-center text-white font-extrabold text-lg">
+                  +{images.length - 3} fotos
+                </div>
+              )}
+            </div>
+          ))}
         </div>
         {/* Nivel */}
         <div className={`absolute top-5 left-5 px-4 py-2 rounded-full font-extrabold text-xs shadow-lg flex items-center gap-2 uppercase tracking-wide ${lvl.chip}`}>
@@ -351,8 +373,10 @@ function PhotoGallery({ images, level }: { images: string[]; level: Level }) {
         >
           {images.map((src, i) => (
             <div key={i} className="relative h-full" style={{ width: `${100 / images.length}%` }}>
+              {/* `object-top` recortaba por arriba: en una foto de perro o de
+                  patio, el sujeto está al centro y se perdía. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="w-full h-full object-cover object-top" />
+              <img src={src} alt="" className="w-full h-full object-cover object-center" />
             </div>
           ))}
         </div>
@@ -572,7 +596,7 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
   // ── Sidebar booking card (reused on desktop) ───────────────────────────────
   function BookingCard() {
     return (
-      <div className="bg-white/90 backdrop-blur-2xl border border-white rounded-[28px] p-6 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] space-y-5">
+      <div className="bg-white/90 backdrop-blur-2xl border border-white rounded-[28px] p-6 md:p-7 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] space-y-6">
 
         {/* Price header */}
         <div className="pb-4 border-b border-gray-100">
@@ -592,10 +616,10 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
         {/* Service selector */}
         <div>
           <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wide mb-2">Servicio</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             {pawwer.services.map(svc => (
               <button key={svc.id} onClick={() => handleServiceChange(svc)}
-                className={`flex flex-col items-start gap-1 px-3 py-2.5 rounded-xl border text-left transition-all
+                className={`flex flex-col items-start gap-1 px-3.5 py-3 rounded-xl border text-left transition-all
                   ${activeService.id === svc.id
                     ? "bg-[#120A2B] border-[#120A2B] text-white"
                     : "bg-white border-gray-200 text-[#120A2B] hover:border-[#120A2B]"
@@ -720,7 +744,7 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
       </div>
 
       {/* Nav */}
-      <nav className="bg-white/80 backdrop-blur-xl border-b border-white/50 sticky top-0 z-50 px-4 md:px-6 lg:px-10 py-3 flex justify-between items-center shadow-sm">
+      <nav className="bg-white/80 backdrop-blur-xl border-b border-white/50 sticky top-0 z-50 px-5 md:px-6 lg:px-10 py-3.5 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-3">
           <Link href="/" className="w-9 h-9 flex items-center justify-center hover:bg-white bg-white/60 border border-white/80 rounded-full transition-colors shadow-sm">
             <ArrowLeft size={18} />
@@ -733,17 +757,17 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
         </button>
       </nav>
 
-      <main className="relative z-10 max-w-7xl mx-auto px-0 md:px-5 lg:px-10 py-0 md:py-6">
+      <main className="relative z-10 max-w-7xl mx-auto px-0 md:px-5 lg:px-10 py-0 md:py-8">
 
         <PhotoGallery images={pawwer.images} level={pawwer.level} />
 
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 mt-[-28px] md:mt-6 relative z-20">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 mt-[-28px] md:mt-8 relative z-20">
 
           {/* ── Left column ── */}
           <div className="flex-1 bg-white/85 backdrop-blur-xl rounded-t-[2rem] md:rounded-[1.75rem] border border-white/60 shadow-[0_-8px_32px_rgba(18,10,43,0.08)] md:shadow-sm">
 
             {/* Avatar overlap row */}
-            <div className="flex justify-between items-end pl-5 pr-5 md:pl-7 md:pr-7 pt-0 -mt-12 md:-mt-14 mb-5">
+            <div className="flex justify-between items-end pl-6 pr-6 md:pl-8 md:pr-8 pt-0 -mt-12 md:-mt-14 mb-6">
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={pawwer.avatar} alt={pawwer.name}
@@ -754,7 +778,9 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
                   ring="border-[#FFF1EB]"
                 />
               </div>
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-4 py-2 text-right shadow-sm border border-gray-100">
+              {/* Precio flotante — solo móvil: en desktop la tarjeta de reserva ya
+                  abre con el precio, y tenerlo dos veces le quita peso a los dos. */}
+              <div className="lg:hidden bg-white/80 backdrop-blur-sm rounded-2xl px-4 py-2 text-right shadow-sm border border-gray-100">
                 <div className="text-lg md:text-xl font-extrabold text-[#120A2B] leading-tight">
                   {fmtCOP(pawwer.services[0]!.price)}
                 </div>
@@ -762,7 +788,7 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
               </div>
             </div>
 
-            <div className="px-5 md:px-7 pb-8 space-y-7">
+            <div className="px-6 md:px-8 pb-10 space-y-8 md:space-y-10">
 
               {/* Banner: perfil en pausa */}
               {!bookable && (
@@ -823,13 +849,13 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-3 gap-3">
                 {[
                   { icon: Briefcase,  bg: "bg-[#FFF0F6]", color: "text-[#E04882]", value: pawwer.stats.experience, label: "Experiencia" },
                   { icon: PawPrint,   bg: "bg-[#F3E5F5]", color: "text-[#9C27B0]", value: pawwer.stats.cares,      label: "Cariños dados" },
                   { icon: ShieldCheck,bg: "bg-[#E3F2FD]", color: "text-[#1976D2]", value: "Verificado",             label: "Perfil seguro" },
                 ].map(({ icon: Icon, bg, color, value, label }) => (
-                  <div key={label} className="bg-white/70 border border-white rounded-2xl p-3 flex flex-col items-center text-center shadow-sm">
+                  <div key={label} className="bg-white/70 border border-white rounded-2xl p-3.5 flex flex-col items-center text-center shadow-sm">
                     <div className={`w-8 h-8 rounded-xl ${bg} ${color} flex items-center justify-center mb-1.5`}>
                       <Icon size={16} />
                     </div>
@@ -839,10 +865,13 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
                 ))}
               </div>
 
-              {/* Services — mobile: horizontal scroll */}
-              <div>
-                <h2 className="text-base font-extrabold text-[#120A2B] mb-3">Servicios disponibles</h2>
-                <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory">
+              {/* Servicios — SOLO móvil. En desktop el selector vive en la tarjeta
+                  de reserva de la derecha, que es donde se decide. Mostrarlo en las
+                  dos columnas repetía servicios Y píldora de capacidad, y con la
+                  misma información en dos sitios la vista no sabe dónde posarse. */}
+              <div className="lg:hidden">
+                <h2 className="text-base font-extrabold text-[#120A2B] mb-4">Servicios disponibles</h2>
+                <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory">
                   {pawwer.services.map(svc => (
                     <button key={svc.id} onClick={() => handleServiceChange(svc)}
                       className={`flex-shrink-0 snap-start flex flex-col items-start gap-1 px-4 py-3 rounded-2xl border transition-all min-w-[120px]
@@ -946,14 +975,14 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
 
               {/* About */}
               <div>
-                <h2 className="text-base font-extrabold text-[#120A2B] mb-2">Sobre mí</h2>
+                <h2 className="text-base font-extrabold text-[#120A2B] mb-4">Sobre mí</h2>
                 <p className="text-sm text-gray-600 font-medium leading-relaxed">{pawwer.about}</p>
               </div>
 
               {/* Experience bullets */}
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {pawwer.experience.map((exp, i) => (
-                  <li key={i} className="flex items-start gap-2.5 bg-white/50 border border-white p-3 rounded-xl">
+                  <li key={i} className="flex items-start gap-2.5 bg-white/50 border border-white p-4 rounded-xl">
                     <Check size={15} className="text-[#FF7031] shrink-0 mt-0.5" />
                     <span className="text-sm text-gray-700 font-medium">{exp}</span>
                   </li>
@@ -962,12 +991,12 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
 
               {/* Home details */}
               <div>
-                <h2 className="text-base font-extrabold text-[#120A2B] mb-3">En casa</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <h2 className="text-base font-extrabold text-[#120A2B] mb-4">En casa</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {pawwer.homeDetails.map((detail, i) => {
                     const Icon = detail.icon;
                     return (
-                      <div key={i} className="bg-white/60 border border-white p-3.5 rounded-2xl flex items-start gap-3 shadow-sm">
+                      <div key={i} className="bg-white/60 border border-white p-4 rounded-2xl flex items-start gap-3 shadow-sm">
                         <div className="bg-[#120A2B]/5 p-2 rounded-lg shrink-0">
                           <Icon size={16} className="text-[#120A2B]" />
                         </div>
@@ -983,7 +1012,7 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
 
               {/* Reviews */}
               <div>
-                <h2 className="text-base font-extrabold text-[#120A2B] mb-3 flex items-center gap-2">
+                <h2 className="text-base font-extrabold text-[#120A2B] mb-4 flex items-center gap-2">
                   Reseñas
                   <span className="text-[#FF7031] bg-[#FF7031]/10 px-2 py-0.5 rounded-lg text-xs">{pawwer.reviewsCount}</span>
                 </h2>
@@ -1009,7 +1038,7 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
 
               {/* FAQ */}
               <div>
-                <h2 className="text-base font-extrabold text-[#120A2B] mb-3">Preguntas frecuentes</h2>
+                <h2 className="text-base font-extrabold text-[#120A2B] mb-4">Preguntas frecuentes</h2>
                 <div className="bg-white/60 border border-white rounded-2xl overflow-hidden shadow-sm">
                   {pawwer.faqs.map((faq, i) => (
                     <div key={i} className="border-b border-white/50 last:border-0">
@@ -1036,8 +1065,8 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
           </div>
 
           {/* ── Desktop sidebar ── */}
-          <div className="hidden lg:block w-[360px] shrink-0">
-            <div className="sticky top-20">
+          <div className="hidden lg:block w-[380px] xl:w-[420px] shrink-0">
+            <div className="sticky top-24">
               <BookingCard />
             </div>
           </div>
@@ -1047,7 +1076,7 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
 
       {/* ── Mobile bottom bar — safe area para iOS/Android ── */}
       <div
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 px-5 pt-4 shadow-[0_-8px_32px_rgba(18,10,43,0.12)]"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 px-6 pt-4 shadow-[0_-8px_32px_rgba(18,10,43,0.12)]"
         style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 1.25rem))' }}
       >
         <div className="flex items-center justify-between gap-4">
