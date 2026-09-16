@@ -920,6 +920,75 @@ modo de pruebas deja un camino entero sin tocar.
   mismo día antes de las 9 p. m.** Por eso `VOID_APPROVED` sigue siendo la única rama sin ejercer;
   cerrarla pide una transacción con crédito. No bloquea: el reembolso ya es manual por diseño.
 
+### 2026-09-16 (tarde) · S2.5 · El portal del cliente deja de parecer otro producto
+
+Cerrado S2, Nicolás asignó **las ~3,5 semanas de colchón enteras al portal del cliente**: *«se ve
+horrible»*. No era impresión — era historia, y medible.
+
+**El diagnóstico, con números.** El portal del Pawwer tuvo pase de diseño completo en julio; el del
+cliente no. Pero la causa principal no era el espaciado:
+
+```
+font-sans (Plus Jakarta Sans) en la raíz de cada pantalla
+   portal del Pawwer    13 de 13
+   cliente               1 de 11    ← solo la home
+```
+
+El `body` por defecto es Montserrat, así que **diez pantallas del cliente renderizaban en otra
+tipografía** que el portal del Pawwer. Ningún ajuste de padding iba a salvarlas.
+
+Y detrás, una causa estructural: el Pawwer tiene un grupo de rutas con layout compartido y el cliente
+no tenía ninguno, así que cada pantalla improvisaba su marco. Salieron **cuatro variantes del mismo
+fondo** y una que no lo declaraba; los blobs también divergían.
+
+**Lo construido:**
+
+| | |
+|---|---|
+| **Tres grupos de rutas** | `(cliente)` con `pb-32` · `(auth)` centrado · `(flujo)` sin `pb-32` (tienen pie fijo propio), más el marco en el layout del perfil público |
+| **Tokens** | `shadow-card`, `rounded-card`, acentos. La sombra de tarjeta se escribía a mano **en 51 sitios con cuatro opacidades distintas** |
+| **Componentes** | `TicketCard` · `SuccessStage` · `CurvedFooter` · `PulseRings` · `BackButton` |
+| **Pantallas** | perfil público · detalle de la reserva · paso 4 · `/mis-reservas` · `/mis-mascotas` · wizard 1–3 · nav |
+
+**Los diseños de Nicolás traían los tokens ya correctos** —`#FFF1EB`, `#120A2B`, `#F7AEF1` y hasta la
+sombra de tarjeta, dígito por dígito—, así que traducirlos fue pasar de CSS a Tailwind, no
+reinterpretar. Lo que sí hubo que decidir: iconos con `lucide-react` y no Material Symbols (una
+segunda familia son ~300 KB), `max-w-xl` en vez del marco de 420 px, animaciones de **una sola
+pasada** y nunca `infinite`, y el tangerine reservado a lo interactivo mientras el rosa y el plum se
+quedan con lo celebratorio.
+
+#### Maquillar pantallas encontró cinco bugs, dos de ellos corrompiendo datos
+
+| Bug | Qué hacía |
+|---|---|
+| 🔴 **El Pawwer desaparecía** | Bloqueador #3. `?? "Pawwer"` con una «P» genérica donde iba «Juliana M.» |
+| 🔴 **El lápiz de «Editar»** | Enlazaba a `?edit=`, abría formulario vacío y **creaba un perro duplicado** |
+| 🔴 **El `?back=` a medio construir** | El paso 3 lo mandaba, nadie lo leía: agregar un perro **perdía la reserva**. Y el paso 3 exige un perro, así que **todo cliente nuevo pasaba por ahí** |
+| 🟠 **Borrar sin confirmar** | Un clic y la mascota se iba |
+| 🟠 **Blobs animados** | `blur` de 80–120 px en bucle infinito, en la home, con el 85% del tráfico en móvil |
+
+> **Dos cosas que se quitaron a propósito, y son mejoras:** el lápiz que duplicaba perros —un botón
+> que corrompe datos no se deja puesto porque la pantalla parezca completa— y el halo naranja del
+> FAB, que sobre un botón naranja no se lee como sombra sino como un contorno degradado.
+
+#### Una regla del design system que estaba mal para esta mitad del producto
+
+«Las pantallas-pestaña no llevan botón de volver» **asume un nav que está desde el primer píxel**.
+Cierto en el portal del Pawwer —su `BottomNav` se renderiza en el servidor— y falso en el cliente:
+`ClientNav` es un componente de cliente que devuelve `null` hasta resolver el rol por consulta, así
+que no está en el HTML inicial; y `/mis-mascotas` nunca tiene nav porque no está en
+`CLIENT_TAB_ROOTS`. **Decisión de Nicolás: volver en todas.** Recogido en `09` con su porqué, para
+que nadie lo «corrija» leyendo la regla general.
+
+#### Método, para la próxima vez que se muevan carpetas
+
+Al mover cinco carpetas a `(cliente)` comprobé los imports **relativos** y me faltó el caso de los
+**absolutos desde fuera**: `components/AuthModal` importaba `@/app/login/LoginForm`. Lo atrapó `tsc`
+al instante. **Comprobar los dos tipos.**
+
+Y una trampa al insertar imports por script: anclar en «el último `import`» falla si ese import es
+**multilínea** — la línea se metió dentro de `import {` y rompió el archivo.
+
 ### 💸 Reembolsos pendientes · cómo verlos sin depender del correo
 
 **Bold no tiene API de reembolsos**, así que Pawwi los **anota** y se **ejecutan a mano**. Hasta que

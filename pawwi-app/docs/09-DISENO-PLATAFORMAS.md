@@ -170,10 +170,19 @@ oculta sola.
 ```
 ┌──────────┬──────────┬──────────┬──────────┬──────────┐
 │Favoritos │ Reservas │ Explorar │ Mensajes │  Perfil  │
-│    ♡     │    📅    │   (🔍)   │    💬    │    👤    │
+│    ♡     │    📅    │   (🐶)   │    💬    │    👤    │
 │          │  • badge │  central │  • badge │          │
 └──────────┴──────────┴──────────┴──────────┴──────────┘
 ```
+
+**Reestructurado el 2026-09-16:** icono de pestaña 21 → **25 px**, etiqueta de `font-black`
+MAYÚSCULAS a **`font-medium`** en caja normal —quitar las mayúsculas es la mitad del efecto de «más
+pequeño»: tienen más altura de x y se leen más grandes al mismo tamaño—, y el FAB central pasa de
+**lupa a perrito**, con sombra neutra en vez del halo naranja que se leía como un contorno
+degradado. El corazón se descartó porque ya es «Favoritos» en el mismo nav.
+
+> ⚠️ El `BottomNav` del portal del Pawwer **conserva el estilo anterior**: los dos navs divergen
+> desde el 2026-09-16. Pendiente de decidir si el del Pawwer sigue al del cliente.
 
 Los dos **badges** —cambios en reservas y mensajes sin leer— ya están construidos en `NavTab` y
 **ningún llamador los alimenta**. Se conectan en S5.
@@ -286,9 +295,12 @@ Activas arriba, historial abajo. Actualiza **en vivo** cuando cambia algo.
 
 **La tarjeta muestra la etapa, no solo el estado** — ver la matriz al final. La regla es simple:
 **la clienta siempre ve el nombre de su cuidador**, nunca la palabra genérica «Pawwer» en su lugar.
-Hoy, cuando la reserva pasa a la bolsa, el cron hace `pawwer_id = NULL` y la tarjeta, que debería
-decir «Juliana M.», cae al texto de respaldo `"Pawwer"` con una «P» genérica. **Parece un error de la
-app**, en el momento de más ansiedad de Sofía.
+✅ **Corregido el 2026-09-16.** Cuando la reserva pasa a la bolsa el cron hace `pawwer_id = NULL`, y
+la tarjeta caía al texto de respaldo `"Pawwer"` con una «P» genérica: **parecía un error de la app**,
+en el momento de más ansiedad de Sofía. Ahora dice qué pasa —«Buscando otro cuidador», con ícono de
+búsqueda en vez de una inicial inventada— y explica en una línea que se busca entre los verificados
+por el mismo precio. **Falta y necesita esquema:** nombrar a quién no pudo; el cron borra
+`pawwer_id` y no queda rastro del original (S4).
 
 ### Detalle de la reserva · `/mis-reservas/[id]` · ⚠️ construida y escondida · S4 · S5
 
@@ -334,8 +346,11 @@ Pawwer escribe en un chat donde nadie puede responder.
 
 ### Mis peludos · `/mis-mascotas` · ⚠️ construida · S4
 
-Lista de perros con su foto. Crear y **editar** abren el **Pasaporte** — hoy editar abre un
-formulario vacío y **crea un perro duplicado**.
+Lista de perros con su foto. **El lápiz de editar se retiró el 2026-09-16**: enlazaba a
+`nueva?edit=<id>`, pero esa pantalla no lee `searchParams`, así que abría un formulario vacío y al
+guardar **creaba un perro duplicado**. Vuelve en S4 con `actualizarMascota` y el Pasaporte. Borrar
+pide confirmación **nombrando al perro** —antes era un solo clic—, y agregar uno desde el paso 3 de
+una reserva ya **devuelve a la reserva** en vez de perderla.
 
 **El Pasaporte**, en cuatro pasos y a mano con `zod`:
 
@@ -773,11 +788,16 @@ Contado por rutas reales (`page.tsx`), no por recuerdo:
 
 | Plataforma | Rutas | ✅ | ⚠️ | 🔨 | 🆕 |
 |---|---|---|---|---|---|
-| **Cliente** | 18 | 7 | 7 | 3 | 1 |
+| **Cliente** | 18 | **12** | **2** | 3 | 1 |
 | **Pawwer** · embudo | 8 | 6 | 2 | — | — |
 | **Pawwer** · portal | 15 | 10 | 5 | — | — |
 | **Admin** | 7 | — | — | — | **7** |
-| **Total** | **48** | **23** | **14** | **3** | **8** |
+| **Total** | **48** | **28** | **9** | **3** | **8** |
+
+> **El cliente pasó de 7 ✅ a 12 el 2026-09-16** (S2.5): las 16 pantallas bajo un marco común, y
+> rediseñadas el perfil público, el detalle de la reserva, el paso 4, `/mis-reservas`,
+> `/mis-mascotas` y el wizard 1–3. **Sigue en ⚠️ la home** —datos inventados en el hero, `petsCount`
+> decorativo, `useMapsLibrary` fuera de su proveedor— y el Pasaporte, que es S4.
 
 - **Cliente ⚠️:** Explorar · Reservar (el paso 4 dejó de ser un cartel en S2; queda el Pasaporte) · Mis reservas · el detalle escondido ·
   Mis peludos · el Pasaporte · la Política de Privacidad. 🔨: Favoritos, Mensajes, Mi perfil.

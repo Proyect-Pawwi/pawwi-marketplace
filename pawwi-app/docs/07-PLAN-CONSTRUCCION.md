@@ -34,6 +34,7 @@ Soft launch a los 22 clientes históricos.
 | **S1** · Rediseño en código | sep 14–27 | ✅ **cerrado y verificado** — terminó el 9, dos semanas antes | El código dice lo que el producto promete |
 | 🔒 **Hotfix** de seguridad | sep 10 | ✅ **en producción** | El Pawwer no puede auto-certificarse |
 | **S2** · El dinero | ~~sep 28~~ **sep 11 – 16** | ✅ **CERRADO** el 16 de septiembre, nueve días antes | Pawwi puede cobrar |
+| 🎨 **S2.5** · El cliente, presentable | sep 16 – oct 11 | 🔨 **en curso** — el colchón, entero al portal del cliente | Deja de parecer otro producto |
 | **S3** · El operador | oct 12 – nov 1 | 🆕 3 semanas · **el sprint que faltaba** | Un Pawwer real puede llegar al marketplace |
 | **S4** · Puerta del cliente | nov 2–15 | ⏳ **~11 días en 8** — ver el aviso de tamaño | El cliente deja de ver errores donde debería ver nombres |
 | **S5** · Cerrar el círculo | nov 16–29 | ⏳ backend listo, frontend cero | El cliente deja de estar ciego |
@@ -79,7 +80,39 @@ recordar lo que se planeó.
 > lección no es sobre permisos: es que auditar código no sustituye a usar el producto.** Es el
 > argumento más fuerte a favor de las dos semanas de QA de S7, y de no recortarlas.
 
-### 🎨 La deuda de diseño del lado del cliente · decisión abierta (2026-09-16)
+### 🎨 S2.5 · El cliente, presentable · **en curso desde el 2026-09-16**
+
+**Decisión de Nicolás: las ~3,5 semanas de colchón entre S2 y S3 van enteras al portal del cliente.**
+No mueve ninguna fecha: S3 sigue arrancando el **12 de octubre** y el lanzamiento el **12 de enero**.
+
+**Lo hecho el primer día** (el detalle, en [`08`](./08-INFRAESTRUCTURA.md), bitácora del 2026-09-16):
+
+| | |
+|---|---|
+| **El shell** | Tres grupos de rutas —`(cliente)`, `(auth)`, `(flujo)`— más el layout del perfil público. Las **16 pantallas** bajo un marco común |
+| **Tokens** | Sombras, radios y acentos con nombre en `globals.css`. Criterio de color fijado |
+| **Componentes** | `TicketCard`, `SuccessStage`, `CurvedFooter`, `PulseRings`, `BackButton` |
+| **Pantallas** | perfil público · detalle de la reserva · paso 4 · `/mis-reservas` · `/mis-mascotas` · wizard 1–3 |
+| **Nav** | Reestructurado: icono grande, etiqueta ligera, perrito en el centro |
+
+**Queda del bloque A:** la **home** (1.190 líneas, y arrastra los datos inventados del hero,
+`petsCount` decorativo y `useMapsLibrary` fuera de su proveedor).
+
+> ### El hallazgo del primer día: maquillar pantallas encontró cinco bugs
+> Ninguno era de diseño, y **dos corrompían datos**:
+>
+> | Bug | Qué hacía |
+> |---|---|
+> | 🔴 **El Pawwer desaparecía** | Bloqueador #3 del plan. `?? "Pawwer"` con una «P» genérica |
+> | 🔴 **El lápiz de editar** | Abría un formulario vacío y **creaba un perro duplicado** |
+> | 🔴 **El `?back=` a medio construir** | Agregar un perro desde el paso 3 **perdía la reserva**. En el camino crítico: el paso 3 exige un perro |
+> | 🟠 **Borrar sin confirmar** | Un clic y la mascota se iba |
+> | 🟠 **Blobs animados** | Un `blur` de 80–120px en bucle infinito, con el 85% del tráfico en móvil |
+>
+> Es el mismo patrón del 15 de septiembre: **los defectos salen de abrir las pantallas, no de leer
+> el código.** Van catorce en dos días, y ninguno lo encontró una auditoría.
+
+### La deuda que originó este bloque · diagnóstico del 2026-09-16
 
 **El portal del cliente se ve notablemente peor que el del Pawwer**, y no es impresión: es historia.
 El portal del Pawwer recibió un pase de diseño completo en julio —design system, escala de
