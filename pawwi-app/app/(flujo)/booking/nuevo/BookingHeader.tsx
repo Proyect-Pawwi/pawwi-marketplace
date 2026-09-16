@@ -40,7 +40,7 @@ export default function BookingHeader({ step, backHref, pawwerName, pawwerAvatar
                   step > s.n
                     ? "bg-green-500 text-white"
                     : step === s.n
-                    ? "bg-[#120A2B] text-white"
+                    ? "bg-midnight text-white"
                     : "bg-gray-100 text-gray-400",
                 ].join(" ")}
               >
@@ -71,7 +71,7 @@ export default function BookingHeader({ step, backHref, pawwerName, pawwerAvatar
           <span className="text-xs font-bold text-midnight hidden sm:block max-w-[80px] truncate">
             {pawwerName}
           </span>
-          <ShieldCheck size={11} className="text-[#FF7031] shrink-0" />
+          <ShieldCheck size={11} className="text-tangerine shrink-0" />
         </div>
       </div>
     </header>

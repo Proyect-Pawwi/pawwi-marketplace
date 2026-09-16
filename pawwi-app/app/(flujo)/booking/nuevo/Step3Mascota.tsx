@@ -186,13 +186,13 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
 
         {/* Sin mascotas */}
         {dogs.length === 0 && (
-          <div className="bg-white/70 border border-white rounded-2xl p-6 text-center">
+          <div className="bg-white/70 border border-white rounded-card shadow-card p-6 text-center">
             <PawPrint size={32} className="mx-auto text-midnight/20 mb-2" />
             <p className="font-bold text-midnight text-sm mb-1">No tienes mascotas registradas</p>
             <p className="text-xs text-midnight/50 font-body mb-4">Agrega tu perro para continuar con la reserva.</p>
             <Link
               href={`/mis-mascotas/nueva?back=${encodeURIComponent(`/booking/nuevo?pawwer_id=${pawwer.id}&step=3&service_id=${serviceId}&start=${start}&end=${end}${hours ? `&hours=${hours}` : ""}`)}`}
-              className="inline-flex items-center gap-2 bg-[#FF7031] text-white font-bold px-5 py-2.5 rounded-xl text-sm"
+              className="inline-flex items-center gap-2 bg-tangerine text-white font-bold px-5 py-2.5 rounded-xl text-sm"
             >
               <Plus size={14} /> Agregar mascota
             </Link>
@@ -249,7 +249,7 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
             aria-hidden
             className={[
               "mt-0.5 w-10 h-6 rounded-full shrink-0 relative transition-colors",
-              allowPool ? "bg-[#FF7031]" : "bg-gray-200",
+              allowPool ? "bg-tangerine" : "bg-gray-200",
             ].join(" ")}
           >
             <span className={[
@@ -283,11 +283,11 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
                   className={[
                     "w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all",
                     isSel
-                      ? "bg-[#120A2B] border-[#120A2B] shadow-md"
+                      ? "bg-midnight border-midnight shadow-md"
                       : "bg-white/80 border-white hover:border-gray-200",
                   ].join(" ")}
                 >
-                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-[#FFF1EB]">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-cream">
                     {dog.photo_url
                       // eslint-disable-next-line @next/next/no-img-element
                       ? <img src={dog.photo_url} alt={dog.name} className="w-full h-full object-cover" />
@@ -303,7 +303,7 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
                   </div>
                   <div className={[
                     "w-5 h-5 rounded-full border-2 shrink-0",
-                    isSel ? "bg-[#FF7031] border-[#FF7031]" : "border-gray-300 bg-white",
+                    isSel ? "bg-tangerine border-tangerine" : "border-gray-300 bg-white",
                   ].join(" ")}>
                     {isSel && <div className="w-full h-full rounded-full flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-white" />
@@ -320,7 +320,7 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
           <label className="text-sm font-semibold text-midnight font-body block mb-1.5">
             ¿Dónde será el cuidado?{" "}
             {transportLegs > 0
-              ? <span className="text-[#FF7031] font-normal">requerido para el transporte</span>
+              ? <span className="text-tangerine font-normal">requerido para el transporte</span>
               : <span className="text-gray-400 font-normal">(recomendado)</span>}
           </label>
           <AddressAutocomplete
@@ -349,7 +349,7 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
             onChange={e => setNotes(e.target.value)}
             maxLength={300}
             placeholder="Medicamentos, horarios especiales, cosas importantes sobre tu perro..."
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-midnight font-body outline-none focus:border-[#FF7031] focus:ring-1 focus:ring-[#FF7031]/30 transition resize-none"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-midnight font-body outline-none focus:border-tangerine focus:ring-1 focus:ring-tangerine/30 transition resize-none"
           />
         </div>
 
@@ -368,7 +368,7 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
                   className={[
                     "py-3 rounded-xl border text-xs font-bold transition-all",
                     transportLegs === opt.v
-                      ? "bg-[#120A2B] border-[#120A2B] text-white"
+                      ? "bg-midnight border-midnight text-white"
                       : "bg-white/80 border-gray-200 text-midnight hover:border-gray-300",
                   ].join(" ")}
                 >
@@ -381,7 +381,7 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
         )}
 
         {/* Resumen */}
-        <div className="bg-white/80 border border-white rounded-2xl p-4 space-y-2">
+        <div className="bg-white/80 border border-white rounded-card shadow-card p-4 space-y-2">
           <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wide mb-3">Resumen de reserva</p>
           <div className="flex justify-between text-sm text-midnight/70">
             <span>{SERVICE_LABELS[serviceId]}</span>
@@ -399,7 +399,7 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
           )}
           <div className="flex justify-between text-sm font-extrabold text-midnight pt-2 border-t border-gray-100">
             <span>Total estimado</span>
-            <span className="text-[#FF7031]">{fmtCOP(total)}</span>
+            <span className="text-tangerine">{fmtCOP(total)}</span>
           </div>
           <p className="text-[10px] text-gray-400 font-body text-center">No se cobrará nada aún · pago en el siguiente paso</p>
         </div>
@@ -423,7 +423,7 @@ export default function Step3Mascota({ pawwer, dogs, serviceId, serviceName, ser
           className={[
             "w-full py-4 rounded-2xl font-extrabold text-base transition-all flex items-center justify-center gap-2",
             !isPending && dogs.length > 0 && selectedDogs.size > 0
-              ? "bg-[#FF7031] text-white hover:bg-[#e6652c] shadow-md active:scale-95"
+              ? "bg-tangerine text-white hover:bg-tangerine/90 shadow-md active:scale-95"
               : "bg-gray-100 text-gray-400 cursor-not-allowed",
           ].join(" ")}
         >

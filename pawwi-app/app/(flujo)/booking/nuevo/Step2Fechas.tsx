@@ -216,7 +216,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupaci
 
         {/* Express: selector de horas */}
         {isExpress && (
-          <div className="bg-white/80 border border-white rounded-2xl p-5 mb-5 flex items-center justify-between">
+          <div className="bg-white/80 border border-white rounded-card shadow-card p-5 mb-5 flex items-center justify-between">
             <span className="font-extrabold text-midnight">Horas de servicio</span>
             <div className="flex items-center gap-3">
               <button
@@ -240,7 +240,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupaci
 
         {/* Calendario — también en Express: se cobra por horas, pero hay que
             elegir el día. Sin él, la única fecha posible era la de la URL (o hoy). */}
-        <div className="bg-white/80 backdrop-blur-md border border-white rounded-2xl p-4 shadow-sm mb-5">
+        <div className="bg-white/80 backdrop-blur-md border border-white rounded-card shadow-card p-4 mb-5">
           {/* Nav */}
           <div className="flex justify-between items-center mb-3">
             <button
@@ -289,12 +289,12 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupaci
                   className={[
                     "h-10 w-full rounded-xl text-sm font-bold flex items-center justify-center transition-colors relative",
                     unavail ? "text-gray-300 cursor-not-allowed line-through"
-                    : sel    ? "bg-[#120A2B] text-white shadow-md z-10"
-                    : mid    ? "bg-[#F7AEF1]/30 text-midnight"
+                    : sel    ? "bg-midnight text-white shadow-md z-10"
+                    : mid    ? "bg-plum/30 text-midnight"
                     : "text-midnight hover:bg-white hover:border hover:border-gray-200 cursor-pointer",
                   ].join(" ")}
                 >
-                  {mid && <div className="absolute inset-0 bg-[#F7AEF1]/20 -z-10 w-[115%] -ml-[7.5%]" />}
+                  {mid && <div className="absolute inset-0 bg-plum/20 -z-10 w-[115%] -ml-[7.5%]" />}
                   {cell.day}
                   {/* Ocupación: un punto por peludo ya reservado ese día. Lo que
                       ayuda a decidir no es el máximo del Pawwer, sino con cuántos
@@ -304,7 +304,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupaci
                       {Array.from({ length: Math.min(ocupacion[toISO(d)] ?? 0, 5) }).map((_, i) => (
                         <span
                           key={i}
-                          className={`w-1 h-1 rounded-full ${sel ? "bg-white/70" : "bg-[#FF7031]"}`}
+                          className={`w-1 h-1 rounded-full ${sel ? "bg-white/70" : "bg-tangerine"}`}
                         />
                       ))}
                     </span>
@@ -322,7 +322,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupaci
 
           {hayOcupacion && (
             <p className="text-[10px] text-center text-gray-400 mt-2 font-body flex items-center justify-center gap-1.5">
-              <span className="w-1 h-1 rounded-full bg-[#FF7031] inline-block" />
+              <span className="w-1 h-1 rounded-full bg-tangerine inline-block" />
               cada punto es un peludo ya reservado ese día
             </p>
           )}
@@ -330,9 +330,9 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupaci
 
         {/* Horario — el cliente elige entrega/recogida */}
         {datesReady && (
-          <div className="bg-white/80 backdrop-blur-md border border-white rounded-2xl p-4 shadow-sm mb-5">
+          <div className="bg-white/80 backdrop-blur-md border border-white rounded-card shadow-card p-4 mb-5">
             <div className="flex items-center gap-2 mb-3">
-              <Clock size={16} className="text-[#FF7031]" />
+              <Clock size={16} className="text-tangerine" />
               <span className="font-extrabold text-midnight text-sm">Horario</span>
             </div>
 
@@ -343,7 +343,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupaci
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-midnight outline-none focus:border-[#FF7031]"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-midnight outline-none focus:border-tangerine"
                 />
               </div>
             ) : (
@@ -356,7 +356,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupaci
                     type="time"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-[#FF7031]"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-tangerine"
                   />
                 </div>
                 <div>
@@ -367,7 +367,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupaci
                     type="time"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-[#FF7031]"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-tangerine"
                   />
                 </div>
               </div>
@@ -388,7 +388,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupaci
         {/* Resumen selección */}
         <div className={[
           "rounded-2xl px-4 py-3 mb-6 flex items-center gap-2 text-sm font-bold transition-all",
-          hasSelection ? "bg-[#120A2B]/5 text-midnight" : "bg-gray-100 text-gray-400",
+          hasSelection ? "bg-midnight/5 text-midnight" : "bg-gray-100 text-gray-400",
         ].join(" ")}>
           <span className="text-base">📅</span>
           {selLabel}
@@ -400,7 +400,7 @@ export default function Step2Fechas({ pawwer, serviceId, availableDates, ocupaci
           className={[
             "w-full py-4 rounded-2xl font-extrabold text-base transition-all",
             hasSelection
-              ? "bg-[#FF7031] text-white hover:bg-[#e6652c] shadow-md hover:shadow-lg active:scale-95"
+              ? "bg-tangerine text-white hover:bg-tangerine/90 shadow-md hover:shadow-lg active:scale-95"
               : "bg-gray-100 text-gray-400 cursor-not-allowed",
           ].join(" ")}
         >

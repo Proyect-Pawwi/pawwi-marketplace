@@ -34,25 +34,25 @@ const SERVICE_META: Record<string, { icon: React.ReactNode; unit: string; desc: 
     icon:  <Sun size={22} />,
     unit:  "/ día",
     desc:  "Tu perro pasa el día en casa del Pawwer con atención continua.",
-    color: "bg-[#FFF1EB] text-[#FF7031]",
+    color: "bg-cream text-tangerine",
   },
   Night: {
     icon:  <Moon size={22} />,
     unit:  "/ noche",
     desc:  "Tu perro duerme en casa del Pawwer. Pickup en la mañana.",
-    color: "bg-[#120A2B]/8 text-[#120A2B]",
+    color: "bg-midnight/8 text-midnight",
   },
   Travel: {
     icon:  <Plane size={22} />,
     unit:  "/ día",
     desc:  "El Pawwer cuida a tu perro mientras estás de viaje (mín. 2 días).",
-    color: "bg-[#92C0E9]/20 text-[#1a6fa8]",
+    color: "bg-blue-ice/20 text-[#1a6fa8]",
   },
   Express: {
     icon:  <Clock size={22} />,
     unit:  "/ hora",
     desc:  "Servicio express por horas. El Pawwer va a tu casa o tú llevas.",
-    color: "bg-[#F7AEF1]/40 text-[#7c3aed]",
+    color: "bg-plum/40 text-[#7c3aed]",
   },
 };
 
@@ -116,7 +116,7 @@ export default function Step1Servicios({ pawwer, preSelectedServiceId, preStart,
                 className={[
                   "w-full flex items-start gap-4 p-4 rounded-2xl border text-left transition-all",
                   isSelected
-                    ? "bg-[#120A2B] border-[#120A2B] shadow-md"
+                    ? "bg-midnight border-midnight shadow-md"
                     : "bg-white/80 border-white hover:border-gray-200 hover:shadow-sm",
                 ].join(" ")}
               >
@@ -128,7 +128,7 @@ export default function Step1Servicios({ pawwer, preSelectedServiceId, preStart,
                     <span className={`font-extrabold text-base ${isSelected ? "text-white" : "text-midnight"}`}>
                       {name === "DayCare" ? "Daycare" : name === "Night" ? "Nightcare" : name}
                     </span>
-                    <span className={`font-extrabold text-base ${isSelected ? "text-[#FF7031]" : "text-midnight"}`}>
+                    <span className={`font-extrabold text-base ${isSelected ? "text-tangerine" : "text-midnight"}`}>
                       {fmtCOP(svc.price)}
                       <span className={`text-xs font-medium ml-0.5 ${isSelected ? "text-white/60" : "text-gray-400"}`}>
                         {meta.unit}
@@ -146,7 +146,7 @@ export default function Step1Servicios({ pawwer, preSelectedServiceId, preStart,
                 </div>
                 <div className={[
                   "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5",
-                  isSelected ? "bg-[#FF7031] border-[#FF7031]" : "bg-white border-gray-300",
+                  isSelected ? "bg-tangerine border-tangerine" : "bg-white border-gray-300",
                 ].join(" ")}>
                   {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
                 </div>
@@ -167,7 +167,7 @@ export default function Step1Servicios({ pawwer, preSelectedServiceId, preStart,
           className={[
             "w-full py-4 rounded-2xl font-extrabold text-base transition-all",
             selected
-              ? "bg-[#FF7031] text-white hover:bg-[#e6652c] shadow-md hover:shadow-lg active:scale-95"
+              ? "bg-tangerine text-white hover:bg-tangerine/90 shadow-md hover:shadow-lg active:scale-95"
               : "bg-gray-100 text-gray-400 cursor-not-allowed",
           ].join(" ")}
         >
