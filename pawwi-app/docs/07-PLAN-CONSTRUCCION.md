@@ -33,7 +33,7 @@ Soft launch a los 22 clientes históricos.
 | **S0** · Rescate | sep 7–13 | ✅ **cerrado por completo** — Resend, el último hilo, quedó el 15 de septiembre | El código está a salvo y en internet |
 | **S1** · Rediseño en código | sep 14–27 | ✅ **cerrado y verificado** — terminó el 9, dos semanas antes | El código dice lo que el producto promete |
 | 🔒 **Hotfix** de seguridad | sep 10 | ✅ **en producción** | El Pawwer no puede auto-certificarse |
-| **S2** · El dinero | ~~sep 28~~ **sep 11** – 25 | 🟢 **cobra de verdad** desde el 15 de septiembre — falta cancelar, vencer y una transacción real | Pawwi puede cobrar |
+| **S2** · El dinero | ~~sep 28~~ **sep 11 – 16** | ✅ **CERRADO** el 16 de septiembre, nueve días antes | Pawwi puede cobrar |
 | **S3** · El operador | oct 12 – nov 1 | 🆕 3 semanas · **el sprint que faltaba** | Un Pawwer real puede llegar al marketplace |
 | **S4** · Puerta del cliente | nov 2–15 | ⏳ **~11 días en 8** — ver el aviso de tamaño | El cliente deja de ver errores donde debería ver nombres |
 | **S5** · Cerrar el círculo | nov 16–29 | ⏳ backend listo, frontend cero | El cliente deja de estar ciego |
@@ -70,6 +70,39 @@ recordar lo que se planeó.
 > Salió —con otros seis— la primera vez que una persona usó el producto como cliente nuevo. **La
 > lección no es sobre permisos: es que auditar código no sustituye a usar el producto.** Es el
 > argumento más fuerte a favor de las dos semanas de QA de S7, y de no recortarlas.
+
+### 🎨 La deuda de diseño del lado del cliente · decisión abierta (2026-09-16)
+
+**El portal del cliente se ve notablemente peor que el del Pawwer**, y no es impresión: es historia.
+El portal del Pawwer recibió un pase de diseño completo en julio —design system, escala de
+espaciado, skeletons, entrada escalonada, glassmorphism— y el lado del cliente se construyó antes y
+más rápido, sin ese pase. El inventario de [`09`](./09-DISENO-PLATAFORMAS.md) lo refleja: **Pawwer 10
+de 15 pantallas ✅; cliente 7 de 18**, con 3 esqueletos.
+
+**Por qué no es cosmético en este producto.** `docs/06` dice que **la confianza es el producto** y
+que el 100% de las 40 entrevistas nombró la confianza como la barrera principal. La pantalla donde
+Sofía decide a quién entregarle su perro **es** el argumento de venta. Una superficie descuidada no
+resta puntos de estilo: contradice la promesa.
+
+**El obstáculo de calendario:** S4 ya está sobrevendido —once días de trabajo en ocho— y **reconstruye
+varias de esas pantallas** (Pasaporte, favoritos, `/mi-perfil`). Darles un pase de diseño *antes* de
+que S4 las rehaga es trabajo tirado; dárselo *dentro* de S4 lo infla todavía más.
+
+**El reparto que menos trabajo duplica:**
+
+| Bloque | Pantallas | Cuándo |
+|---|---|---|
+| **A · Las que S4 NO rehace** | Home/marketplace, wizard de reserva (4 pasos), `/mis-reservas`, detalle de la reserva | Se pueden pulir **ya**, y no se tocan otra vez |
+| **B · Las que S4 rehace** | Pasaporte, favoritos, `/mi-perfil`, KYC | **Nacen bien dentro de S4** — el diseño entra en la estimación, y S4 crece |
+| **C · Chat del cliente** | `/mis-mensajes` | **S5**, sobre el molde de `ChatRoom` del Pawwer, que ya está bien |
+
+> El perfil público del Pawwer (`/pawwer/[id]`) ya recibió su pase el 2026-09-15: deduplicación de
+> columnas, galería con proporciones consistentes y **la escala de espaciado** que quedó escrita en
+> el design system. Ese trabajo es el molde para el bloque A.
+
+**Y hay una ventana real:** S2 cerró el **16 de septiembre** y S3 empieza el **12 de octubre**. Son
+**~3,5 semanas sin asignar** —el colchón que este plan reservó a propósito—. El plan decía: *«Si al
+cerrar S2 sobra tiempo, se adelanta S3; no se reparte antes de saberlo.»* Ya se sabe.
 
 ### Cinco promesas vivas que el sistema no cumple
 
@@ -451,9 +484,43 @@ riesgo técnico y la cuenta de Bold ya está lista.
    - **La prueba va en `localhost:3000`, no en `app.pawwi.co`**: la tarjeta de prueba solo funciona
      con las llaves de pruebas, que viven en `.env.local`. Producción tiene las reales. Ojo: local
      habla con **la misma base que producción**, así que la reserva de prueba es un dato real
-6. **Una transacción real** con monto bajo — **es el criterio de cierre y es lo único que falta de
-   verdad**. Va en producción, con tarjeta propia. Hazla **temprano y con tarjeta de crédito**: Bold
-   solo anula crédito **el mismo día antes de las 9 p. m.**; lo demás es una transferencia a mano
+6. ✅ **Transacción real** — hecha el **2026-09-16 a las 13:40**. Express de $10.000 en
+   `app.pawwi.co`, pagada **por Bre-B (QR)**. `T2XC978E91Y`, comisión $2.500, el Pawwer recibe
+   $7.500. **Con esto S2 queda cerrado.**
+
+### ✅ S2 · CERRADO el 2026-09-16
+
+Nueve días antes de lo previsto, y con **toda** la lógica del dinero verificada contra la base:
+
+| Prueba | Cómo se verificó |
+|---|---|
+| Cobro de punta a punta | Tarjeta de pruebas · `charged_at` sellado |
+| **Vencimiento del plazo** | Solo, a las 20:09: `status 5`, `cancelled_by='system'` y **el cupo devuelto** |
+| **Ciclo de vida** 2→3→4 | Solo, al terminar el horario — y de paso confirma que **sin pago no empieza** |
+| Cancelación **≥48 h** | Reembolso del 100% anotado, con aviso por correo |
+| Cancelación **<48 h** | Sin reembolso, `late_cancel` y `pawwer_earns` en `true`: el Pawwer cobra |
+| **Transacción real** | $10.000 por Bre-B en producción |
+
+> ### 🔑 El webhook se ejerció por primera vez, y fue gracias a la transacción real
+> En modo de pruebas **Bold no manda webhooks**, así que todo lo anterior se confirmó por la consulta.
+> El pago real llegó por webhook, y se distingue en `booking_payment.raw`: donde la consulta devuelve
+> `{payment_status, reference_id}`, el evento trae el sobre `{type: "SALE_APPROVED", spec_version,
+> source: "/payments/qr", subject}` con nuestro `order_id` en `data.metadata.reference` — exactamente
+> como decía la documentación. Firma HMAC validada, sello en 2 minutos.
+>
+> **Es el argumento para no saltarse nunca la transacción real:** el modo de pruebas deja un camino
+> entero sin tocar.
+
+**Lo único que queda sin ejercer es `VOID_APPROVED`.** Se pagó por **Bre-B**, y la anulación de Bold
+existe **solo para tarjetas de crédito, el mismo día antes de las 9 p. m.** Para cerrar esa rama hace
+falta una transacción con crédito; no bloquea nada porque el reembolso ya es manual por diseño.
+
+> **Hallazgo no buscado: Bre-B funciona de punta a punta, y es el medio más barato** (2,89% + $900
+> frente a 2,99% + $900). Con el cargo fijo haciendo la tarifa regresiva —ver `06` § Economía
+> unitaria—, conviene empujarlo como medio preferente en tickets bajos.
+
+**Costo real de la prueba:** ~$1.189 de comisión. El resto fue dinero propio entrando a la cuenta
+de Pawwi.
 
 ### Lo que queda por probar, con el escenario ya montado
 

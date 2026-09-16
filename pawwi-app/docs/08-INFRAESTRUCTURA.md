@@ -894,6 +894,32 @@ En el perfil eran dos cosas distintas:
 > Y tres márgenes distintos en la misma pantalla —nav `px-4`, barra inferior `px-5`, contenido
 > `px-6`— hacen que nada parezca alineado aunque cada pieza esté bien puesta.
 
+### 2026-09-16 · S2 cerrado con dinero real, y el webhook por fin ejercido
+
+**Pawwi cobró dinero de verdad**: Express de $10.000 en `app.pawwi.co`, pagada **por Bre-B (QR)**,
+`T2XC978E91Y`. Comisión $2.500, el Pawwer recibe $7.500. Con eso **S2 queda cerrado**, nueve días
+antes de lo previsto.
+
+**Lo más valioso no fue el cobro: fue el webhook.** En modo de pruebas Bold no los manda, así que
+todo lo anterior se había confirmado por la consulta. Se distingue mirando `booking_payment.raw`:
+
+| | Qué llega |
+|---|---|
+| **Consulta** (pruebas) | `{payment_status: "APPROVED", reference_id, total}` — objeto plano |
+| **Webhook** (real) | `{type: "SALE_APPROVED", spec_version, source: "/payments/qr", subject, data:{metadata:{reference}}}` — sobre de evento |
+
+Firma HMAC validada y sello en **dos minutos**: aceptación 13:37:47 → intento abierto 13:38:04 →
+webhook y `charged_at` 13:40:06. **Es el argumento para no saltarse nunca la transacción real:** el
+modo de pruebas deja un camino entero sin tocar.
+
+**Dos cosas que salieron sin buscarlas:**
+
+- **Bre-B funciona de punta a punta**, y es el medio **más barato** (2,89% + $900 frente a 2,99% +
+  $900). Con el cargo fijo haciendo la tarifa regresiva, conviene empujarlo en tickets bajos.
+- **Pero Bre-B no se puede anular.** La anulación de Bold es solo para **tarjetas de crédito, el
+  mismo día antes de las 9 p. m.** Por eso `VOID_APPROVED` sigue siendo la única rama sin ejercer;
+  cerrarla pide una transacción con crédito. No bloquea: el reembolso ya es manual por diseño.
+
 ### 💸 Reembolsos pendientes · cómo verlos sin depender del correo
 
 **Bold no tiene API de reembolsos**, así que Pawwi los **anota** y se **ejecutan a mano**. Hasta que
