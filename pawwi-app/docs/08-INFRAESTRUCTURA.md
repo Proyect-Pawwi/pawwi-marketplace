@@ -894,6 +894,48 @@ En el perfil eran dos cosas distintas:
 > Y tres márgenes distintos en la misma pantalla —nav `px-4`, barra inferior `px-5`, contenido
 > `px-6`— hacen que nada parezca alineado aunque cada pieza esté bien puesta.
 
+### 💸 Reembolsos pendientes · cómo verlos sin depender del correo
+
+**Bold no tiene API de reembolsos**, así que Pawwi los **anota** y se **ejecutan a mano**. Hasta que
+S3 construya la cola en `/admin`, el aviso es un correo a `PAWWI_ADMIN_EMAIL` — y **ese correo no es
+fiable**: ver el problema 5. La fuente de verdad es la tabla, no la bandeja.
+
+```sql
+-- Reembolsos anotados y todavía sin ejecutar
+SELECT bp.refund_amount, bp.refund_reason, bp.order_id,
+       bp.booking_id, bp.created_at
+FROM   public.booking_payment bp
+WHERE  bp.refund_amount IS NOT NULL
+  AND  bp.refunded_at IS NULL
+ORDER  BY bp.created_at;
+```
+
+Al ejecutar cada uno, marcar `refunded_at = now()`. **Conviene correrla los viernes**, junto a la
+liquidación, hasta que exista la pantalla.
+
+> **Cuidado al leerla ahora:** el único registro vivo ($70.000 de `ff39ac44`) es de la prueba del
+> 2026-09-15, **pagada con llaves de pruebas**. No hay dinero real que devolver.
+
+### 5. 🟠 El correo a `hola@pawwi.co` no llega siempre · ABIERTO (2026-09-16)
+
+El aviso de reembolso de la cancelación real **sí llegó** (2026-09-15). Un correo de prueba enviado
+al día siguiente **no**, pese a que Resend lo aceptó (`200`, id `01a0ab3d-…`). Mismo remitente, mismo
+destinatario, mismo dominio verificado.
+
+Diferencias entre los dos que valen como pista: el que no llegó salía **de `hola@pawwi.co` hacia
+`hola@pawwi.co`** por la API directa —un alias de reenvío recibiéndose a sí mismo, cosa que muchos
+filtros descartan— y llevaba `[PRUEBA - ignorar]` en el asunto.
+
+**Decisión de Nicolás (2026-09-16): se deja en observación hasta S3**, porque la cola de `/admin` va
+a sustituir al correo de todos modos. Mientras tanto, **la consulta de arriba es el respaldo** y no
+depende de ningún buzón.
+
+> ⚠️ **`hola@pawwi.co` es un alias de reenvío interno a los C-level.** Todos los socios salieron en
+> junio. Si el alias sigue reenviando a sus buzones, los avisos operativos —reembolsos con monto e id
+> de reserva, visitas agendadas— están llegando a gente fuera de la empresa. **Se arregla sin tocar
+> código**: `PAWWI_ADMIN_EMAIL` en Vercel apuntando al correo personal de Nicolás. Pendiente de
+> revisar en el panel de Titan.
+
 ### ⏳ Pendientes al cerrar el 2026-09-15
 
 | Qué | Dónde | Nota |

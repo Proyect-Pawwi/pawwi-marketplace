@@ -798,6 +798,13 @@ escritura por RPC. Gate con `is_admin()`.
 | `/admin/visitas` | Calendario del operador: abrir cupos por zona, confirmar, completar, reagendar |
 | `/admin/visita/[id]` | **La visita en vivo**, desde el móvil. Ver 3.2 |
 | `/admin/liquidacion` | Qué le debes a cada Pawwer, **archivo de dispersión** del banco y **marcado en lote** con `mark_payouts_paid` · y la **cola de reembolsos pendientes** de `booking_payment`. *Las tres cosas llegan de S2* |
+
+> 🔴 **La cola de reembolsos sube de prioridad.** Se diseñó como comodidad; desde el 2026-09-16 es
+> **necesaria**: el correo que hoy hace de cola **no llega de forma fiable** (problema 5 de
+> [`08`](./08-INFRAESTRUCTURA.md)) y se decidió no perseguirlo, porque esta pantalla lo sustituye.
+> Entre tanto el respaldo es una consulta SQL, documentada en `08` — **pero eso es exactamente lo que
+> el filtro de diseño prohíbe**: algo que depende de que alguien se acuerde de mirar. No se puede
+> lanzar con dinero de clientes dependiendo de eso.
 | `/admin/metricas` | Embudo, GMV, reservas por estado y **búsquedas sin resultado** |
 
 Tecnologías, todas ya en el stack: `recharts` con carga diferida como en `EarningsChart`,
