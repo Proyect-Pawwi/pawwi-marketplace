@@ -56,7 +56,15 @@ recordar lo que se planeó.
 
 1. 🔴 **El embudo del Pawwer no cierra.** `visita_pendiente → approved` no existe · **S3**
 2. 🔴 **La visita no tiene herramienta** y su protocolo **no se puede ejecutar** hoy · **S3**
-3. 🔴 **El Pawwer desaparece** de la tarjeta del cliente y parece un error de la app · **S4**
+3. 🟡 **El Pawwer desaparece** de la tarjeta del cliente · **la mentira se quitó el 2026-09-16**, el
+   resto sigue en **S4**. La tarjeta ya no escribe «Pawwer» donde va un nombre: sin cuidador
+   asignado dice *«Buscando otro cuidador»* con un ícono de búsqueda, y explica en una línea que se
+   busca entre los verificados por el mismo precio. **Lo que falta y necesita esquema:** nombrar a
+   quién no pudo. El cron hace `pawwer_id = NULL` y **no queda rastro del Pawwer original**, así que
+   «Juliana no pudo» no se puede escribir todavía.
+   > ⚠️ **El camino está escrito pero sin ejercer**: ninguna reserva de prueba tiene `pawwer_id`
+   > nulo. Para verlo, en el SQL Editor: `UPDATE booking SET pawwer_id = NULL, search_phase = 2
+   > WHERE id = '…' AND status_id = 1;`
 4. ✅ ~~**Pawwi no puede cobrar.**~~ **Resuelto el 2026-09-15**: se cobró de punta a punta con la
    tarjeta de pruebas y el sello quedó en la base. Queda cerrar S2 con las cancelaciones, el
    vencimiento y una transacción real · **S2**
