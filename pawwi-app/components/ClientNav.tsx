@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Search, Heart, Calendar, MessageCircle, User } from "lucide-react";
+import { Dog, Heart, Calendar, MessageCircle, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/client";
 
@@ -41,19 +41,19 @@ function NavTab({
     <Link
       href={href}
       className={[
-        "flex flex-col items-center gap-1.5 transition-all flex-1 py-1 px-1",
+        "flex flex-col items-center gap-1 transition-all flex-1 py-1 px-1",
         active ? "text-[#FF7031]" : "text-gray-400 hover:text-white",
       ].join(" ")}
     >
       <div className="relative">
-        <Icon size={21} strokeWidth={active ? 2.5 : 1.8} />
+        <Icon size={25} strokeWidth={active ? 2.4 : 1.7} />
         {!!badge && (
           <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center px-0.5 leading-none pointer-events-none">
             {badge > 9 ? "9+" : badge}
           </span>
         )}
       </div>
-      <span className="text-[9px] font-black uppercase tracking-widest leading-none">
+      <span className="text-[9px] font-medium tracking-normal leading-none">
         {label}
       </span>
     </Link>
@@ -145,12 +145,18 @@ export default function ClientNav() {
             />
           </div>
 
-          {/* Centro: Explorar FAB — siempre sólido (es el loop principal) */}
+          {/* Centro: Explorar FAB — siempre sólido (es el loop principal).
+              Era una LUPA con un halo naranja `shadow-[…rgba(255,112,49,0.45)]`
+              que se leía como un degradado en el contorno. Ahora: perrito, y
+              sombra neutra que eleva sin teñir.
+              El corazón se descartó porque ya es «Favoritos» en este mismo nav
+              —reusarlo duplicaría el símbolo—. El perrito cede algo de
+              literalidad («buscar») a cambio de ser el símbolo de la marca. */}
           <Link
             href="/"
-            className="w-12 h-12 rounded-[18px] bg-[#FF7031] flex items-center justify-center mx-2 -translate-y-4 transition-transform active:scale-95 shadow-[0_10px_28px_rgba(255,112,49,0.45)] shrink-0"
+            className="w-[52px] h-[52px] rounded-[18px] bg-tangerine flex items-center justify-center mx-2 -translate-y-4 transition-transform active:scale-95 shadow-[0_6px_16px_rgba(18,10,43,0.3)] shrink-0"
           >
-            <Search size={22} strokeWidth={2.5} className="text-white" />
+            <Dog size={27} strokeWidth={2.2} className="text-white" />
           </Link>
 
           {/* Derecha: Mensajes + Perfil */}
