@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/server";
 import { MessageCircle, Search } from "lucide-react";
+import BackButton from "@/components/BackButton";
 
 export const metadata: Metadata = { title: "Mensajes — Pawwi" };
 
@@ -20,6 +21,7 @@ export default async function MisMensajesPage() {
 
       {/* Header (pantalla-tab) */}
       <header className="relative z-10 max-w-xl mx-auto px-6 pt-12 pb-4">
+        <div className="mb-4"><BackButton /></div>
         <p className="eyebrow text-[#FF7031]">Conversaciones</p>
         <div className="flex items-end justify-between gap-3 mt-1">
           <h1 className="text-3xl font-black text-[#120A2B]">Mensajes</h1>

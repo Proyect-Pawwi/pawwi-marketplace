@@ -5,6 +5,7 @@ import { createClient } from "@/lib/server";
 import { Calendar, Dog, ChevronRight, PawPrint, CalendarDays, Search } from "lucide-react";
 import RealtimeClientBookings from "./RealtimeClientBookings";
 import { SERVICE_LABEL as SERVICE_DISPLAY } from "@/lib/services";
+import BackButton from "@/components/BackButton";
 
 export const metadata: Metadata = { title: "Mis reservas — Pawwi" };
 
@@ -66,12 +67,15 @@ export default async function MisReservasPage() {
       {/* Actualiza en vivo cuando el pawwer acepta / el cuidado avanza / se cancela */}
       <RealtimeClientBookings userId={user.id} />
 
-      {/* Cabecera de pantalla-TAB, el patrón del design system: antetítulo +
-          `h1 text-3xl font-black` + chip de ícono, y SIN botón de volver —es una
-          pestaña, no hay a dónde volver—. Antes era una barra pegajosa con
-          flecha y `text-base`, que es el patrón de una SUB-pantalla. */}
+      {/* Cabecera de pantalla-TAB: antetítulo + `h1 text-3xl font-black` + chip
+          de ícono. Antes era una barra pegajosa con `text-base`, el patrón de una
+          SUB-pantalla.
+          El «volver» SÍ va, por decisión de Nicolás (2026-09-16): el nav del
+          cliente no está en el HTML inicial —es cliente y espera resolver el
+          rol—, así que sin él hay un instante sin ninguna salida. */}
       <header className="relative z-20 pt-12 pb-4">
         <div className="max-w-xl mx-auto px-6">
+          <div className="mb-4"><BackButton /></div>
           <p className="eyebrow text-tangerine">Tus reservas</p>
           <div className="flex items-end justify-between gap-3 mt-1.5">
             <h1 className="text-3xl font-black text-midnight leading-none">Mis Reservas</h1>

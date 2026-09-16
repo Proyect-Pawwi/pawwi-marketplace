@@ -135,9 +135,16 @@ backend — que es exactamente el defecto del «Élite» del Pawwer.
 | | Pantalla-pestaña | Sub-pantalla |
 |---|---|---|
 | Título | `h1 text-3xl font-black` + chip de ícono | `text-2xl font-black` |
-| Volver | No | Botón `ArrowLeft` |
+| Volver | **Sí en el cliente** (ver abajo) · no en el portal del Pawwer | Botón `ArrowLeft` |
 | Navegación inferior | Visible | **Oculta** |
 | Guardar | — | Barra flotante que aparece solo si hay cambios |
+
+> **Excepción del lado del cliente (2026-09-16): las pestañas SÍ llevan «volver».** La regla de
+> «las pestañas no vuelven» asume un nav que está desde el primer píxel, y eso solo es cierto en el
+> portal del Pawwer: su `BottomNav` se renderiza en el servidor. `ClientNav` es un componente de
+> cliente que devuelve `null` hasta resolver el rol por consulta, así que **no está en el HTML
+> inicial**; y `/mis-mascotas` no está en `CLIENT_TAB_ROOTS`, así que nunca tiene nav. Se usa
+> `components/BackButton.tsx`, con `router.back()` y `fallback` cuando no hay historial.
 
 **Identidad visual** — detalle completo en [`04`](./04-BACKEND-Y-SEGURIDAD.md):
 cream `#FFF1EB` fondo · midnight `#120A2B` texto y botones · tangerine `#FF7031` acción principal ·
