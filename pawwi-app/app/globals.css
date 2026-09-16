@@ -237,6 +237,36 @@
 /* ── Entrada escalonada de contenido ──────────────────────────────────────────
    Aplicar `.enter` + `.enter-N` a secciones/tarjetas de primer nivel. Solo
    transform/opacity (GPU), rápida. Reusa el keyframe slide-up. */
+/* ── CELEBRACIÓN ──────────────────────────────────────────────────────────────
+   Para las pantallas de éxito del cliente (pago confirmado, peludo agregado).
+   Todas son de UNA sola pasada (`forwards`), nunca `infinite`: una animación en
+   bucle es lo que hacía caros los blobs, y aquí además no aporta — se celebra
+   una vez. La regla de `prefers-reduced-motion` de más abajo las neutraliza
+   todas sin que haya que declararlo aquí.                                    */
+
+/* El sello aparece con un rebote corto. */
+@keyframes pop-in {
+  0%   { transform: scale(0);    opacity: 0; }
+  70%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.pop-in { animation: pop-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Anillos que se expanden desde el sello. Dos, desfasados. */
+@keyframes pulse-wave {
+  0%   { transform: translate(-50%, -50%) scale(0.9); opacity: 0.7; }
+  100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0;   }
+}
+.pulse-wave   { animation: pulse-wave 2.2s cubic-bezier(0.36, 0.11, 0.89, 0.32) 2 both; }
+.pulse-wave-2 { animation-delay: 0.4s; }
+
+/* Confeti: cae una vez y desaparece a media pantalla. */
+@keyframes confetti-fall {
+  0%   { opacity: 1; transform: translateY(0)     rotate(0deg);   }
+  100% { opacity: 0; transform: translateY(60vh)  rotate(720deg); }
+}
+.confetti-fall { animation: confetti-fall 3s ease-out both; }
+
 .enter   { animation: slide-up 0.28s cubic-bezier(0.2, 0, 0, 1) both; }
 .enter-1 { animation-delay: 0ms;   }
 .enter-2 { animation-delay: 60ms;  }

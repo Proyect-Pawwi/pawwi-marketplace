@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/server";
-import { CheckCircle2, Calendar, Dog, MessageCircle, ArrowRight, CreditCard } from "lucide-react";
+import { CheckCircle2, MessageCircle, ArrowRight, CreditCard } from "lucide-react";
 import BookingActions from "./BookingActions";
 import PagarReserva from "./PagarReserva";
+import TicketCard, { TicketGrid } from "@/components/TicketCard";
 
 export const metadata: Metadata = { title: "Tu reserva — Pawwi" };
 
@@ -141,69 +142,61 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
           />
         )}
 
-        {/* Pawwer card */}
-        <div className="bg-white rounded-[24px] shadow-[0_10px_30px_rgba(18,10,43,0.06)] p-4">
-          <p className="text-[10px] font-extrabold text-[#120A2B]/40 uppercase tracking-widest mb-3">Tu Pawwer</p>
-          <div className="flex items-center gap-3">
-            {pawwerAvatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={pawwerAvatar} alt={pawwerName} className="w-12 h-12 rounded-full object-cover shrink-0" />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-[#120A2B] flex items-center justify-center text-white font-extrabold text-lg shrink-0">
-                {pawwerName[0]?.toUpperCase()}
+        {/* La reserva como BILLETE. Antes eran dos tarjetas —«Tu Pawwer» y
+            «Detalles»— con el total suelto al final de la segunda. Una reserva
+            tiene titular, trayecto, hora e importe: es un billete, y las muescas
+            lo dicen sin una palabra. Viene del diseño `21_ready_ticket`. */}
+        <TicketCard
+          footerLabel={b.charged_at ? "Total pagado" : "Total a pagar"}
+          footerValue={fmtCOP(b.total)}
+          header={
+            <div className="flex items-center gap-3">
+              {pawwerAvatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={pawwerAvatar} alt={pawwerName} className="w-12 h-12 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-midnight flex items-center justify-center text-white font-extrabold text-lg shrink-0">
+                  {pawwerName[0]?.toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="eyebrow text-gray-400">Tu Pawwer</p>
+                <p className="font-black text-midnight leading-tight truncate">{pawwerName}</p>
+                <p className="text-xs text-midnight/40">Pawwer verificado ✓</p>
               </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="font-extrabold text-[#120A2B]">{pawwerName}</p>
-              <p className="text-xs text-[#120A2B]/40">Pawwer verificado ✓</p>
+              {pawwerId && (
+                <Link
+                  href={`/pawwer/${pawwerId}`}
+                  className="text-xs font-bold text-tangerine hover:underline shrink-0"
+                >
+                  Ver perfil
+                </Link>
+              )}
             </div>
-            <Link
-              href={`/pawwer/${pawwerId}`}
-              className="text-xs font-bold text-[#FF7031] hover:underline shrink-0"
-            >
-              Ver perfil
-            </Link>
-          </div>
-        </div>
-
-        {/* Booking details */}
-        <div className="bg-white rounded-[24px] shadow-[0_10px_30px_rgba(18,10,43,0.06)] p-4 space-y-3">
-          <p className="text-[10px] font-extrabold text-[#120A2B]/40 uppercase tracking-widest">Detalles</p>
-
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-[#FFF1EB] flex items-center justify-center shrink-0">
-              <Calendar size={15} className="text-[#FF7031]" />
-            </div>
-            <div>
-              <p className="text-xs text-[#120A2B]/40">Servicio · Fechas</p>
-              <p className="text-sm font-extrabold text-[#120A2B]">
-                {SERVICE_DISPLAY[serviceName] ?? serviceName}
-                {" · "}
-                {fmtDate(b.start_date)}
-                {b.start_date !== b.end_date && ` – ${fmtDate(b.end_date)}`}
-              </p>
-            </div>
-          </div>
-
-          {dogs.length > 0 && (
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-[#FFF1EB] flex items-center justify-center shrink-0">
-                <Dog size={15} className="text-[#FF7031]" />
-              </div>
-              <div>
-                <p className="text-xs text-[#120A2B]/40">Mascotas</p>
-                <p className="text-sm font-extrabold text-[#120A2B]">{dogs.join(", ")}</p>
-              </div>
-            </div>
-          )}
-
-          <div className="h-px bg-gray-100" />
-
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-[#120A2B]/50">Total</span>
-            <span className="text-lg font-extrabold text-[#FF7031]">{fmtCOP(b.total)}</span>
-          </div>
-        </div>
+          }
+        >
+          <TicketGrid
+            items={[
+              {
+                label: "Servicio",
+                value: SERVICE_DISPLAY[serviceName] ?? serviceName,
+              },
+              {
+                label: b.start_date !== b.end_date ? "Fechas" : "Fecha",
+                value:
+                  b.start_date !== b.end_date
+                    ? `${fmtDate(b.start_date)} – ${fmtDate(b.end_date)}`
+                    : fmtDate(b.start_date),
+              },
+              ...(dogs.length > 0
+                ? [{
+                    label: dogs.length === 1 ? "Mascota" : "Mascotas",
+                    value: dogs.join(", "),
+                  }]
+                : []),
+            ]}
+          />
+        </TicketCard>
 
         {/* Acciones del cliente: reseña (completada) / cancelar (antes de iniciar) */}
         <BookingActions

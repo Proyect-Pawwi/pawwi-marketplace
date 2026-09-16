@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ShieldCheck, Clock, CreditCard } from "lucide-react";
+import SuccessStage from "@/components/SuccessStage";
 
 interface Props { bookingId: string; total: number; }
 
@@ -10,32 +11,27 @@ function fmtCOP(n: number) {
 export default function Step4Resumen({ bookingId, total }: Props) {
   const ref = `PWW-2026-${bookingId.slice(0, 6).toUpperCase()}`;
   return (
-    <div className="min-h-screen bg-[#FFF1EB] flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Blobs */}
-      <div aria-hidden className="pointer-events-none absolute top-[-10%] left-[-10%] w-[300px] h-[300px] bg-[#F7AEF1] rounded-full mix-blend-multiply filter blur-[80px] opacity-40" />
-      <div aria-hidden className="pointer-events-none absolute bottom-[10%] right-[-10%] w-[250px] h-[250px] bg-[#FF7031] rounded-full mix-blend-multiply filter blur-[80px] opacity-15" />
-
-      <div className="relative z-10 max-w-sm w-full text-center space-y-5 py-12">
-        {/* Icon */}
-        <div className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center shadow-[0_12px_32px_rgba(18,10,43,0.08)]">
-          <ShieldCheck size={36} className="text-[#FF7031]" />
-        </div>
-
-        {/* Title */}
-        <div>
-          <h1 className="text-2xl font-extrabold text-[#120A2B] mb-1">Solicitud enviada</h1>
-          <p className="text-sm text-[#120A2B]/50">
-            Referencia <span className="font-bold text-[#120A2B]">{ref}</span>
-          </p>
-        </div>
-
-        {/* Card */}
-        <div className="bg-white rounded-[24px] p-5 text-left space-y-3 shadow-[0_10px_30px_rgba(18,10,43,0.06)]">
+    // SIN confeti, a propósito: «solicitud enviada» NO es una confirmación. El
+    // Pawwer tiene una hora para aceptar y puede declinar. Celebrar aquí sería
+    // prometer algo que todavía no ha pasado — la misma deuda que PawwiProtect.
+    // El marco (fondo, tipografía, atmósfera) lo da el layout de `(flujo)`.
+    <SuccessStage
+      confetti={false}
+      icon={<ShieldCheck size={44} />}
+      title="Solicitud enviada"
+      description={
+        <>
+          Referencia <span className="font-bold text-midnight">{ref}</span>
+        </>
+      }
+    >
+      <div className="max-w-sm mx-auto w-full space-y-3 text-left">
+        <div className="bg-cream/70 rounded-card p-5 space-y-3">
           <div className="flex justify-between items-center text-sm">
-            <span className="text-[#120A2B]/50 font-medium">Total a pagar</span>
-            <span className="font-extrabold text-[#FF7031] text-lg">{fmtCOP(total)}</span>
+            <span className="text-midnight/50 font-medium">Total a pagar</span>
+            <span className="font-black text-tangerine text-lg">{fmtCOP(total)}</span>
           </div>
-          <div className="h-px bg-gray-100" />
+          <div className="h-px bg-midnight/5" />
           {/* 1 hora, que es lo que pone set_booking_phase_expiry. Antes decía
               30 min y no correspondía con ninguna regla del sistema. */}
           <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-2xl px-3 py-2.5 text-xs text-amber-700">
@@ -46,12 +42,12 @@ export default function Step4Resumen({ bookingId, total }: Props) {
 
         {/* Cuándo se paga. No se cobra nada hasta que las dos partes aceptaron
             (mig 68): el pago es el último paso, no el primero. */}
-        <div className="bg-white/70 backdrop-blur-sm rounded-[24px] p-5 border border-white shadow-[0_4px_16px_rgba(18,10,43,0.04)]">
-          <div className="flex items-center justify-center gap-2 text-[#120A2B] mb-1">
-            <CreditCard size={18} className="text-[#FF7031]" />
+        <div className="bg-cream/70 rounded-card p-5">
+          <div className="flex items-center justify-center gap-2 text-midnight mb-1">
+            <CreditCard size={18} className="text-tangerine" />
             <span className="text-sm font-bold">Todavía no pagas nada</span>
           </div>
-          <p className="text-xs text-[#120A2B]/50 text-center leading-relaxed">
+          <p className="text-xs text-midnight/50 text-center leading-relaxed">
             Cuando tu Pawwer acepte, la reserva aparece en tus reservas y tienes 2 horas para
             pagar. Hasta entonces no se te cobra nada.
           </p>
@@ -60,17 +56,17 @@ export default function Step4Resumen({ bookingId, total }: Props) {
         {/* A la reserva — ahí aparece el botón de pagar cuando acepten */}
         <Link
           href={`/booking/confirmada/${bookingId}`}
-          className="block w-full bg-[#120A2B] text-white rounded-full py-3.5 font-bold text-sm shadow-[0_8px_20px_rgba(18,10,43,0.2)] active:scale-95 transition-transform"
+          className="block w-full bg-midnight text-white rounded-full py-4 font-bold text-center shadow-dark active:scale-[0.98] transition-transform"
         >
           Ver mi reserva
         </Link>
         <Link
           href="/"
-          className="block text-sm font-semibold text-[#120A2B]/40 hover:text-[#120A2B] transition-colors underline underline-offset-2"
+          className="block text-center text-sm font-semibold text-midnight/40 hover:text-midnight transition-colors underline underline-offset-2"
         >
           Volver al marketplace
         </Link>
       </div>
-    </div>
+    </SuccessStage>
   );
 }
