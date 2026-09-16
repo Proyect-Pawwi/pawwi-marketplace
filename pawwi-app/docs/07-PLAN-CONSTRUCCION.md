@@ -1036,9 +1036,10 @@ Va primero porque es lo único que hoy **parece un error de la app**.
   > `lib/dog-behavior.ts` nunca se dispara porque `friendly_dogs` siempre es `null`, y los chips de
   > comportamiento que ve el Pawwer salen siempre «sin informar». Se construyó en S1 la lectura sin
   > la escritura.
-- **Editar mascota está roto.** `mis-mascotas/page.tsx` enlaza `?edit=<id>` pero `nueva/page.tsx`
-  **no lee `searchParams`**: el lápiz abre un formulario vacío y guardar **crea un perro duplicado**.
-  Falta la acción `actualizarMascota`
+- **Editar mascota:** falta la acción `actualizarMascota` y que `nueva/page.tsx` lea
+  `searchParams`. **El 2026-09-16 se RETIRÓ el lápiz** de la lista: enlazaba a `?edit=<id>`, abría un
+  formulario vacío y al guardar **creaba un perro duplicado**. Un botón que corrompe datos no se deja
+  puesto porque la pantalla parezca más completa — vuelve aquí, funcionando.
 - **Arreglar `?back=`**, que hoy manda a `/mis-mascotas` y **pierde la reserva a medias**
 
 > ⚠️ **Antes de escribir una línea de 4.3 y 4.5: faltan permisos de tabla.** `client`, `favourite` y
