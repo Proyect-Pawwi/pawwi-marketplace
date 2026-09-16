@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/server";
+import { safeNext } from "@/lib/safe-redirect";
 
 const DogSchema = z.object({
   name:      z.string().min(1, "El nombre es requerido").max(40).trim(),
@@ -75,7 +76,12 @@ export async function crearMascota(
     return { message: "No se pudo guardar la mascota. Intenta de nuevo." };
   }
 
-  redirect("/mis-mascotas");
+  // Volver A DONDE VENÍA. El paso 3 de la reserva manda `?back=` con la reserva
+  // a medias, pero aquí había un `redirect("/mis-mascotas")` fijo: el cliente
+  // que agregaba un perro para poder reservar **perdía la reserva** y tenía que
+  // rehacer los tres pasos. `safeNext` bloquea el open-redirect, igual que en
+  // el registro.
+  redirect(safeNext(formData.get("back"), "/mis-mascotas"));
 }
 
 export async function eliminarMascota(dogId: string): Promise<void> {

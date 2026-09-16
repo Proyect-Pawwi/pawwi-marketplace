@@ -1,29 +1,43 @@
 import type { Metadata } from "next";
 import BackButton from "@/components/BackButton";
+import { safeNext } from "@/lib/safe-redirect";
 import DogForm from "./DogForm";
 
 export const metadata: Metadata = { title: "Agregar mascota — Pawwi" };
 
-export default function NuevaMascotaPage() {
-  // El marco —fondo, tipografía y atmósfera— lo da el layout de `(cliente)`.
-  // Esta pantalla repetía `min-h-screen bg-cream … overflow-hidden` y su propio
-  // blob, que ahora duplicaban los del shell.
-  return (
-    <main className="relative px-4 py-8">
-      <div className="relative max-w-lg mx-auto">
-        <div className="flex items-center gap-3 mb-6">
-          {/* Antes era un <Link> a /mis-mascotas con otro estilo (`w-9`,
-              `rounded-full`, borde gris). Con `router.back()` vuelve a DONDE
-              VINO: si el cliente llegó desde el paso 3 de una reserva, regresa
-              a la reserva y no a la lista de mascotas. */}
-          <BackButton fallback="/mis-mascotas" />
-          <div>
-            <h1 className="text-xl font-heading font-extrabold text-midnight">Agregar mascota</h1>
-            <p className="text-xs text-midnight/50 font-body">Cuéntanos sobre tu perro</p>
-          </div>
-        </div>
+interface Props {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
 
-        <DogForm />
+export default async function NuevaMascotaPage({ searchParams }: Props) {
+  // El paso 3 de la reserva llega aquí con `?back=<la reserva a medias>`. Esta
+  // pantalla NO lo leía, así que el parámetro viajaba y se tiraba: al guardar,
+  // el cliente caía en /mis-mascotas y **perdía la reserva**. Tenía que rehacer
+  // los tres pasos para volver al punto donde estaba.
+  const sp = await searchParams;
+  const back = safeNext(typeof sp.back === "string" ? sp.back : null, "/mis-mascotas");
+  const vieneDeReserva = back.startsWith("/booking/");
+
+  // El marco —fondo, tipografía y atmósfera— lo da el layout de `(cliente)`.
+  return (
+    <main className="relative px-6 py-10">
+      <div className="relative max-w-lg mx-auto">
+        <header className="mb-8">
+          {/* `router.back()` respeta de dónde vino; el fallback cubre el caso de
+              entrar por un enlace directo, donde no hay historial. */}
+          <div className="mb-4"><BackButton fallback={back} /></div>
+          <p className="eyebrow text-tangerine">
+            {vieneDeReserva ? "Para tu reserva" : "Tu familia"}
+          </p>
+          <h1 className="text-2xl font-black text-midnight leading-none mt-1.5">Agregar peludo</h1>
+          <p className="text-sm text-midnight/50 mt-2">
+            {vieneDeReserva
+              ? "Al guardarlo vuelves a tu reserva, justo donde la dejaste."
+              : "Cuéntanos sobre tu perro."}
+          </p>
+        </header>
+
+        <DogForm back={back} />
       </div>
     </main>
   );

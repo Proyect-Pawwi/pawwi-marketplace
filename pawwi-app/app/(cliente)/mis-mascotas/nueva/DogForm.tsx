@@ -14,7 +14,7 @@ const DOG_SIZES = [
   { id: 4, label: "Extra grande",emoji: "🐕‍🦺", desc: "> 45 kg" },
 ];
 
-export default function DogForm() {
+export default function DogForm({ back }: { back?: string }) {
   const [state, action, pending] = useActionState<DogState, FormData>(crearMascota, undefined);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [selectedSex, setSelectedSex]   = useState<"macho" | "hembra" | null>(null);
@@ -91,6 +91,9 @@ export default function DogForm() {
         {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
         <input ref={fileInputRef} type="file" accept="image/*" className="sr-only" onChange={handlePhoto} />
         <input type="hidden" name="photo_url" value={photoUrl} />
+        {/* A dónde volver tras guardar. Sin esto la acción caía siempre en
+            /mis-mascotas y el cliente perdía la reserva a medias. */}
+        {back && <input type="hidden" name="back" value={back} />}
       </div>
 
       <Input
