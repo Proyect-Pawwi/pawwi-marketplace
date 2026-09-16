@@ -17,10 +17,7 @@ export default async function MisFavoritosPage() {
   if (!user) redirect("/?modal=login&next=/mis-favoritos");
 
   return (
-    <div className="min-h-screen bg-[#FFF1EB] relative overflow-hidden pb-32">
-      {/* Blobs */}
-      <div aria-hidden className="pointer-events-none absolute top-[-8%] left-[-8%] w-[280px] h-[280px] bg-[#F7AEF1] rounded-full mix-blend-multiply filter blur-[80px] opacity-40" />
-      <div aria-hidden className="pointer-events-none absolute bottom-[10%] right-[-5%] w-[220px] h-[220px] bg-[#FF7031] rounded-full mix-blend-multiply filter blur-[80px] opacity-15" />
+    <div className="relative">
 
       {/* Header (pantalla-tab: sin "volver") */}
       <header className="relative z-10 max-w-xl mx-auto px-6 pt-12 pb-4">

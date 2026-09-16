@@ -26,8 +26,7 @@ export default async function MisMascotasPage() {
     .order("created_at", { ascending: true });
 
   return (
-    <main className="relative min-h-screen bg-cream px-4 py-8 overflow-hidden">
-      <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-plum/25 blur-3xl pointer-events-none" />
+    <main className="relative px-4 py-8">
 
       <div className="relative max-w-xl mx-auto">
         {/* Header */}

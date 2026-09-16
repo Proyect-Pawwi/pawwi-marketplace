@@ -20,6 +20,30 @@
   --font-sans: var(--font-jakarta);
   --font-heading: var(--font-montserrat-alt);
   --font-body: var(--font-montserrat);
+
+  /* Acentos del lado del cliente.
+     Criterio (2026-09-16): el TANGERINE se reserva para lo interactivo y
+     urgente —eyebrows, temporizadores, estado activo—, igual que en el portal
+     del Pawwer. El rosa y el plum son para lo decorativo y celebratorio:
+     blobs, pantallas de éxito, confeti. Así el cliente se siente más cálido
+     sin parecer otro producto. `rose` ya estaba en uso en /mi-perfil. */
+  --color-rose: #E04882;
+  --color-rose-soft: #FFF0F6;
+  --color-success: #10B981;
+  --color-star: #FFC107;
+
+  /* Sombras con nombre. La de tarjeta se escribía a mano en 51 sitios y con
+     CUATRO opacidades distintas (0.03–0.06) cuando el sistema dice 0.05:
+     deriva pura. Con token, deja de poder pasar. */
+  --shadow-card: 0 12px 30px rgba(18, 10, 43, 0.05);
+  --shadow-lift: 0 12px 30px rgba(18, 10, 43, 0.15);
+  --shadow-dark: 0 15px 35px rgba(18, 10, 43, 0.25);
+  --shadow-up: 0 -10px 30px rgba(18, 10, 43, 0.06);
+
+  /* Radios del sistema (antes solo como valores arbitrarios) */
+  --radius-chip: 14px;
+  --radius-card: 28px;
+  --radius-panel: 32px;
 }
 
 @keyframes float {

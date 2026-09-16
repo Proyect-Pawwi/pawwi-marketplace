@@ -62,13 +62,10 @@ export default async function MisReservasPage() {
   const past      = bookings.filter(b => [4, 5, 6].includes(b.status_id));
 
   return (
-    <div className="min-h-screen bg-[#FFF1EB] relative overflow-hidden">
+    <div className="relative">
       {/* Actualiza en vivo cuando el pawwer acepta / el cuidado avanza / se cancela */}
       <RealtimeClientBookings userId={user.id} />
 
-      {/* Blobs */}
-      <div aria-hidden className="pointer-events-none absolute top-[-8%] left-[-8%] w-[280px] h-[280px] bg-[#F7AEF1] rounded-full mix-blend-multiply filter blur-[80px] opacity-40" />
-      <div aria-hidden className="pointer-events-none absolute bottom-[10%] right-[-5%] w-[220px] h-[220px] bg-[#FF7031] rounded-full mix-blend-multiply filter blur-[80px] opacity-15" />
 
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-xl border-b border-white/50 sticky top-0 z-20 shadow-sm">
