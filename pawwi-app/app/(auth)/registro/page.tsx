@@ -9,10 +9,7 @@ export const metadata: Metadata = {
 
 export default function RegistroPage() {
   return (
-    <main className="relative min-h-screen bg-cream flex items-center justify-center px-4 py-12 overflow-hidden">
-      {/* Blobs decorativos */}
-      <div className="absolute -top-32 -right-32 w-[28rem] h-[28rem] rounded-full bg-plum/35 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-blue-ice/35 blur-3xl pointer-events-none" />
+    <main className="relative w-full">
 
       <div className="relative w-full max-w-md">
         {/* Header */}

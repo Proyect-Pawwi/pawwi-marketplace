@@ -14,7 +14,7 @@ const TOPICS = [
 
 export default function SoportePage() {
   return (
-    <div className="min-h-screen bg-[#FFF1EB] text-[#120A2B]">
+    <div className="min-h-screen bg-cream text-midnight font-sans">
       <header className="border-b border-black/5 bg-white/60 backdrop-blur-md">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center gap-4">
           <Link href="/" className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors">

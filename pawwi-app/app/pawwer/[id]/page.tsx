@@ -426,7 +426,7 @@ function PhotoGallery({ images, level }: { images: string[]; level: Level }) {
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 function LoadingSkeleton() {
   return (
-    <div className="min-h-screen bg-[#FFF1EB] flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-10 h-10 border-[3px] border-[#FF7031] border-t-transparent rounded-full animate-spin" />
         <p className="text-sm font-medium text-[#6B7280]">Cargando perfil...</p>
@@ -480,7 +480,7 @@ export default function PawwerProfile({ params }: { params: Promise<{ id: string
 
   if (gone) {
     return (
-      <div className="min-h-screen bg-[#FFF1EB] flex flex-col items-center justify-center px-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
         <div className="w-16 h-16 rounded-[20px] bg-white flex items-center justify-center mb-5 shadow-[0_12px_30px_rgba(18,10,43,0.06)] text-gray-300">
           <ShieldAlert size={30} />
         </div>
@@ -735,12 +735,10 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF1EB] text-[#120A2B] relative pb-36 lg:pb-0">
+    <div className="relative pb-36 lg:pb-0">
 
       {/* Blobs — contained so they never cause horizontal overflow */}
       <div aria-hidden className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-5%] left-[-10%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-[#F7AEF1] rounded-full mix-blend-multiply filter blur-[80px] opacity-40 blob-1" />
-        <div className="absolute top-[20%] right-[-10%] w-[250px] md:w-[400px] h-[250px] md:h-[400px] bg-[#FF7031] rounded-full mix-blend-multiply filter blur-[90px] opacity-10 blob-2" />
       </div>
 
       {/* Nav */}

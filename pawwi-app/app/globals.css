@@ -50,8 +50,10 @@
   0%, 100% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-20px) scale(1.05); }
 }
-.blob-1 { animation: float 8s ease-in-out infinite; }
-.blob-2 { animation: float 10s ease-in-out infinite reverse; }
+/* .blob-1 / .blob-2 retiradas el 2026-09-16. Animaban un `blur` de 100–120px
+   en bucle infinito, lo más caro que puede hacer un móvil, y el portal del
+   Pawwer ya había pasado sus blobs a estáticos por eso mismo: «el look no
+   cambia». Quedaban solo en la home y en el perfil público. */
 
 @keyframes marquee {
   from { transform: translateX(0); }

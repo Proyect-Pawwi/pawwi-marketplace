@@ -46,10 +46,32 @@ export async function generateMetadata(
   };
 }
 
+/**
+ * El perfil público es una pantalla DEL CLIENTE, aunque su URL viva bajo
+ * `/pawwer/` — es donde el cliente decide a quién le entrega su perro. Por eso
+ * recibe el mismo marco que el grupo `(cliente)`: tipografía, fondo y atmósfera.
+ *
+ * No se mueve a un grupo: su URL es `/pawwer/[id]` y este layout ya existía
+ * para los metadatos de Open Graph, así que el marco entra aquí.
+ *
+ * La página trae su propio pie fijo con el CTA en móvil, así que **sin `pb-32`**.
+ */
 export default function PawwerProfileLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <div className="min-h-screen bg-cream font-sans text-midnight relative overflow-x-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed top-[-10%] right-[-15%] w-[340px] h-[340px] bg-plum rounded-full mix-blend-multiply blur-[90px] opacity-35 z-0"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed bottom-[5%] left-[-15%] w-[260px] h-[260px] bg-tangerine rounded-full mix-blend-multiply blur-[90px] opacity-15 z-0"
+      />
+      <div className="relative z-10">{children}</div>
+    </div>
+  );
 }

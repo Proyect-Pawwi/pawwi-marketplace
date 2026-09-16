@@ -527,9 +527,9 @@ export default function PawwiHome() {
 
       {/* Background blobs — contained so they never cause horizontal overflow */}
       <div aria-hidden className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#F7AEF1] rounded-full mix-blend-multiply filter blur-[100px] opacity-40 blob-1" />
-        <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] bg-[#FF7031] rounded-full mix-blend-multiply filter blur-[120px] opacity-20 blob-2" />
-        <div className="absolute bottom-[10%] left-[30%] w-[350px] h-[350px] bg-[#92C0E9] rounded-full mix-blend-multiply filter blur-[110px] opacity-25 blob-1" />
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#F7AEF1] rounded-full mix-blend-multiply filter blur-[100px] opacity-40" />
+        <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] bg-[#FF7031] rounded-full mix-blend-multiply filter blur-[120px] opacity-20" />
+        <div className="absolute bottom-[10%] left-[30%] w-[350px] h-[350px] bg-[#92C0E9] rounded-full mix-blend-multiply filter blur-[110px] opacity-25" />
       </div>
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}

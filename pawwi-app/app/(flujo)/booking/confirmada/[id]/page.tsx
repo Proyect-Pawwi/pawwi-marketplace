@@ -100,10 +100,7 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
   const alreadyReviewed = !!reviewRow;
 
   return (
-    <div className="min-h-screen bg-[#FFF1EB] relative overflow-hidden">
-      {/* Blobs */}
-      <div aria-hidden className="pointer-events-none absolute top-[-8%] left-[-8%] w-[320px] h-[320px] bg-[#F7AEF1] rounded-full mix-blend-multiply filter blur-[80px] opacity-40" />
-      <div aria-hidden className="pointer-events-none absolute bottom-[10%] right-[-8%] w-[250px] h-[250px] bg-[#FF7031] rounded-full mix-blend-multiply filter blur-[80px] opacity-15" />
+    <div className="relative">
 
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-xl border-b border-white/50 sticky top-0 z-20 shadow-sm">

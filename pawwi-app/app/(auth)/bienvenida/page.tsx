@@ -19,9 +19,7 @@ export default async function BienvenidaPage() {
   if (count && count > 0) redirect("/mis-mascotas");
 
   return (
-    <main className="relative min-h-screen bg-cream flex items-center justify-center px-4 overflow-hidden">
-      <div className="absolute -top-40 -right-40 w-[36rem] h-[36rem] rounded-full bg-plum/30 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-blue-ice/30 blur-3xl pointer-events-none" />
+    <main className="relative w-full">
 
       <div className="relative w-full max-w-md text-center space-y-6 py-12">
         {/* Ilustración */}

@@ -3,9 +3,9 @@
 import { Suspense, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
-import LoginForm from "@/app/login/LoginForm";
-import RegistroForm from "@/app/registro/RegistroForm";
-import RecuperarForm from "@/app/recuperar/RecuperarForm";
+import LoginForm from "@/app/(auth)/login/LoginForm";
+import RegistroForm from "@/app/(auth)/registro/RegistroForm";
+import RecuperarForm from "@/app/(auth)/recuperar/RecuperarForm";
 
 type ModalView = "login" | "registro" | "recuperar";
 
