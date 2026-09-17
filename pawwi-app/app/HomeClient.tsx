@@ -1,0 +1,1198 @@
+"use client";
+
+import { useState, useRef, useEffect, Suspense } from "react";
+import AuthModal from "@/components/AuthModal";
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import {
+  Search, MapPin, Star, ShieldCheck, Heart,
+  Menu, User, Minus, Plus, ChevronDown, X, Map as MapIcon, List,
+} from "lucide-react";
+import { APIProvider, useMapsLibrary } from "@vis.gl/react-google-maps";
+import { createClient } from "@/lib/client";
+import { purgeSesionCliente } from "@/app/actions/auth";
+import type { LatLng } from "@/components/MapView";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
+import HeroImage from "@/components/HeroImage";
+import { useRouter } from "next/navigation";
+import { levelRank } from "@/lib/levels";
+import type { Pawwer } from "@/lib/pawwers";
+import { toggleFavorito } from "@/app/actions/favoritos";
+import PawwerCard from "@/components/PawwerCard";
+import type { SesionCliente } from "@/lib/session";
+
+type UsuarioHome = SesionCliente["usuario"];
+
+// Load the map client-side only (no SSR — Google Maps requires window)
+const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const MESES = [
+  "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
+];
+const DIAS_SEMANA = ["Do","Lu","Ma","Mi","Ju","Vi","Sa"];
+
+const SERVICE_MAP: Record<string, string> = {
+  Daycare: "DayCare",
+  Nightcare: "Night",
+  Travel: "Travel",
+  Express: "Express",
+};
+
+const FILTER_ACTIVE: Record<string, string> = {
+  Todos:     "bg-[#120A2B] text-white",
+  Daycare:   "bg-[#FF7031] text-white",
+  Nightcare: "bg-[#120A2B] text-white",
+  Travel:    "bg-[#92C0E9] text-[#120A2B]",
+};
+
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+// Deterministic jitter from UUID — consistent between renders, ~300m max offset
+function uuidSeed(uuid: string): number {
+  return uuid.replace(/-/g, "").split("").reduce((acc, c, i) => acc + c.charCodeAt(0) * (i + 1), 0);
+}
+
+function jitterCoords(id: string, lat: number, lng: number): LatLng {
+  const seed = uuidSeed(id);
+  const frac = (n: number) => n - Math.floor(n);
+  const dLat = (frac(Math.sin(seed * 127.1) * 43758.5) - 0.5) * 0.005;
+  const dLng = (frac(Math.sin(seed * 311.7) * 43758.5) - 0.5) * 0.005;
+  return { lat: lat + dLat, lng: lng + dLng };
+}
+
+function haversineKm(a: LatLng, b: LatLng): number {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * (Math.PI / 180);
+  const dLng = (b.lng - a.lng) * (Math.PI / 180);
+  const x = Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * (Math.PI / 180)) * Math.cos(b.lat * (Math.PI / 180)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+function formatDate(d: Date): string {
+  return d.toLocaleDateString("es-CO", { day: "numeric", month: "short" });
+}
+
+function toISO(d: Date): string {
+  return d.toISOString().split("T")[0]!;
+}
+
+function datesBetween(start: Date, end: Date): string[] {
+  const out: string[] = [];
+  const cur = new Date(start);
+  while (cur <= end) { out.push(toISO(cur)); cur.setDate(cur.getDate() + 1); }
+  return out;
+}
+
+function startOfDay(d: Date): Date {
+  const c = new Date(d);
+  c.setHours(0, 0, 0, 0);
+  return c;
+}
+
+// El nombre ya viene resuelto del servidor (`lib/session.ts`), así que aquí solo
+// se le da formato. Antes se extraía de `user_metadata.full_name` del objeto
+// `User` de Supabase entero — que ya no viaja al navegador.
+function primerNombre(u: UsuarioHome | null): string | null {
+  return u?.nombre?.trim().split(" ")[0] || null;
+}
+function inicial(u: UsuarioHome | null): string | null {
+  return u?.nombre?.trim()[0]?.toUpperCase() ?? null;
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+/**
+ * La home, con TODO su estado inicial resuelto ya en el servidor.
+ *
+ * Antes este componente arrancaba en blanco y salía a buscarlo todo después de
+ * montar: usuario, Pawwers y favoritos, en tres idas y vueltas. En un móvil eso
+ * se veía como tres mentiras sucesivas —«Ingresar» aunque hubiera sesión, «No
+ * hay Pawwers» aunque hubiera once, y corazones apagados aunque estuvieran
+ * guardados— antes de corregirse solas. Ahora llegan en el primer pintado.
+ */
+export default function PawwiHome({
+  initialUsuario,
+  initialPawwers,
+  initialFavoritos,
+}: {
+  initialUsuario: UsuarioHome | null;
+  initialPawwers: Pawwer[];
+  initialFavoritos: string[];
+}) {
+  const [activeTab, setActiveTab] = useState("daycare");
+  const [activeFilter, setActiveFilter] = useState("Todos");
+
+  const [searchLocation, setSearchLocation] = useState("");
+  const [petsCount, setPetsCount] = useState(1);
+
+  const [activeSearchPanel, setActiveSearchPanel] = useState<string | null>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobileSection, setMobileSection] = useState("where");
+
+  const [calendarDate, setCalendarDate] = useState<{ year: number; month: number }>(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedRange, setSelectedRange] = useState<{ start: Date | null; end: Date | null }>({
+    start: null, end: null,
+  });
+
+  const [favorites, setFavorites] = useState<Set<string>>(() => new Set(initialFavoritos));
+  // Sin `useState`: la lista viene del servidor y no se toca en el cliente.
+  const pawwers = initialPawwers;
+  const [availablePawwerIds, setAvailablePawwerIds] = useState<Set<string> | null>(null);
+
+  // Geocoded coordinates of the typed search location
+  const [searchCoords, setSearchCoords] = useState<LatLng | null>(null);
+
+  const [user, setUser] = useState<UsuarioHome | null>(initialUsuario);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const geocodingLib = useMapsLibrary("geocoding");
+  const pawwersSectionRef = useRef<HTMLDivElement>(null);
+  const cardsContainerRef = useRef<HTMLDivElement>(null);
+  const [selectedPawwerId, setSelectedPawwerId] = useState<string | null>(null);
+  const [mobileMapOpen, setMobileMapOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const router = useRouter();
+
+  // ── Effects ───────────────────────────────────────────────────────────────
+  // Aquí había TRES efectos que buscaban usuario, favoritos y Pawwers después
+  // de montar. Ya no: los tres llegan resueltos del servidor como props. Eso es
+  // lo que mata de raíz los parpadeos que Nicolás reportó el 2026-09-17 —el
+  // header de deslogueado, los corazones apagados y el «No hay Pawwers»— y de
+  // paso ahorra tres idas y vueltas en la red del móvil.
+  //
+  // Solo queda escuchar los CAMBIOS de sesión, para no quedarse con un usuario
+  // que ya cerró en otra pestaña. Entrar y salir hacen recarga dura, así que el
+  // servidor vuelve a decidir; esto es la red de seguridad.
+  //
+  // 🔒 NUNCA llamar a supabase.* dentro de este callback: Supabase avisa a los
+  // suscriptores con el candado de sesión tomado, y cualquier consulta de aquí
+  // dentro vuelve a pedirlo y se cuelga para siempre (abrazo mortal del
+  // 2026-09-15, el que dejaba el marketplace vacío al iniciar sesión).
+  useEffect(() => {
+    const supabase = createClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+        setFavorites(new Set()); // los corazones son de quien los guardó
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+
+  // Clear selected marker when filter or search location changes
+  useEffect(() => { setSelectedPawwerId(null); }, [activeFilter, searchCoords]);
+
+  // Filter by real availability when a date (or date range) is selected
+  useEffect(() => {
+    const isTravel = activeTab === "travel";
+    const days = isTravel
+      ? (selectedRange.start && selectedRange.end ? datesBetween(selectedRange.start, selectedRange.end) : null)
+      : (selectedDate ? [toISO(selectedDate)] : null);
+
+    if (!days) { setAvailablePawwerIds(null); return; }
+
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("availability")
+          .select("pawwer_id, date")
+          .in("date", days)
+          .gt("slots_remaining", 0);
+        if (error) { console.error("[Pawwi] fetch availability:", error.message); setAvailablePawwerIds(null); return; }
+        const counts = new Map<string, number>();
+        (data ?? []).forEach((r) => counts.set(r.pawwer_id as string, (counts.get(r.pawwer_id as string) ?? 0) + 1));
+        const ids = new Set([...counts.entries()].filter(([, c]) => c === days.length).map(([id]) => id));
+        setAvailablePawwerIds(ids);
+      } catch (e) {
+        console.error("[Pawwi] fetch availability LANZÓ:", e);
+        setAvailablePawwerIds(null);
+      }
+    })();
+  }, [activeTab, selectedDate, selectedRange.start, selectedRange.end]);
+
+  // Reset mobile sheet to "Dónde" on every open
+  useEffect(() => { if (mobileSearchOpen) setMobileSection("where"); }, [mobileSearchOpen]);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node))
+        setActiveSearchPanel(null);
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node))
+        setUserMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  function handleTabChange(tab: string) {
+    setActiveTab(tab.toLowerCase());
+    setActiveFilter(tab);
+    if (tab.toLowerCase() === "travel") setSelectedDate(null);
+    else setSelectedRange({ start: null, end: null });
+  }
+
+  async function handleSearch() {
+    setActiveSearchPanel(null);
+    setMobileSearchOpen(false);
+    pawwersSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!searchLocation.trim() || !geocodingLib) return;
+    setIsSearching(true);
+    try {
+      const geocoder = new geocodingLib.Geocoder();
+      const result = await geocoder.geocode({
+        address: searchLocation + ", Bogotá, Colombia",
+        componentRestrictions: { country: "co" },
+      });
+      const loc = result.results[0]?.geometry?.location;
+      if (loc) setSearchCoords({ lat: loc.lat(), lng: loc.lng() });
+    } catch {}
+    setIsSearching(false);
+  }
+
+  function clearFilters() {
+    setSearchLocation("");
+    setSearchCoords(null);
+    setActiveFilter("Todos");
+    setActiveTab("daycare");
+    setSelectedDate(null);
+    setSelectedRange({ start: null, end: null });
+    setAvailablePawwerIds(null);
+    setSelectedPawwerId(null);
+    setPetsCount(1);
+  }
+
+  function handleMarkerClick(id: string) {
+    setSelectedPawwerId(id);
+    const card = cardsContainerRef.current?.querySelector(`[data-pawwer-id="${id}"]`);
+    card?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  async function handleSignOut() {
+    setUserMenuOpen(false);
+    // Cierre a prueba de balas (3 capas):
+    // 1) signOut local → limpia la sesión EN MEMORIA del cliente-navegador.
+    try { await createClient().auth.signOut({ scope: "local" }); } catch { /* no-op */ }
+    // 2) purga server-side → borra explícitamente TODAS las cookies sb-* (incl.
+    //    chunks .0/.1), aunque signOut haya fallado por sesión corrupta.
+    try { await purgeSesionCliente(); } catch { /* no-op */ }
+    // 3) recarga dura → estado 100% limpio (server + navegador releen sin sesión).
+    window.location.assign("/");
+  }
+
+  async function toggleFavorite(id: string, e: React.MouseEvent) {
+    // La tarjeta entera es un enlace al perfil: sin esto, guardar navegaría.
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Sin sesión no hay dónde guardarlo. Antes el corazón se pintaba igual y se
+    // perdía al recargar: prometía algo que no estaba pasando.
+    if (!user) { router.push(`/?modal=login&next=${encodeURIComponent("/mis-favoritos")}`); return; }
+
+    const estaba = favorites.has(id);
+    // Optimista: el corazón responde al toque y la escritura va detrás.
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (estaba) next.delete(id); else next.add(id);
+      return next;
+    });
+
+    // El try/catch NO es decorativo: si la acción de servidor no llega a
+    // ejecutarse —red caída, 500, bundle desincronizado— la promesa se RECHAZA
+    // en vez de devolver `{ok:false}`. Sin atraparlo, el corazón se quedaba
+    // encendido para siempre sin fila detrás: un fallo mudo, que es justo lo
+    // que más caro nos ha salido. Ahora falle como falle, el corazón se apaga.
+    let motivo: string | null = null;
+    try {
+      const res = await toggleFavorito(id);
+      if (!res.ok) motivo = res.error;
+    } catch (e) {
+      motivo = e instanceof Error ? e.message : String(e);
+    }
+
+    if (motivo) {
+      // Revertir. Un corazón que vuelve a su sitio dice la verdad; uno que se
+      // queda encendido sin fila detrás es el bug que acabamos de arreglar.
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        if (estaba) next.add(id); else next.delete(id);
+        return next;
+      });
+      console.error("[Pawwi] toggleFavorito:", motivo);
+    }
+  }
+
+  function handleDateClick(date: number) {
+    const today = startOfDay(new Date());
+    const clicked = new Date(calendarDate.year, calendarDate.month, date);
+    if (clicked < today) return;
+
+    if (activeTab !== "travel") {
+      setSelectedDate(clicked);
+      setActiveSearchPanel("who");
+    } else {
+      if (!selectedRange.start || selectedRange.end) {
+        setSelectedRange({ start: clicked, end: null });
+      } else if (clicked > selectedRange.start) {
+        setSelectedRange((p) => ({ ...p, end: clicked }));
+        setActiveSearchPanel("who");
+      } else {
+        setSelectedRange({ start: clicked, end: null });
+      }
+    }
+  }
+
+  function prevMonth() {
+    const now = new Date();
+    if (calendarDate.year === now.getFullYear() && calendarDate.month === now.getMonth()) return;
+    setCalendarDate((p) =>
+      p.month === 0 ? { year: p.year - 1, month: 11 } : { ...p, month: p.month - 1 }
+    );
+  }
+
+  function nextMonth() {
+    setCalendarDate((p) =>
+      p.month === 11 ? { year: p.year + 1, month: 0 } : { ...p, month: p.month + 1 }
+    );
+  }
+
+  // ── Computed ──────────────────────────────────────────────────────────────
+  const hasActiveFilters = !!(searchLocation || activeFilter !== "Todos" || selectedDate || selectedRange.start);
+
+  function displayDistance(p: Pawwer): string {
+    if (!searchCoords) return p.distance;
+    const km = haversineKm(searchCoords, { lat: p.lat, lng: p.lng });
+    return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+  }
+
+  const serviceFiltered = pawwers
+    .filter((p) => activeFilter === "Todos" || p.services.includes(SERVICE_MAP[activeFilter] ?? activeFilter))
+    .filter((p) => availablePawwerIds === null || availablePawwerIds.has(p.id));
+
+  // Decisión 05: la búsqueda NO corta por radio. Pawwi lanza en Bogotá entera y
+  // la unidad de densidad es el conjunto, no el barrio — un Pawwer a 8 km que
+  // recoge y entrega es mejor resultado que una pantalla vacía. La distancia
+  // deja de ser filtro binario y pasa a ser el último criterio de orden.
+  //
+  // Orden: nivel → rating → distancia.
+  const filteredPawwers = [...serviceFiltered].sort((a, b) => {
+    const byLevel = levelRank(b.level) - levelRank(a.level);
+    if (byLevel !== 0) return byLevel;
+    const byRating = b.rating - a.rating;
+    if (byRating !== 0) return byRating;
+    if (!searchCoords) return 0;
+    return haversineKm(searchCoords, { lat: a.lat, lng: a.lng })
+         - haversineKm(searchCoords, { lat: b.lat, lng: b.lng });
+  });
+
+  const selectedPawwer = selectedPawwerId != null
+    ? filteredPawwers.find((p) => p.id === selectedPawwerId) ?? null
+    : null;
+
+  // Jittered coords for map display — real coords kept for distance filtering
+  const mapPawwers = filteredPawwers.map((p) => ({
+    ...p,
+    ...jitterCoords(p.id, p.lat, p.lng),
+  }));
+
+  const fechasLabel = (() => {
+    if (activeTab === "travel") {
+      if (selectedRange.start && selectedRange.end)
+        return `${formatDate(selectedRange.start)} – ${formatDate(selectedRange.end)}`;
+      if (selectedRange.start) return `${formatDate(selectedRange.start)} → ...`;
+      return "Rango de fechas";
+    }
+    return selectedDate ? formatDate(selectedDate) : "Elige un día";
+  })();
+
+  const datesFilled = activeTab === "travel"
+    ? !!(selectedRange.start && selectedRange.end)
+    : !!selectedDate;
+
+  // ── Calendar (shared between desktop dropdown and mobile sheet) ───────────
+  function CalendarContent() {
+    const today = startOfDay(new Date());
+    const { year, month } = calendarDate;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    const isTravel = activeTab === "travel";
+
+    return (
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <span className="font-bold text-[#120A2B]">{MESES[month]} {year}</span>
+          <div className="flex gap-1">
+            <button
+              onClick={prevMonth}
+              disabled={calendarDate.year === new Date().getFullYear() && calendarDate.month === new Date().getMonth()}
+              className="w-10 h-10 flex items-center justify-center rounded-full text-xl font-bold disabled:text-gray-300 disabled:cursor-not-allowed hover:bg-gray-100 text-[#120A2B]"
+            >‹</button>
+            <button onClick={nextMonth} className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full text-[#120A2B] text-xl font-bold">›</button>
+          </div>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center mb-2">
+          {DIAS_SEMANA.map((d) => <div key={d} className="text-xs text-gray-400 font-medium">{d}</div>)}
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {Array.from({ length: firstDay }, (_, i) => <div key={`e${i}`} />)}
+          {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((date) => {
+            const d = new Date(year, month, date);
+            const isPast = d < today;
+            const isSel = isTravel
+              ? selectedRange.start?.getTime() === d.getTime() || selectedRange.end?.getTime() === d.getTime()
+              : selectedDate?.getTime() === d.getTime();
+            const inRange =
+              isTravel && selectedRange.start && selectedRange.end &&
+              d > selectedRange.start && d < selectedRange.end;
+
+            return (
+              <button
+                key={date}
+                onClick={() => handleDateClick(date)}
+                disabled={isPast}
+                className={`w-9 h-9 text-sm font-medium flex items-center justify-center mx-auto transition-colors
+                  ${isPast ? "text-gray-300 cursor-not-allowed rounded-full" :
+                    isSel ? "bg-[#FF7031] text-white shadow-md rounded-full" :
+                    inRange ? "bg-[#FFF1EB] text-[#FF7031]" :
+                    "hover:bg-gray-100 text-[#120A2B] cursor-pointer rounded-full"}`}
+              >
+                {date}
+              </button>
+            );
+          })}
+        </div>
+        {isTravel && (
+          <p className="text-xs text-center text-gray-500 mt-4">
+            {!selectedRange.start ? "Toca la fecha de entrada"
+              : !selectedRange.end ? "Ahora toca la fecha de salida"
+              : "✓ Rango seleccionado"}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // ── JSX ───────────────────────────────────────────────────────────────────
+  return (
+    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+    <div className="min-h-screen bg-[#FFF1EB] font-sans text-[#120A2B] relative flex flex-col">
+
+      {/* Background blobs — contained so they never cause horizontal overflow */}
+      <div aria-hidden className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#F7AEF1] rounded-full mix-blend-multiply filter blur-[100px] opacity-40" />
+        <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] bg-[#FF7031] rounded-full mix-blend-multiply filter blur-[120px] opacity-20" />
+        <div className="absolute bottom-[10%] left-[30%] w-[350px] h-[350px] bg-[#92C0E9] rounded-full mix-blend-multiply filter blur-[110px] opacity-25" />
+      </div>
+
+      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
+      <header className="relative z-50 bg-white w-full border-b border-gray-200 shadow-sm sticky top-0">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 pt-4 pb-4 flex justify-between items-center">
+          <Link href="/" className="flex items-center w-1/3">
+            <img src="/LogoPawwiCompleteOrange.svg" alt="Pawwi" className="h-7 w-auto" />
+          </Link>
+
+          <div className="hidden md:flex items-center gap-6 w-1/3 justify-center">
+            {["Daycare","Nightcare","Travel"].map((id) => (
+              <button
+                key={id}
+                onClick={() => handleTabChange(id)}
+                className={`text-sm font-medium pb-2 border-b-2 transition-colors ${
+                  activeTab === id.toLowerCase()
+                    ? "border-[#120A2B] text-[#120A2B] font-bold"
+                    : "border-transparent text-[#6B7280] hover:text-[#120A2B] hover:border-gray-300"
+                }`}
+              >
+                {id}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3 w-1/3 justify-end">
+            <Link href="/pawwer/unirse" className="hidden md:block text-sm font-bold text-[#120A2B] hover:bg-gray-50 px-4 py-2 rounded-full transition-colors whitespace-nowrap">
+              Conviértete en Pawwer
+            </Link>
+            {user ? (
+              <div className="relative" ref={userMenuRef}>
+                {/* El nombre hace visible que hay sesión: antes el único indicio
+                    era este ícono genérico, y no se distinguía de estar fuera. */}
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2.5 bg-white pl-3 pr-2 py-1.5 rounded-full shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+                >
+                  <Menu size={18} className="text-gray-500" />
+                  <span className="hidden sm:block text-sm font-bold text-[#120A2B] max-w-[9rem] truncate">
+                    {primerNombre(user) ?? "Mi cuenta"}
+                  </span>
+                  <div className="bg-[#FF7031] text-white w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0">
+                    {inicial(user) ?? <User size={16} />}
+                  </div>
+                </button>
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50">
+                    {/* Iban a /reservas y /mascotas, que no existen: 404 */}
+                    <Link href="/mis-reservas" className="block px-4 py-2.5 text-sm font-medium text-[#120A2B] hover:bg-gray-50">Mis reservas</Link>
+                    <Link href="/mis-mascotas" className="block px-4 py-2.5 text-sm font-medium text-[#120A2B] hover:bg-gray-50">Mis peludos</Link>
+                    <Link href="/mi-perfil" className="block px-4 py-2.5 text-sm font-medium text-[#120A2B] hover:bg-gray-50">Mi perfil</Link>
+                    <div className="my-1 h-px bg-gray-100" />
+                    <button onClick={handleSignOut} className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50">
+                      Cerrar sesión
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link href="/?modal=login" className="text-sm font-bold text-[#120A2B] hover:bg-gray-50 px-4 py-2 rounded-full transition-colors">
+                  Ingresar
+                </Link>
+                <Link href="/?modal=registro" className="text-sm font-bold text-white bg-[#FF7031] hover:bg-[#e6652c] px-4 py-2 rounded-full transition-colors">
+                  Registrarme
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Search pill */}
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 pb-6 flex justify-center" ref={searchRef}>
+          {/* Desktop */}
+          <div className={`hidden md:flex items-center bg-white border rounded-full transition-[box-shadow,border-color] duration-200 w-full max-w-4xl h-16 relative
+            ${activeSearchPanel ? "shadow-xl border-gray-300" : "shadow-md border-gray-200 hover:shadow-lg"}`}>
+
+            {/* WHERE */}
+            <div className="flex-1 h-full relative">
+              <button
+                onClick={() => setActiveSearchPanel(activeSearchPanel === "where" ? null : "where")}
+                className={`w-full h-full flex flex-col justify-center px-8 rounded-full transition-colors text-left
+                  ${activeSearchPanel === "where" ? "bg-white shadow-lg relative z-10" : "hover:bg-gray-100 group"}`}
+              >
+                <span className="text-xs font-bold text-[#120A2B]">Dónde</span>
+                <span className={`text-sm truncate ${searchLocation ? "text-[#120A2B] font-medium" : "text-gray-500 group-hover:text-gray-800"}`}>
+                  {searchLocation || "Explora tu barrio"}
+                </span>
+              </button>
+              {activeSearchPanel === "where" && (
+                <div className="absolute top-full mt-4 left-0 w-[400px] bg-white rounded-3xl shadow-2xl border border-gray-100 p-6 z-50">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 block">Dirección</label>
+                  <AddressAutocomplete
+                    value={searchLocation}
+                    onChange={setSearchLocation}
+                    onSelect={(coords, label) => { setSearchCoords(coords); setSearchLocation(label); }}
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="w-px h-8 bg-gray-300" />
+
+            {/* WHEN */}
+            <div className="flex-1 h-full relative">
+              <button
+                onClick={() => setActiveSearchPanel(activeSearchPanel === "when" ? null : "when")}
+                className={`w-full h-full flex flex-col justify-center px-8 rounded-full transition-colors text-left
+                  ${activeSearchPanel === "when" ? "bg-white shadow-lg relative z-10" : "hover:bg-gray-100 group"}`}
+              >
+                <span className="text-xs font-bold text-[#120A2B]">Fechas</span>
+                <span className={`text-sm truncate ${datesFilled ? "text-[#120A2B] font-medium" : "text-gray-500 group-hover:text-gray-800"}`}>
+                  {fechasLabel}
+                </span>
+              </button>
+              {activeSearchPanel === "when" && (
+                <div className="absolute top-full mt-4 left-1/2 -translate-x-1/2 w-[360px] bg-white rounded-3xl shadow-2xl border border-gray-100 p-6 z-50">
+                  <CalendarContent />
+                </div>
+              )}
+            </div>
+
+            <div className="w-px h-8 bg-gray-300" />
+
+            {/* WHO */}
+            <div className="flex-[1.2] h-full relative">
+              <button
+                onClick={() => setActiveSearchPanel(activeSearchPanel === "who" ? null : "who")}
+                className={`w-full h-full flex flex-col justify-center pl-8 pr-24 rounded-full transition-colors text-left
+                  ${activeSearchPanel === "who" ? "bg-white shadow-lg relative z-10" : "hover:bg-gray-100 group"}`}
+              >
+                <span className="text-xs font-bold text-[#120A2B]">Mascota</span>
+                <span className="text-sm text-[#120A2B] font-medium">
+                  {petsCount} {petsCount === 1 ? "peludo" : "peludos"}
+                </span>
+              </button>
+              <button
+                onClick={handleSearch}
+                disabled={isSearching}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 bg-[#FF7031] rounded-full flex items-center justify-center text-white hover:bg-[#e6652c] transition-[background-color,transform] duration-150 active:scale-[0.96] shadow-md z-20 disabled:opacity-70"
+              >
+                {isSearching
+                  ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <Search size={20} strokeWidth={3} />}
+              </button>
+              {activeSearchPanel === "who" && (
+                <div className="absolute top-full mt-4 right-0 w-[300px] bg-white rounded-3xl shadow-2xl border border-gray-100 p-6 z-50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-[#120A2B]">Mascotas</h4>
+                      <p className="text-xs text-gray-500">¿Cuántos peludos van?</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setPetsCount(Math.max(1, petsCount - 1))}
+                        className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors
+                          ${petsCount <= 1 ? "border-gray-200 text-gray-300 cursor-not-allowed" : "border-gray-400 text-gray-600 hover:border-[#120A2B]"}`}>
+                        <Minus size={14} />
+                      </button>
+                      <span className="w-5 text-center font-bold text-[#120A2B] tabular-nums">{petsCount}</span>
+                      <button onClick={() => setPetsCount(petsCount + 1)}
+                        className="w-10 h-10 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:border-[#120A2B] transition-colors">
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile pill */}
+          <div
+            /* El borde es SIEMPRE de 2px; solo cambia de color. Antes pasaba de
+               `border` a `border-2` al filtrar: dos píxeles de más dentro de un
+               header `sticky`, que empujan todo el contenido hacia abajo. */
+            className={`md:hidden flex items-center rounded-full shadow-md px-4 py-3 gap-3 cursor-pointer transition-colors border-2
+              ${hasActiveFilters ? "bg-white border-[#FF7031]" : "bg-white border-gray-200"}`}
+            onClick={() => setMobileSearchOpen(true)}
+          >
+            <Search size={20} className="text-[#FF7031] shrink-0" />
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-sm font-bold text-[#120A2B] truncate">
+                {searchLocation || "¿Dónde necesitas cuidador?"}
+              </span>
+              <span className="text-xs text-gray-500 truncate">
+                {datesFilled ? fechasLabel : activeFilter !== "Todos" ? activeFilter : "Toda Bogotá"} · {petsCount} {petsCount === 1 ? "peludo" : "peludos"}
+              </span>
+            </div>
+            {/* Siempre montado: montarlo y desmontarlo reflujaba la píldora. */}
+            <button
+              onClick={(e) => { e.stopPropagation(); clearFilters(); }}
+              aria-hidden={!hasActiveFilters}
+              tabIndex={hasActiveFilters ? 0 : -1}
+              className={`shrink-0 w-7 h-7 bg-[#FF7031] rounded-full flex items-center justify-center text-white transition-opacity
+                ${hasActiveFilters ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+            >
+              <X size={13} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Desktop overlay */}
+      {activeSearchPanel && (
+        <div className="fixed inset-0 bg-black/10 z-40 hidden md:block" onClick={() => setActiveSearchPanel(null)} />
+      )}
+
+      {/* ── MOBILE BOTTOM SHEET ────────────────────────────────────────────── */}
+      {mobileSearchOpen && (
+        <div className="fixed inset-0 z-[60] md:hidden flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileSearchOpen(false)} />
+          <div className="relative bg-white rounded-t-3xl px-5 pt-4 pb-10 flex flex-col max-h-[92vh] overflow-y-auto">
+            <div className="relative flex items-center justify-center mb-5">
+              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              <button onClick={() => setMobileSearchOpen(false)} className="absolute right-0 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                <X size={16} className="text-gray-600" />
+              </button>
+            </div>
+
+            <div className="flex gap-2 mb-5">
+              {["Daycare","Nightcare","Travel"].map((id) => (
+                <button key={id} onClick={() => handleTabChange(id)}
+                  className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors
+                    ${activeTab === id.toLowerCase() ? "bg-[#120A2B] text-white" : "bg-gray-100 text-[#6B7280]"}`}>
+                  {id}
+                </button>
+              ))}
+            </div>
+
+            {/* Dónde */}
+            <button onClick={() => setMobileSection(mobileSection === "where" ? "" : "where")}
+              className="w-full flex items-center justify-between py-4 border-b border-gray-100">
+              <div className="text-left">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Dónde</p>
+                <p className="text-sm font-semibold text-[#120A2B]">{searchLocation || "Explora tu barrio"}</p>
+              </div>
+              <ChevronDown size={16} className={`text-gray-400 transition-transform ${mobileSection === "where" ? "rotate-180" : ""}`} />
+            </button>
+            {mobileSection === "where" && (
+              <div className="py-4 flex flex-col gap-3">
+                <AddressAutocomplete
+                  value={searchLocation}
+                  onChange={setSearchLocation}
+                  onSelect={(coords, label) => { setSearchCoords(coords); setSearchLocation(label); }}
+                  autoFocus
+                />
+              </div>
+            )}
+
+            {/* Fechas */}
+            <button onClick={() => setMobileSection(mobileSection === "when" ? "" : "when")}
+              className="w-full flex items-center justify-between py-4 border-b border-gray-100">
+              <div className="text-left">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Fechas</p>
+                <p className={`text-sm font-semibold ${datesFilled ? "text-[#FF7031]" : "text-[#120A2B]"}`}>{fechasLabel}</p>
+              </div>
+              <ChevronDown size={16} className={`text-gray-400 transition-transform ${mobileSection === "when" ? "rotate-180" : ""}`} />
+            </button>
+            {mobileSection === "when" && <div className="py-4"><CalendarContent /></div>}
+
+            {/* Mascota */}
+            <button onClick={() => setMobileSection(mobileSection === "who" ? "" : "who")}
+              className="w-full flex items-center justify-between py-4 border-b border-gray-100">
+              <div className="text-left">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Mascota</p>
+                <p className="text-sm font-semibold text-[#120A2B]">{petsCount} {petsCount === 1 ? "peludo" : "peludos"}</p>
+              </div>
+              <ChevronDown size={16} className={`text-gray-400 transition-transform ${mobileSection === "who" ? "rotate-180" : ""}`} />
+            </button>
+            {mobileSection === "who" && (
+              <div className="py-5 flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-[#120A2B]">Mascotas</h4>
+                  <p className="text-xs text-gray-500">¿Cuántos peludos van?</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setPetsCount(Math.max(1, petsCount - 1))}
+                    className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors
+                      ${petsCount <= 1 ? "border-gray-200 text-gray-300 cursor-not-allowed" : "border-gray-400 text-gray-600 hover:border-[#120A2B]"}`}>
+                    <Minus size={16} />
+                  </button>
+                  <span className="text-lg font-bold text-[#120A2B] w-5 text-center tabular-nums">{petsCount}</span>
+                  <button onClick={() => setPetsCount(petsCount + 1)}
+                    className="w-10 h-10 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:border-[#120A2B] transition-colors">
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <button onClick={handleSearch} disabled={isSearching}
+              className="mt-6 w-full bg-[#FF7031] hover:bg-[#e6652c] text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-[background-color,transform] duration-150 active:scale-[0.96] disabled:opacity-70">
+              {isSearching
+                ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <><Search size={20} strokeWidth={3} /> Buscar</>}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── HERO ───────────────────────────────────────────────────────────── */}
+      <main className="relative z-10 w-full max-w-7xl mx-auto px-6 lg:px-12 py-10 lg:py-14">
+        <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
+
+          {/* Text column */}
+          <div className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-left">
+            <span className="hero-item [animation-delay:0ms] inline-flex items-center gap-1.5 bg-white border border-[#FF7031]/20 text-[#FF7031] text-xs font-bold px-4 py-2 rounded-full shadow-sm mb-5">
+              📍 Cuidadores verificados en tu barrio
+            </span>
+            <h1 className="hero-item [animation-delay:80ms] text-4xl lg:text-5xl font-extrabold tracking-tight text-[#120A2B] mb-4 max-w-lg text-balance">
+              Cuidamos a tu perro en{" "}
+              <span className="text-[#FF7031]">hogares de familia</span>, no en jaulas.
+            </h1>
+            <p className="hero-item [animation-delay:160ms] text-base lg:text-lg text-[#6B7280] font-medium max-w-md mb-7 text-pretty">
+              La primera red de cuidadores en tu mismo barrio. Visitamos cada hogar antes de aceptarlo: atención personalizada y cero jaulas.
+            </p>
+            <div className="hero-item [animation-delay:240ms] flex flex-wrap gap-3 justify-center lg:justify-start">
+              {[
+                { icon: <Star size={16} className="text-yellow-500 fill-yellow-500" />, bg: "bg-yellow-50",      stat: "4.9 / 5",       label: "+500 reseñas Google" },
+                { icon: <MapPin size={16} className="text-[#120A2B]" />,               bg: "bg-[#92C0E9]",      stat: "15 Pawwers",     label: "Verificados" },
+                { icon: <ShieldCheck size={16} className="text-[#120A2B]" />,          bg: "bg-[#F7AEF1]",      stat: "Visita a domicilio", label: "En cada hogar" },
+              ].map(({ icon, bg, stat, label }) => (
+                <div key={label} className="flex items-center gap-2.5 bg-white/80 px-4 py-2.5 rounded-2xl border border-gray-100 shadow-sm">
+                  <div className={`w-7 h-7 ${bg} rounded-lg flex items-center justify-center shrink-0`}>
+                    {icon}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-extrabold text-[#120A2B] leading-tight">{stat}</p>
+                    <p className="text-[10px] text-gray-400 font-medium">{label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Hero image with 3D tilt */}
+          <div className="hero-item [animation-delay:200ms] flex-1 relative h-[320px] lg:h-[460px] w-full max-w-sm mx-auto lg:max-w-none">
+            <HeroImage />
+          </div>
+        </div>
+      </main>
+
+      {/* ── ESTO ES PAWWI — Photo marquee ──────────────────────────────────── */}
+      {(() => {
+        const row1 = [
+          { src: "/carousel/02650da6-4f11-4008-8e0b-f28876619d50.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/04284acc-d07b-45d4-9f54-164d9c340321.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/0c57d4f1-a18a-495c-9b92-892e9de04c45.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/0daedfad-0ce4-4086-9e3f-a13959e181f0.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/12c58930-3ee4-49f0-8665-32168c639cb5.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/19686d24-a3b7-4a6b-a87d-d752bdf44a47.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/25888dfa-fd61-4dd8-98c9-78de8c7a22f5.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/2ffa9a61-c209-4426-8860-af7d15e19253.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/61b68ff9-fcc5-4c65-a33d-ee503a5dd8fb.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/79654533-4e79-4da9-98f4-52ddbe830c43.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/81efc07d-0fed-4946-852b-1c8386975504.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/8847ab90-af2f-483c-9f1f-d134ce37e211.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/895cf90e-34d8-4ce5-8f48-dbb305f2c4dd.webp", alt: "Perrito en hogar Pawwi" },
+        ];
+        const row2 = [
+          { src: "/carousel/907922cf-ae1c-4cb7-a168-e81118a57add.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/9e1545b6-210a-446e-b65b-5a6d879ae7ae.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/DSC00097.webp",  alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/DSC00099.webp",  alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/IMG_0723.webp",  alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/IMG_2934.webp",  alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/IMG_4685.webp",  alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/b17eb622-2818-4765-bcf0-cc1103d3c777.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/b632edc8-6e40-433a-b194-6ed4cad24e89.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/d90e5daf-9cd4-4808-81b5-b45b4c2ba8c8.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/dc76e28a-fb9f-48a5-9d9c-f8e4004ea7f7.webp", alt: "Perrito en hogar Pawwi" },
+          { src: "/carousel/fa1868ef-211a-4a8d-9671-1b0a297a8fd3.webp", alt: "Perrito en hogar Pawwi" },
+        ];
+
+        return (
+          <section className="relative z-10 pt-2 pb-10 lg:pb-14">
+            <style>{`
+              @keyframes pawwi-scroll {
+                from { transform: translateX(0); }
+                to   { transform: translateX(-50%); }
+              }
+            `}</style>
+
+            {/* Heading */}
+            <div className="max-w-7xl mx-auto px-6 lg:px-12 mb-8 text-center">
+              <p className="text-xs font-extrabold text-[#92C0E9] tracking-[0.2em] uppercase mb-3">Esto es Pawwi</p>
+              <h2 className="text-2xl lg:text-3xl font-extrabold text-[#120A2B] text-balance">
+                Hogares reales.{" "}
+                <span className="text-[#FF7031]">Perritos felices.</span>
+              </h2>
+              <p className="text-sm text-gray-500 font-medium mt-2">Sin jaulas. Sin estrés. Solo amor y fotos diarias.</p>
+            </div>
+
+            {/* Row 1 — scrolls left */}
+            <div style={{ overflow: "hidden", marginBottom: "12px" }}>
+              <div style={{
+                display: "flex",
+                gap: "12px",
+                width: "max-content",
+                animationName: "pawwi-scroll",
+                animationDuration: "45s",
+                animationTimingFunction: "linear",
+                animationIterationCount: "infinite",
+                animationDirection: "normal",
+              }}>
+                {[...row1, ...row1].map(({ src, alt }, i) => (
+                  <div
+                    key={i}
+                    style={{ flexShrink: 0, borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 12px rgba(18,10,43,0.08)" }}
+                    className={i % 3 === 0 ? "w-48 h-60" : i % 3 === 1 ? "w-56 h-52" : "w-44 h-64"}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt={alt} className="w-full h-full object-cover" draggable={false} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 2 — scrolls right */}
+            <div style={{ overflow: "hidden" }}>
+              <div style={{
+                display: "flex",
+                gap: "12px",
+                width: "max-content",
+                animationName: "pawwi-scroll",
+                animationDuration: "38s",
+                animationTimingFunction: "linear",
+                animationIterationCount: "infinite",
+                animationDirection: "reverse",
+              }}>
+                {[...row2, ...row2].map(({ src, alt }, i) => (
+                  <div
+                    key={i}
+                    style={{ flexShrink: 0, borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 12px rgba(18,10,43,0.08)" }}
+                    className={i % 3 === 0 ? "w-52 h-56" : i % 3 === 1 ? "w-44 h-64" : "w-56 h-52"}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt={alt} className="w-full h-full object-cover" draggable={false} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* ── PAWWERS SECTION ────────────────────────────────────────────────── */}
+      <section className="relative z-10 bg-white rounded-t-[40px] lg:rounded-t-[60px] w-full shadow-[0_-20px_40px_rgba(18,10,43,0.05)]">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+
+          {/* Section header */}
+          <div ref={pawwersSectionRef} className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-12 pb-8">
+            <div>
+              <h2 className="text-3xl lg:text-4xl font-extrabold text-[#120A2B] mb-2 text-balance">
+                Hogares en <span className="text-[#FF7031]">{searchLocation || "Bogotá"}</span> disponibles
+              </h2>
+              <p className="text-[#6B7280] font-medium text-pretty">
+                {filteredPawwers.length} {filteredPawwers.length === 1 ? "hogar verificado" : "hogares verificados"}
+                {searchCoords ? " en Bogotá, del más cercano al más lejano" : " en Bogotá"}.
+              </p>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2 shrink-0 items-center">
+              {["Todos","Daycare","Nightcare","Travel"].map((id) => (
+                <button key={id}
+                  /* Antes se llamaba a `setActiveFilter(id)` aquí Y otra vez
+                     dentro de `handleTabChange`. Se quita la repetición sin
+                     cambiar la semántica: «Todos» NO debe tocar `activeTab`
+                     —eso cambiaría el modo del calendario y el filtro de
+                     disponibilidad—, así que sigue tratándose aparte. */
+                  onClick={() => { if (id === "Todos") setActiveFilter("Todos"); else handleTabChange(id); }}
+                  className={`px-4 py-2 rounded-full text-sm font-bold transition-[background-color,color] duration-150 whitespace-nowrap active:scale-[0.96] ${
+                    activeFilter === id
+                      ? (FILTER_ACTIVE[id] ?? "bg-[#120A2B] text-white")
+                      : "bg-gray-100 text-[#6B7280] hover:bg-gray-200"
+                  }`}>
+                  {id}
+                </button>
+              ))}
+              {/* Siempre montado, para que la fila no cambie de ancho al filtrar. */}
+              <button onClick={clearFilters}
+                aria-hidden={!hasActiveFilters}
+                tabIndex={hasActiveFilters ? 0 : -1}
+                className={`px-4 py-2 rounded-full text-sm font-bold border border-gray-300 text-gray-500 hover:border-red-300 hover:text-red-500 transition-opacity whitespace-nowrap flex items-center gap-1.5
+                  ${hasActiveFilters ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+                <X size={13} /> Limpiar
+              </button>
+            </div>
+          </div>
+
+          {/* Split layout: cards scroll internally | map fixed */}
+          <div className="flex flex-col lg:flex-row gap-6 pb-24 lg:pb-6 lg:h-[86vh]">
+
+            {/* Cards column — hidden on mobile when map is open */}
+            <div ref={cardsContainerRef} className={`w-full lg:w-[62%] lg:h-full lg:overflow-y-auto ${mobileMapOpen ? "hidden lg:block" : "block"}`}>
+            {/* `min-h` es el arreglo del salto al filtrar (bug 4, 2026-09-17).
+                En móvil no hay contenedor con scroll propio —`overflow-y-auto`,
+                `h-full` y `h-[86vh]` están todos gateados a `lg:`— así que las
+                tarjetas viven en el flujo del documento y, a una columna, N
+                tarjetas son N filas. Al filtrar, el documento se acortaba varias
+                pantallas de golpe, el navegador recortaba el scroll y en iOS
+                además se movía la barra de direcciones. Reservando un alto
+                mínimo, filtrar ya no puede encogerlo de golpe.
+
+                Y se quitó el caso especial de UN resultado, que cambiaba la
+                rejilla a `max-w-sm`: las tarjetas cambiaban de ancho y de alto
+                según cuántas sobrevivieran al filtro. */}
+            <div className="grid gap-4 items-start pb-4 min-h-[70vh] lg:min-h-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredPawwers.length === 0 ? (
+                <div className="col-span-full flex flex-col items-center justify-center py-20 text-center">
+                  <p className="text-4xl mb-3">🐾</p>
+                  <p className="font-bold text-[#120A2B] mb-1">Sin resultados</p>
+                  <p className="text-sm text-gray-500">
+                    {availablePawwerIds !== null
+                      ? `Ningún Pawwer disponible para ${fechasLabel}. Prueba otra fecha.`
+                      : "No hay Pawwers con ese servicio. Prueba otro filtro."}
+                  </p>
+                  {(searchCoords || availablePawwerIds !== null) && (
+                    <button onClick={clearFilters} className="mt-4 text-sm font-bold text-[#FF7031] underline underline-offset-2">
+                      Ver todos en Bogotá
+                    </button>
+                  )}
+                </div>
+              ) : filteredPawwers.map((pawwer, i) => (
+                /* La tarjeta ya no se escribe aquí: es `components/PawwerCard`,
+                   la misma que usa /mis-favoritos. Estaba duplicada, y una
+                   tarjeta duplicada se arregla dos veces o se queda coja en una
+                   de las dos pantallas.
+
+                   Y ahora ENTRA: `enter` escalonado hasta la sexta, que es
+                   donde paran los retardos definidos. Sin esto las tarjetas
+                   aparecían de golpe cuando llegaba la consulta. */
+                <PawwerCard
+                  key={pawwer.id}
+                  pawwer={pawwer}
+                  distancia={displayDistance(pawwer)}
+                  selected={selectedPawwerId === pawwer.id}
+                  className={`enter enter-${Math.min(i + 1, 6)}`}
+                  accion={
+                    <button
+                      type="button"
+                      aria-label={favorites.has(pawwer.id) ? `Quitar a ${pawwer.name} de favoritos` : `Guardar a ${pawwer.name} en favoritos`}
+                      onClick={(e) => { void toggleFavorite(pawwer.id, e); }}
+                      className={`w-10 h-10 backdrop-blur-md rounded-full flex items-center justify-center transition-colors active:scale-90
+                        ${favorites.has(pawwer.id) ? "bg-white text-tangerine" : "bg-white/30 text-white hover:bg-white hover:text-tangerine"}`}
+                    >
+                      <Heart size={16} className={favorites.has(pawwer.id) ? "fill-current" : ""} />
+                    </button>
+                  }
+                />
+              ))}
+            </div>
+            </div>
+
+            {/* Map column — always visible on desktop, toggle on mobile */}
+            <div className={`lg:w-[38%] lg:h-full ${mobileMapOpen ? "block h-[70vh]" : "hidden lg:block"}`}>
+              <div className="h-full rounded-[32px] overflow-hidden border border-gray-200 shadow-lg">
+                <MapView
+                  pawwers={mapPawwers}
+                  searchCenter={searchCoords}
+                  selectedId={selectedPawwerId}
+                  onMarkerClick={handleMarkerClick}
+                />
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── MOBILE PAWWER PREVIEW CARD ────────────────────────────────────── */}
+      {mobileMapOpen && selectedPawwer && (
+        <div className="lg:hidden fixed bottom-[88px] left-4 right-4 z-40 animate-slide-up">
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+            <div className="flex gap-3 p-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={selectedPawwer.image} alt={selectedPawwer.name} className="w-28 h-24 rounded-2xl object-cover shrink-0" />
+              <div className="flex-1 min-w-0 py-0.5">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="font-bold text-[#120A2B] leading-tight">{selectedPawwer.name}</h4>
+                  <button onClick={() => setSelectedPawwerId(null)} className="shrink-0 text-gray-300 hover:text-gray-500 transition-colors">
+                    <X size={16} />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                  <MapPin size={11} className="text-[#FF7031] shrink-0" />
+                  <span className="truncate">{selectedPawwer.location}</span>
+                </p>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <Star size={12} className="text-yellow-500 fill-current" />
+                  <span className="text-xs font-bold text-[#120A2B]">{selectedPawwer.rating}</span>
+                  <span className="text-xs text-gray-400">({selectedPawwer.reviews} reseñas)</span>
+                </div>
+              </div>
+            </div>
+            <div className="px-3 pb-3 flex items-center justify-between">
+              <div>
+                <span className="text-xs text-gray-400">desde </span>
+                <span className="font-extrabold text-[#120A2B] text-base">{selectedPawwer.price}</span>
+              </div>
+              <Link href={`/pawwer/${selectedPawwer.id}`}
+                className="bg-[#FF7031] hover:bg-[#e6652c] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors">
+                Ver perfil →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── VER MAPA (móvil) ───────────────────────────────────────────────────
+          Al iniciar sesión, el nav del cliente ocupa el centro inferior y este
+          botón quedaba TAPADO: desaparecía sin una explicación, y con él la
+          única forma de ver el mapa en el móvil — que es el 85% del tráfico.
+
+          Ahora no desaparece: se APARTA. Sube por encima del nav y se va al
+          borde derecho, en una sola transición de `transform` — barata en GPU, y
+          la regla global de `prefers-reduced-motion` la neutraliza sola.
+
+          El desplazamiento se calcula con `calc(50vw - 1.25rem - 100%)`: en un
+          `translate`, el `100%` se refiere al ANCHO DEL PROPIO BOTÓN, así que
+          queda pegado al borde derecho diga lo que diga el texto y mida lo que
+          mida la pantalla. La escala del toque va en un `span` interior porque
+          el `transform` del botón ya está ocupado por el desplazamiento. */}
+      <div className="lg:hidden fixed inset-x-0 bottom-0 h-0 z-30 pointer-events-none">
+        <button
+          onClick={() => setMobileMapOpen(!mobileMapOpen)}
+          aria-label={mobileMapOpen ? "Ver la lista de Pawwers" : "Ver el mapa"}
+          style={{
+            transform: user
+              ? "translate(calc(50vw - 1.25rem - 100%), -7rem)"
+              : "translate(-50%, -1.5rem)",
+          }}
+          className="group pointer-events-auto absolute left-1/2 bottom-0
+                     bg-midnight text-white px-6 py-3.5 rounded-full shadow-2xl font-bold text-sm
+                     transition-transform duration-500 ease-[cubic-bezier(0.2,0,0,1)]"
+        >
+          <span className="flex items-center gap-2 transition-transform group-active:scale-95">
+            {mobileMapOpen ? <><List size={16} /> Ver lista</> : <><MapIcon size={16} /> Ver mapa</>}
+          </span>
+        </button>
+      </div>
+
+      {/* ── TRUST SECTION ─────────────────────────────────────────────────── */}
+      <section className="bg-[#120A2B] text-white py-16 px-6 lg:px-12 relative z-10">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-2xl lg:text-3xl font-extrabold text-center mb-12 text-balance">La tranquilidad de estar en familia</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+            {[
+              { icon: <ShieldCheck size={32} />, color: "text-[#F7AEF1]", title: "100% Verificados",  body: "Cada Pawwer pasa por filtros de seguridad, entrevistas y revisión de su hogar." },
+              { icon: <Star size={32} />,       color: "text-[#FF7031]", title: "Reseñas Reales",   body: "Solo usuarios que han completado reservas pueden dejar comentarios y calificaciones." },
+              { icon: <Heart size={32} />,      color: "text-[#92C0E9]", title: "Fotos y chat",     body: "Habla con tu Pawwer y recibe fotos de tu perro durante el cuidado, todo dentro de Pawwi." },
+            ].map(({ icon, color, title, body }) => (
+              <div key={title} className="flex flex-col items-center">
+                <div className={`w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-4 ${color}`}>{icon}</div>
+                <h3 className="text-xl font-bold mb-2">{title}</h3>
+                <p className="text-gray-400 text-sm max-w-xs">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FOOTER ────────────────────────────────────────────────────────── */}
+      <footer className="bg-white pt-12 pb-8 px-6 lg:px-12 border-t border-gray-100 relative z-10">
+        <div className="max-w-7xl mx-auto flex flex-col items-center gap-8">
+
+          {/* Pawwer CTA — prominente en mobile donde el nav lo oculta */}
+          <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-3 bg-[#FFF1EB] rounded-2xl px-6 py-5">
+            <p className="text-sm font-semibold text-[#4B5563] text-center sm:text-left">
+              ¿Quieres ganar dinero cuidando perritos en tu hogar?
+            </p>
+            <Link
+              href="/pawwer/unirse"
+              className="shrink-0 inline-flex items-center gap-2 bg-[#120A2B] text-white text-sm font-extrabold px-5 py-2.5 rounded-full hover:bg-[#1e1145] transition-colors whitespace-nowrap"
+            >
+              Conviértete en Pawwer →
+            </Link>
+          </div>
+
+          <div className="w-full flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/LogoPawwiCompletoAzul.svg" alt="Pawwi" className="h-6 w-auto" />
+            </div>
+            <div className="flex gap-6 text-sm font-bold text-[#6B7280]">
+              <Link href="/terminos" className="hover:text-[#120A2B]">Términos</Link>
+              <Link href="/privacidad" className="hover:text-[#120A2B]">Privacidad</Link>
+              <Link href="/soporte" className="hover:text-[#120A2B]">Soporte</Link>
+            </div>
+            <p className="text-xs text-gray-400 font-medium">© 2026 Pawwi SAS. Hecho con ❤️ en Bogotá.</p>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+
+    <Suspense fallback={null}>
+      <AuthModal />
+    </Suspense>
+    </APIProvider>
+  );
+}

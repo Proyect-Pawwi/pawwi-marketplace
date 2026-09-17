@@ -9,13 +9,21 @@ import { createClient } from "@/lib/client";
 
 // El nav del cliente NO puede vivir en un route-group (su tab "Explorar" es la
 // raíz `/`, que también sirve páginas públicas, el onboarding del pawwer y las
-// legales). Por eso es un Client Component que se monta una sola vez en el
-// layout raíz y se auto-gatea:
-//   1. pathname exacto contra este allowlist (las sub-rutas y flujos profundos
-//      —/booking, /pawwer, auth, legales, /mis-mascotas— quedan fuera solos).
-//   2. sesión con role='client' (a un pawwer navegando `/` no se le muestra).
-// Se lee la sesión en cliente (no en el layout server-side) para no forzar
-// render dinámico en las páginas estáticas.
+// legales). Por eso se monta una sola vez en el layout raíz y se auto-gatea por
+// pathname exacto contra este allowlist (las sub-rutas y flujos profundos
+// —/booking, /pawwer, auth, legales, /mis-mascotas— quedan fuera solos).
+//
+// El ROL ya no se resuelve aquí: llega por props desde el layout raíz, que lo
+// lee en el servidor (`lib/session.ts`).
+//
+// Antes se leía en cliente «para no forzar render dinámico en las páginas
+// estáticas». El razonamiento era correcto y el precio, inaceptable: eran DOS
+// consultas en serie —`getUser()` y luego el rol, que no puede empezar hasta que
+// vuelve la primera— y mientras tanto el componente devolvía `null`. En un móvil
+// eso son segundos con la pantalla sin nav. Peor: `isClient` era un booleano, así
+// que «todavía no sé» y «no eres cliente» eran el MISMO valor, y el HTML inicial
+// salía siempre sin nav para todo el mundo. Se cambió el ahorro de siete páginas
+// estáticas triviales por un nav que está desde el primer píxel (2026-09-17).
 const CLIENT_TAB_ROOTS = [
   "/",
   "/mis-favoritos",
@@ -60,37 +68,20 @@ function NavTab({
   );
 }
 
-export default function ClientNav() {
+export default function ClientNav({ esCliente }: { esCliente: boolean }) {
   const pathname = usePathname();
-  const [isClient, setIsClient] = useState(false);
+  // Arranca con lo que dijo el SERVIDOR, no en `false`. Esa única diferencia es
+  // la que pone el nav en el HTML inicial.
+  const [visible, setVisible] = useState(esCliente);
   const onTab = CLIENT_TAB_ROOTS.includes(pathname);
 
+  // El servidor manda: si una navegación trae un valor nuevo (cerraste sesión y
+  // el layout se volvió a renderizar), se adopta.
+  useEffect(() => { setVisible(esCliente); }, [esCliente]);
+
   useEffect(() => {
-    // Solo consultamos sesión/rol en las pantallas-tab; en el resto no hacemos nada.
     if (!onTab) return;
     const supabase = createClient();
-    let alive = true;
-
-    async function resolverRol(userId: string | null) {
-      if (!userId) {
-        if (alive) setIsClient(false);
-        return;
-      }
-      const { data: profile } = await supabase
-        .from("profile")
-        .select("role")
-        .eq("id", userId)
-        .maybeSingle();
-      // Cualquier sesión que NO sea pawwer se trata como cliente — así también
-      // cubrimos cuentas viejas con role null/'' (el default 'client' del trigger
-      // solo aplica a registros post-mig 27). Mismo criterio que auth.ts.
-      if (alive) setIsClient(profile?.role !== "pawwer");
-    }
-
-    supabase.auth
-      .getUser()
-      .then(({ data: { user } }) => resolverRol(user?.id ?? null))
-      .catch((e) => console.error("[Pawwi] ClientNav getUser:", e));
 
     // 🔒 NUNCA llamar a supabase.* dentro de este callback.
     //
@@ -103,23 +94,21 @@ export default function ClientNav() {
     // llegar a hacer una sola petición. Eso es lo que dejaba el marketplace
     // vacío al iniciar sesión (2026-09-15).
     //
-    // Por eso: se usa la sesión que el propio callback entrega, y el trabajo se
-    // difiere con setTimeout(0) para que corra ya fuera del candado.
+    // Ahora ni siquiera hace falta consultar: solo se RETIRA el nav al cerrar
+    // sesión (en otra pestaña, o si el token caduca). Encenderlo es cosa del
+    // servidor — entrar hace recarga dura, así que el layout se vuelve a
+    // renderizar con la sesión puesta.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const userId = session?.user?.id ?? null;
-      setTimeout(() => { void resolverRol(userId); }, 0);
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") setVisible(false);
     });
 
-    return () => {
-      alive = false;
-      subscription.unsubscribe();
-    };
-  }, [onTab, pathname]);
+    return () => subscription.unsubscribe();
+  }, [onTab]);
 
   // Solo en pantallas-tab y con sesión de cliente.
-  if (!onTab || !isClient) return null;
+  if (!onTab || !visible) return null;
 
   return (
     <div

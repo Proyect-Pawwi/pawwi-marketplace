@@ -42,6 +42,39 @@ export function PortalTabHeaderSkeleton({ subtitle = false }: { subtitle?: boole
   );
 }
 
+// Header estilo SUB-pantalla: barra superior pegajosa con el hueco del botón de
+// volver y el logo. Es distinto del de pestaña a propósito — si el skeleton no
+// reserva el sitio del volver, el botón «salta» al aparecer.
+export function SubHeaderSkeleton() {
+  return (
+    <header className="bg-white/80 backdrop-blur-xl border-b border-white/50 sticky top-0 z-20 shadow-sm">
+      <div className="max-w-xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full bg-[#120A2B]/10 animate-pulse shrink-0" />
+        <Pulse className="h-4 w-24" />
+      </div>
+    </header>
+  );
+}
+
+// Sub-pantalla completa: barra con volver + N tarjetas.
+export function SubScreenSkeleton({ cards = 2 }: { cards?: number }) {
+  return (
+    <div className="min-h-screen relative font-sans">
+      <SubHeaderSkeleton />
+      <main className="relative z-10 max-w-xl mx-auto px-4 py-8 space-y-5">
+        <div className="flex flex-col items-center gap-3 py-4">
+          <div className="w-20 h-20 rounded-full bg-[#120A2B]/10 animate-pulse" />
+          <Pulse className="h-6 w-52" />
+          <Pulse className="h-3 w-28" />
+        </div>
+        {Array.from({ length: cards }).map((_, i) => (
+          <SkeletonCard key={i} lines={i === 0 ? 3 : 2} />
+        ))}
+      </main>
+    </div>
+  );
+}
+
 // Pantalla-tab completa: header + N tarjetas.
 export default function PortalSkeleton({ cards = 3, subtitle = false }: { cards?: number; subtitle?: boolean }) {
   return (

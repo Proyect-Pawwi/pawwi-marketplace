@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Montserrat, Montserrat_Alternates, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import ClientNav from "@/components/ClientNav";
+import { getSesion } from "@/lib/session";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -48,17 +49,29 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function RootLayout({
+// `async` a propósito: aquí se resuelve la sesión UNA vez, en el servidor, para
+// que el nav inferior del cliente esté en el HTML inicial. Antes `ClientNav`
+// hacía dos consultas EN SERIE desde el navegador (`getUser()` y luego el rol) y
+// devolvía `null` mientras tanto: en el móvil eso son segundos sin nav, y el
+// botón «Ver mapa» ocupando el sitio donde el nav va a aparecer.
+//
+// Coste asumido: leer cookies en el layout raíz vuelve dinámicas las páginas que
+// no usan sesión (/terminos, /privacidad, /soporte y las de auth). Son estáticas
+// triviales; el resto de la app ya era dinámica por el proxy.
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { esCliente } = await getSesion();
+
   return (
     <html lang="es" className={`${montserrat.variable} ${montserratAlt.variable} ${jakartaSans.variable} h-full`}>
       <body className="min-h-full flex flex-col antialiased">
         {children}
-        {/* Nav inferior del cliente — se auto-gatea por ruta + sesión (role='client'). */}
-        <ClientNav />
+        {/* Nav inferior del cliente — el rol ya viene resuelto del servidor; el
+            componente solo se auto-gatea por ruta. */}
+        <ClientNav esCliente={esCliente} />
       </body>
     </html>
   );

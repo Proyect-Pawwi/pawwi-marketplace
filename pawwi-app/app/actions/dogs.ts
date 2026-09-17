@@ -59,7 +59,9 @@ export async function crearMascota(
 
   const { name, breed, size, age, weight_kg, sex, vaccine, notes, photo_url } = validated.data;
 
-  const { error } = await supabase.from("dog").insert({
+  // Se pide el id de vuelta: la pantalla de éxito necesita saber A QUIÉN
+  // celebrar, y sin `.select()` el insert no devuelve nada.
+  const { data: creada, error } = await supabase.from("dog").insert({
     owner_id:  user.id,
     name,
     breed,
@@ -70,10 +72,10 @@ export async function crearMascota(
     vaccine,
     notes:     notes ?? null,
     photo_url: photo_url || null,
-  });
+  }).select("id").single();
 
-  if (error) {
-    console.error("[Pawwi] crearMascota:", error.message);
+  if (error || !creada) {
+    console.error("[Pawwi] crearMascota:", error?.message);
     return { message: "No se pudo guardar la mascota. Intenta de nuevo." };
   }
 
@@ -82,8 +84,13 @@ export async function crearMascota(
   // que agregaba un perro para poder reservar **perdía la reserva** y tenía que
   // rehacer los tres pasos. `safeNext` bloquea el open-redirect, igual que en
   // el registro.
+  //
+  // Ese destino ya no es el final del camino sino el del BOTÓN de la pantalla
+  // de éxito: registrar un peludo es un logro y hasta hoy terminaba en un salto
+  // mudo a la lista, sin una señal de que hubiera salido bien.
+  const destino = safeNext(formData.get("back"), "/mis-mascotas");
   revalidatePath("/mis-mascotas");
-  redirect(safeNext(formData.get("back"), "/mis-mascotas"));
+  redirect(`/mascota-agregada/${creada.id}?next=${encodeURIComponent(destino)}`);
 }
 
 export async function eliminarMascota(dogId: string): Promise<void> {

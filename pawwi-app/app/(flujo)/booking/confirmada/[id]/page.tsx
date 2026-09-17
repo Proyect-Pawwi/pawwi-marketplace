@@ -2,11 +2,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/server";
-import { CheckCircle2, MessageCircle, ArrowRight, CreditCard } from "lucide-react";
+import { CheckCircle2, MessageCircle, ArrowRight, CreditCard, Radar } from "lucide-react";
 import BookingActions from "./BookingActions";
 import PagarReserva from "./PagarReserva";
 import TicketCard, { TicketGrid } from "@/components/TicketCard";
 import BackButton from "@/components/BackButton";
+import { Confetti, PulseRings } from "@/components/SuccessStage";
 
 export const metadata: Metadata = { title: "Tu reserva — Pawwi" };
 
@@ -59,7 +60,7 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
     .from("booking")
     .select(`
       id, start_date, end_date, total, status_id, created_at,
-      charged_at, payment_due_at,
+      charged_at, payment_due_at, search_phase,
       service_type!fk_booking_service_type ( name ),
       pawwer!fk_booking_pawwer (
         id,
@@ -92,9 +93,21 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
   const ref          = `PWW-${id.slice(0, 8).toUpperCase()}`;
   const hero =
     porPagar             ? { icon: "pago", title: `${pawwerName} aceptó` } :
-    b.status_id === 1    ? { icon: "ok",   title: "¡Solicitud enviada!" } :
+    // Pendiente de aceptación llevaba un CHECK VERDE, que se lee como «listo»
+    // cuando en realidad nadie ha tomado la reserva todavía. El sello de
+    // búsqueda dice la verdad: está pasando algo, pero no ha terminado.
+    b.status_id === 1    ? {
+      icon: "buscando",
+      title: (b.search_phase as number ?? 1) >= 2 ? "Buscando a tu Pawwer" : "¡Solicitud enviada!",
+    } :
     b.status_id === 2    ? { icon: "ok",   title: "Reserva confirmada" } :
                            { icon: "ok",   title: status.label };
+
+  // Qué se ha ganado esta pantalla: el confeti solo sale cuando el dinero entró
+  // y la reserva quedó confirmada. Lo demás avanza, pero no termina.
+  const celebra   = b.status_id === 2 && !!b.charged_at;
+  const buscando  = b.status_id === 1;
+  const conSello  = celebra || porPagar || buscando;
 
   // ¿ya calificó este cuidado? (para mostrar/ocultar el formulario de reseña)
   const { data: reviewRow } = await supabase
@@ -118,12 +131,31 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
 
       <main className="relative z-10 max-w-xl mx-auto px-4 py-8 space-y-5">
 
-        {/* Hero */}
-        <div className="text-center py-4">
-          <div className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center shadow-[0_12px_32px_rgba(18,10,43,0.08)] mb-4">
-            {hero.icon === "pago"
-              ? <CreditCard size={36} className="text-[#FF7031]" />
-              : <CheckCircle2 size={40} className="text-green-500" />}
+        {/* Hero — celebración GRADUADA.
+            Confeti y anillos verdes son un «ya está»: solo se los gana la
+            reserva pagada y confirmada. Una solicitud enviada, o una aceptación
+            a la que aún le falta tu pago, son buenas noticias pero no finales:
+            llevan el sello con rebote y anillos, sin confeti. Y una cancelada o
+            vencida no celebra nada — animar una mala noticia es burlarse. */}
+        <div className="text-center py-4 relative overflow-hidden enter enter-1">
+          {celebra && <Confetti />}
+          <div className={`relative w-20 h-20 mx-auto mb-4 flex items-center justify-center ${conSello ? "pop-in" : ""}`}>
+            {conSello && (
+              <PulseRings
+                className={
+                  celebra            ? "border-success"
+                  : buscando         ? "border-tangerine"
+                  :                    "border-plum"
+                }
+              />
+            )}
+            <div className="relative z-10 w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-[0_12px_32px_rgba(18,10,43,0.08)]">
+              {hero.icon === "pago"
+                ? <CreditCard size={36} className="text-tangerine" />
+                : hero.icon === "buscando"
+                ? <Radar size={38} className="text-tangerine" />
+                : <CheckCircle2 size={40} className="text-green-500" />}
+            </div>
           </div>
           <h1 className="text-2xl font-extrabold text-[#120A2B] mb-1">{hero.title}</h1>
           <p className="text-sm text-[#120A2B]/50">
@@ -132,13 +164,14 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
         </div>
 
         {/* Status */}
-        <div className={`border rounded-[20px] px-4 py-3 flex items-center gap-2 ${status.bg}`}>
-          <div className={`w-2 h-2 rounded-full ${status.dot} shrink-0`} />
+        <div className={`enter enter-2 border rounded-[20px] px-4 py-3 flex items-center gap-2 ${status.bg}`}>
+          <div className={`w-2 h-2 rounded-full ${status.dot} shrink-0 ${buscando ? "animate-pulse" : ""}`} />
           <span className={`text-sm font-bold ${status.color}`}>{status.label}</span>
         </div>
 
         {/* El pago — solo cuando el Pawwer ya aceptó (no se cobra nada antes) */}
         {porPagar && (
+          <div className="enter enter-3">
           <PagarReserva
             bookingId={id}
             total={Number(b.total)}
@@ -146,12 +179,14 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
             pawwerName={pawwerName}
             volvioDeBold={volvioDeBold}
           />
+          </div>
         )}
 
         {/* La reserva como BILLETE. Antes eran dos tarjetas —«Tu Pawwer» y
             «Detalles»— con el total suelto al final de la segunda. Una reserva
             tiene titular, trayecto, hora e importe: es un billete, y las muescas
             lo dicen sin una palabra. Viene del diseño `21_ready_ticket`. */}
+        <div className="enter enter-4">
         <TicketCard
           footerLabel={b.charged_at ? "Total pagado" : "Total a pagar"}
           footerValue={fmtCOP(b.total)}
@@ -203,6 +238,7 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
             ]}
           />
         </TicketCard>
+        </div>
 
         {/* Acciones del cliente: reseña (completada) / cancelar (antes de iniciar) */}
         <BookingActions
@@ -214,8 +250,8 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
 
         {/* What's next — solo mientras está pendiente de aceptación */}
         {b.status_id === 1 && (
-          <div className="bg-white rounded-[24px] shadow-[0_10px_30px_rgba(18,10,43,0.06)] p-4">
-            <p className="text-[10px] font-extrabold text-[#120A2B]/40 uppercase tracking-widest mb-3">¿Qué sigue?</p>
+          <div className="enter enter-6 bg-white rounded-[24px] shadow-card p-4">
+            <p className="text-[10px] font-extrabold text-midnight/40 uppercase tracking-widest mb-3">¿Qué sigue?</p>
             <ol className="space-y-3">
               {[
                 "Tu Pawwer tiene hasta 1 hora para aceptar tu solicitud.",
@@ -223,10 +259,10 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
                 "Cuando alguien acepte, aparece aquí y en tus reservas, y tienes 2 horas para pagar. No se te cobra nada antes.",
               ].map((step, i) => (
                 <li key={i} className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full bg-[#FFF1EB] text-[#FF7031] text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="w-6 h-6 rounded-full bg-cream text-tangerine text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5">
                     {i + 1}
                   </span>
-                  <p className="text-sm text-[#120A2B]/60 leading-relaxed">{step}</p>
+                  <p className="text-sm text-midnight/60 leading-relaxed">{step}</p>
                 </li>
               ))}
             </ol>

@@ -33,37 +33,37 @@ export default async function MiPerfilPage() {
   return (
     <div className="relative">
 
-      {/* Header */}
-      <header className="relative z-10 max-w-xl mx-auto px-6 pt-12 pb-4">
-        <p className="eyebrow text-[#FF7031]">Mi cuenta</p>
-        <h1 className="text-3xl font-black text-[#120A2B] mt-1">Perfil</h1>
+      {/* Header (pantalla-tab: sin "volver") */}
+      <header className="enter enter-1 relative z-10 max-w-xl mx-auto px-6 pt-12 pb-4">
+        <p className="eyebrow text-tangerine">Mi cuenta</p>
+        <h1 className="text-3xl font-black text-midnight mt-1">Perfil</h1>
       </header>
 
       <main className="relative z-10 max-w-xl mx-auto px-6 pt-2 space-y-5">
         {/* Tarjeta de identidad */}
-        <div className="bg-white rounded-[28px] border border-white shadow-[0_12px_30px_rgba(18,10,43,0.05)] p-5 flex items-center gap-4">
+        <div className="enter enter-2 bg-white rounded-card border border-white shadow-card p-5 flex items-center gap-4">
           {avatar ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={avatar} alt={name} className="w-16 h-16 rounded-full object-cover shrink-0" />
           ) : (
-            <div className="w-16 h-16 rounded-full bg-[#120A2B] flex items-center justify-center text-white shrink-0">
+            <div className="w-16 h-16 rounded-full bg-midnight flex items-center justify-center text-white shrink-0">
               <UserIcon size={26} />
             </div>
           )}
           <div className="min-w-0">
-            <p className="font-extrabold text-[#120A2B] truncate">{name}</p>
-            {email && <p className="text-sm text-[#120A2B]/45 truncate">{email}</p>}
+            <p className="font-extrabold text-midnight truncate">{name}</p>
+            {email && <p className="text-sm text-midnight/45 truncate">{email}</p>}
           </div>
         </div>
 
         {/* Mis peludos (Pasaporte Pawwi vive aquí dentro) */}
-        <Section title="Mis peludos">
+        <Section title="Mis peludos" delay={3}>
           <RowLink href="/mis-mascotas" icon={<Dog size={18} />} title="Mis mascotas"
             subtitle="Ficha y Pasaporte de tu perro" />
         </Section>
 
         {/* Pagos y facturación — placeholders de fases futuras */}
-        <Section title="Pagos">
+        <Section title="Pagos" delay={4}>
           <RowSoon icon={<CreditCard size={18} />} title="Métodos de pago"
             subtitle="Tarjeta / Wompi" />
           <RowSoon icon={<FileText size={18} />} title="Facturación"
@@ -73,7 +73,7 @@ export default async function MiPerfilPage() {
         </Section>
 
         {/* Cuenta */}
-        <Section title="Cuenta">
+        <Section title="Cuenta" delay={5}>
           <RowLink href="/soporte" icon={<LifeBuoy size={18} />} title="Soporte" />
           <form action={cerrarSesionCliente}>
             <button
@@ -92,11 +92,13 @@ export default async function MiPerfilPage() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title, children, delay,
+}: { title: string; children: React.ReactNode; delay: number }) {
   return (
-    <section>
-      <p className="eyebrow text-[#120A2B]/40 px-2 mb-2">{title}</p>
-      <div className="bg-white rounded-[24px] border border-white shadow-[0_12px_30px_rgba(18,10,43,0.05)] overflow-hidden divide-y divide-[#120A2B]/5">
+    <section className={`enter enter-${delay}`}>
+      <p className="eyebrow text-midnight/40 px-2 mb-2">{title}</p>
+      <div className="bg-white rounded-[24px] border border-white shadow-card overflow-hidden divide-y divide-midnight/5">
         {children}
       </div>
     </section>
@@ -109,15 +111,15 @@ function RowLink({
   href: string; icon: React.ReactNode; title: string; subtitle?: string;
 }) {
   return (
-    <Link href={href} className="flex items-center gap-3 px-4 py-3.5 hover:bg-[#FFF1EB]/60 transition-colors">
-      <span className="w-9 h-9 rounded-xl bg-[#FFF1EB] text-[#FF7031] flex items-center justify-center shrink-0">
+    <Link href={href} className="flex items-center gap-3 px-4 py-3.5 hover:bg-cream/60 transition-colors">
+      <span className="w-9 h-9 rounded-xl bg-cream text-tangerine flex items-center justify-center shrink-0">
         {icon}
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block font-bold text-[#120A2B] text-sm truncate">{title}</span>
-        {subtitle && <span className="block text-xs text-[#120A2B]/40 truncate">{subtitle}</span>}
+        <span className="block font-bold text-midnight text-sm truncate">{title}</span>
+        {subtitle && <span className="block text-xs text-midnight/40 truncate">{subtitle}</span>}
       </span>
-      <ChevronRight size={16} className="text-[#120A2B]/20 shrink-0" />
+      <ChevronRight size={16} className="text-midnight/20 shrink-0" />
     </Link>
   );
 }
@@ -130,14 +132,14 @@ function RowSoon({
 }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3.5 opacity-60">
-      <span className="w-9 h-9 rounded-xl bg-[#120A2B]/5 text-[#120A2B]/40 flex items-center justify-center shrink-0">
+      <span className="w-9 h-9 rounded-xl bg-midnight/5 text-midnight/40 flex items-center justify-center shrink-0">
         {icon}
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block font-bold text-[#120A2B]/70 text-sm truncate">{title}</span>
-        {subtitle && <span className="block text-xs text-[#120A2B]/35 truncate">{subtitle}</span>}
+        <span className="block font-bold text-midnight/70 text-sm truncate">{title}</span>
+        {subtitle && <span className="block text-xs text-midnight/35 truncate">{subtitle}</span>}
       </span>
-      <span className="text-[10px] font-black uppercase tracking-widest text-[#120A2B]/30 shrink-0">Pronto</span>
+      <span className="text-[10px] font-black uppercase tracking-widest text-midnight/30 shrink-0">Pronto</span>
     </div>
   );
 }

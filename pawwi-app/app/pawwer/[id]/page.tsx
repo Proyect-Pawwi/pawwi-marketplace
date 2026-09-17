@@ -2,11 +2,12 @@
 
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
+import BackButton from "@/components/BackButton";
 import { createClient } from "@/lib/client";
 import { usePresence, PresenceDot, presenceLabel } from "@/components/Presence";
 import { LEVEL_META, asLevel, type Level } from "@/lib/levels";
 import {
-  ArrowLeft, Share, ShieldCheck, Star,
+  Share, ShieldCheck, Star,
   ChevronLeft, ChevronRight, Check, Clock,
   ChevronDown, ChevronUp, Briefcase, PawPrint,
   Sun, Moon, Plane, Cat, Home as HomeIcon, TreePine, ShieldAlert, Car,
@@ -744,9 +745,12 @@ function PawwerProfileUI({ pawwer }: { pawwer: PawwerData }) {
       {/* Nav */}
       <nav className="bg-white/80 backdrop-blur-xl border-b border-white/50 sticky top-0 z-50 px-5 md:px-6 lg:px-10 py-3.5 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-3">
-          <Link href="/" className="w-9 h-9 flex items-center justify-center hover:bg-white bg-white/60 border border-white/80 rounded-full transition-colors shadow-sm">
-            <ArrowLeft size={18} />
-          </Link>
+          {/* Era un `Link href="/"` fijo: si llegabas desde favoritos o desde
+              el detalle de una reserva, el volver te sacaba al home en vez de
+              devolverte a donde estabas. `BackButton` respeta el camino real y
+              cae al home solo cuando no hay historial (enlace de correo,
+              pestaña nueva). */}
+          <BackButton fallback="/" />
           <img src="/LogoPawwiCompleteOrange.svg" alt="Pawwi" className="hidden md:block h-5 w-auto" />
         </div>
         <button className="flex items-center gap-1.5 px-4 py-2 bg-white/60 hover:bg-white border border-white rounded-full transition-colors shadow-sm text-sm font-semibold">

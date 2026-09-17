@@ -18,29 +18,29 @@ export default async function MisMensajesPage() {
   return (
     <div className="relative">
 
-      {/* Header (pantalla-tab) */}
-      <header className="relative z-10 max-w-xl mx-auto px-6 pt-12 pb-4">
-        <p className="eyebrow text-[#FF7031]">Conversaciones</p>
+      {/* Header (pantalla-tab: sin "volver") */}
+      <header className="enter enter-1 relative z-10 max-w-xl mx-auto px-6 pt-12 pb-4">
+        <p className="eyebrow text-tangerine">Conversaciones</p>
         <div className="flex items-end justify-between gap-3 mt-1">
-          <h1 className="text-3xl font-black text-[#120A2B]">Mensajes</h1>
-          <div className="w-11 h-11 rounded-2xl bg-white shadow-[0_8px_24px_rgba(18,10,43,0.06)] flex items-center justify-center shrink-0">
-            <MessageCircle size={20} className="text-[#FF7031]" />
+          <h1 className="text-3xl font-black text-midnight">Mensajes</h1>
+          <div className="w-11 h-11 rounded-2xl bg-white shadow-card flex items-center justify-center shrink-0">
+            <MessageCircle size={20} className="text-tangerine" />
           </div>
         </div>
       </header>
 
       <main className="relative z-10 max-w-xl mx-auto px-6 pt-6">
-        <div className="bg-white rounded-[28px] border border-white shadow-[0_12px_30px_rgba(18,10,43,0.05)] p-10 text-center">
-          <div className="w-20 h-20 bg-[#FFF1EB] rounded-full flex items-center justify-center mx-auto mb-4">
-            <MessageCircle size={34} className="text-[#FF7031]/40" />
+        <div className="enter enter-2 bg-white rounded-card border border-white shadow-card p-10 text-center">
+          <div className="w-20 h-20 bg-cream rounded-full flex items-center justify-center mx-auto mb-4">
+            <MessageCircle size={34} className="text-tangerine/40" />
           </div>
-          <p className="font-extrabold text-[#120A2B] mb-1">Aún no tienes conversaciones</p>
-          <p className="text-sm text-[#120A2B]/45 mb-6">
+          <p className="font-extrabold text-midnight mb-1">Aún no tienes conversaciones</p>
+          <p className="text-sm text-midnight/45 mb-6">
             Cuando reserves un cuidado, aquí podrás chatear con tu Pawwer y ver cómo está tu peludo.
           </p>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 bg-[#FF7031] text-white font-bold px-6 py-3 rounded-full text-sm hover:bg-[#e6652c] transition-colors shadow-[0_4px_12px_rgba(255,112,49,0.3)]"
+            className="inline-flex items-center gap-2 bg-tangerine text-white font-bold px-6 py-3 rounded-full text-sm hover:bg-[#e6652c] transition-colors shadow-[0_4px_12px_rgba(255,112,49,0.3)]"
           >
             <Search size={15} /> Explorar Pawwers
           </Link>

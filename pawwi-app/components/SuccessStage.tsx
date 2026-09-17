@@ -23,6 +23,26 @@ const CONFETTI = [
   { left: "84%", color: "bg-rose",      delay: "0.35s" },
 ];
 
+/**
+ * El confeti, suelto, para pantallas que celebran sin ser un `SuccessStage`
+ * entero (el detalle de una reserva ya pagada, por ejemplo). El contenedor debe
+ * ser `relative` y, normalmente, `overflow-hidden`.
+ */
+export function Confetti() {
+  return (
+    <>
+      {CONFETTI.map((c, i) => (
+        <span
+          key={i}
+          aria-hidden
+          className={`confetti-fall absolute top-0 w-2 h-2 rounded-[2px] ${c.color} z-20`}
+          style={{ left: c.left, animationDelay: c.delay }}
+        />
+      ))}
+    </>
+  );
+}
+
 export function PulseRings({ className = "border-plum" }: { className?: string }) {
   return (
     <>
