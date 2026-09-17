@@ -6,6 +6,7 @@ import { CheckCircle2, MessageCircle, ArrowRight, CreditCard } from "lucide-reac
 import BookingActions from "./BookingActions";
 import PagarReserva from "./PagarReserva";
 import TicketCard, { TicketGrid } from "@/components/TicketCard";
+import BackButton from "@/components/BackButton";
 
 export const metadata: Metadata = { title: "Tu reserva — Pawwi" };
 
@@ -104,8 +105,13 @@ export default async function BookingConfirmadaPage({ params, searchParams }: Pr
     <div className="relative">
 
       {/* Header */}
+      {/* Es una SUB-pantalla de «Mis reservas»: aquí el volver SÍ tiene destino.
+          No lo tenía, así que desde el detalle solo se salía por el botón del
+          navegador. Las pestañas, en cambio, no lo llevan: no hay a dónde. */}
       <header className="bg-white/80 backdrop-blur-xl border-b border-white/50 sticky top-0 z-20 shadow-sm">
         <div className="max-w-xl mx-auto px-4 py-3 flex items-center gap-3">
+          <BackButton fallback="/mis-reservas" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/LogoPawwiCompleteOrange.svg" alt="Pawwi" className="h-6 w-auto" />
         </div>
       </header>

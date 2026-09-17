@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/server";
 import { safeNext } from "@/lib/safe-redirect";
 
@@ -81,6 +82,7 @@ export async function crearMascota(
   // que agregaba un perro para poder reservar **perdía la reserva** y tenía que
   // rehacer los tres pasos. `safeNext` bloquea el open-redirect, igual que en
   // el registro.
+  revalidatePath("/mis-mascotas");
   redirect(safeNext(formData.get("back"), "/mis-mascotas"));
 }
 
@@ -89,6 +91,20 @@ export async function eliminarMascota(dogId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
-  await supabase.from("dog").delete().eq("id", dogId).eq("owner_id", user.id);
+  // El `.eq("owner_id", …)` no es decorativo: sin él, un id ajeno borraría la
+  // mascota de otro. La RLS ya lo impediría, pero la defensa va en las dos capas.
+  const { error } = await supabase
+    .from("dog").delete().eq("id", dogId).eq("owner_id", user.id);
+
+  // El error se DESCARTABA. Si el borrado fallaba, la acción redirigía igual y
+  // el perro seguía ahí: el cliente veía «no pasa nada» sin una sola pista.
+  if (error) {
+    console.error("[Pawwi] eliminarMascota:", error.message, error.details);
+    return;
+  }
+
+  // Y faltaba esto. Sin invalidar, el redirect va a la MISMA ruta y el router
+  // puede servir la lista cacheada — con el perro recién borrado todavía dentro.
+  revalidatePath("/mis-mascotas");
   redirect("/mis-mascotas");
 }

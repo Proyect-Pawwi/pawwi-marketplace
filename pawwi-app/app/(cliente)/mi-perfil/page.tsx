@@ -7,7 +7,6 @@ import {
   Dog, CreditCard, FileText, LifeBuoy, ShieldCheck, LogOut,
   ChevronRight, User as UserIcon,
 } from "lucide-react";
-import BackButton from "@/components/BackButton";
 
 export const metadata: Metadata = { title: "Mi perfil — Pawwi" };
 
@@ -36,7 +35,6 @@ export default async function MiPerfilPage() {
 
       {/* Header */}
       <header className="relative z-10 max-w-xl mx-auto px-6 pt-12 pb-4">
-        <div className="mb-4"><BackButton /></div>
         <p className="eyebrow text-[#FF7031]">Mi cuenta</p>
         <h1 className="text-3xl font-black text-[#120A2B] mt-1">Perfil</h1>
       </header>

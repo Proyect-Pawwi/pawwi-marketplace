@@ -3,7 +3,6 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/server";
 import { Heart, Search } from "lucide-react";
-import BackButton from "@/components/BackButton";
 
 export const metadata: Metadata = { title: "Favoritos — Pawwi" };
 
@@ -22,7 +21,6 @@ export default async function MisFavoritosPage() {
 
       {/* Header (pantalla-tab: sin "volver") */}
       <header className="relative z-10 max-w-xl mx-auto px-6 pt-12 pb-4">
-        <div className="mb-4"><BackButton /></div>
         <p className="eyebrow text-[#FF7031]">Guardados</p>
         <div className="flex items-end justify-between gap-3 mt-1">
           <h1 className="text-3xl font-black text-[#120A2B]">Favoritos</h1>
